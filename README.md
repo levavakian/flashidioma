@@ -325,9 +325,9 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] "Hydrate" button on verb cards (new and existing)
 - [x] Error handling for LLM failures (network, auth, rate limits)
 - **Tests:**
-  - [ ] Unit (MSW): Anthropic API client — mock a successful response, verify parsed output matches expected conjugation/sentence format
-  - [ ] Unit (MSW): OpenAI API client — same as above for OpenAI endpoint format
-  - [ ] Unit (MSW): API client error handling — 401 (bad key), 429 (rate limit), network error — each produces a user-friendly error, no crash
+  - [x] Unit (MSW): Anthropic API client — mock a successful response, verify parsed output matches expected conjugation/sentence format
+  - [x] Unit (MSW): OpenAI API client — same as above for OpenAI endpoint format
+  - [x] Unit (MSW): API client error handling — 401 (bad key), 429 (rate limit), network error — each produces a user-friendly error, no crash
   - [ ] Component: settings UI — entering and saving API key persists it; changing provider updates the UI; clearing key removes it from storage
   - [ ] Component: hydrate button — clicking it with mock LLM response populates conjugation data on the card; clicking it when offline shows appropriate error
   - [ ] Integration (MSW): full hydration flow — add a verb card without conjugation data, click hydrate, mock LLM response, verify conjugation section populates and persists across page reload
@@ -339,8 +339,8 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Persist checklist state per deck
 - **Tests:**
   - [ ] Unit: construct filtering — with only present tense enabled, a verb card's review only tests present tense forms; enabling preterite adds preterite forms to the review pool
-  - [ ] Unit: non-verb cards are unaffected by construct checklist
-  - [ ] Unit: checklist state persists per deck — deck A can have different enabled constructs than deck B
+  - [x] Unit: non-verb cards are unaffected by construct checklist
+  - [x] Unit: checklist state persists per deck — deck A can have different enabled constructs than deck B
   - [ ] Component: checklist UI — toggling a construct on/off updates the stored state; review queue changes accordingly
   - [ ] E2E: create a deck with verb cards, enable only present tense, start review, verify only present tense forms appear; enable imperfect, verify imperfect forms now also appear
 
