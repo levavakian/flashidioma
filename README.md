@@ -300,7 +300,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [x] Unit: preprocessing script — run on a small subset of the real data files, verify output JSON has correct structure (frequency order, POS tags, translations, conjugation tables)
   - [x] Unit: preprocessing script — verify known verbs (ser, estar, tener) have complete conjugation tables in output
   - [ ] Unit: preprocessing script — verify output is deterministic (same input → same output)
-  - [ ] Component: importable decks tab shows available pre-built decks; importing adds cards to a user deck; importing twice does not create duplicates
+  - [x] Component: importable decks tab shows available pre-built decks; importing adds cards to a user deck; importing twice does not create duplicates
   - [ ] Integration: full pipeline — run preprocessing, build app, verify the artifact is loadable and importable in the running app
 
 ### Phase 7: Verb Conjugation System
@@ -352,9 +352,9 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Convert practice sentence to permanent flashcard
 - [x] Scope generation to per-deck vocabulary and construct settings
 - **Tests:**
-  - [ ] Unit: vocab selector — only selects from reviewed words, not unreviewed; only selects from enabled constructs; respects None probability (run many times, verify None appears at roughly the configured rate)
-  - [ ] Unit: vocab selector — with no reviewed words, returns empty/error (not a crash)
-  - [ ] Unit: vocab selector — with only one reviewed verb and one tense enabled, always selects that combination
+  - [x] Unit: vocab selector — only selects from reviewed words, not unreviewed; only selects from enabled constructs; respects None probability (run many times, verify None appears at roughly the configured rate)
+  - [x] Unit: vocab selector — with no reviewed words, returns empty/error (not a crash)
+  - [x] Unit: vocab selector — with only one reviewed verb and one tense enabled, always selects that combination
   - [ ] Component (MSW): practice tab — click generate, mock LLM response, verify sentences display with translations; sentences persist after navigating away and back; clicking regenerate replaces them
   - [x] Component: convert to flashcard — click the convert button on a practice sentence, verify a new card is created in the deck with correct front/back text
   - [ ] E2E: full flow — add and review some vocab, generate practice sentences, convert one to a card, verify it appears in the deck
