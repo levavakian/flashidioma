@@ -26,7 +26,11 @@ Claude Code runs inside a Docker dev container. The container is defined by `Doc
 - **Build:** `./build.sh` builds the Docker image.
 - **Run:** `ANTHROPIC_API_KEY=<key> ./run.sh` starts the container and drops into a shell. The project directory is mounted at `/app` with UID/GID matching so file edits don't cause permission issues.
 - **Dev dependencies** (npm packages, etc.) should be managed by the project's package manager (npm) and installed at runtime via `npm install`. The Dockerfile should only be updated for **system-level** dependencies (e.g. new OS packages, global CLI tools). If a new system dependency is added, prompt the user to rebuild the Docker image with `./build.sh`.
-- **Git access:** The container has `git` and can clone/fetch public repos (e.g. `doozan/spanish_data`, this repo). There are **no SSH keys** in the container — the user handles `git push` from outside the Docker. Do not attempt to push.
+- **Git access:** The container has `git` and SSH keys configured, so you can push directly to origin. After making significant changes, push and verify the deployed GitHub Pages site at `https://levavakian.github.io/flashidioma/`.
+
+## Deployment
+
+The app is deployed to GitHub Pages via a GitHub Actions workflow (`.github/workflows/deploy.yml`). On every push to `main`, the workflow runs `npm ci && npm run build` and deploys the `dist/` directory. The live site is at `https://levavakian.github.io/flashidioma/`.
 
 ## Spanish Data Dependency
 

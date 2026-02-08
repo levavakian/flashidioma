@@ -195,6 +195,12 @@ The project directory is bind-mounted into the container at `/app` with host UID
 
 **When to rebuild the Docker image:** only when `Dockerfile` changes (e.g. new system-level packages). Day-to-day dependency changes via `npm install` do not require a rebuild.
 
+**Git access:** The container has SSH keys configured and can push directly to origin.
+
+## Deployment
+
+The app is deployed to GitHub Pages via GitHub Actions. On every push to `main`, the workflow (`.github/workflows/deploy.yml`) builds the app and deploys the `dist/` directory. The live site is at `https://levavakian.github.io/flashidioma/`.
+
 ## Build & Preprocessing
 
 1. **Preprocessing script:** fetches data from `doozan/spanish_data@2026-02-01`, combines `frequency.csv` + `es-en.data` + `es_allforms.csv`, and outputs a JSON artifact containing:
@@ -298,11 +304,11 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [ ] Integration: full pipeline — run preprocessing, build app, verify the artifact is loadable and importable in the running app
 
 ### Phase 7: Verb Conjugation System
-- [ ] Define language-agnostic conjugation data structure (tenses, persons, forms)
-- [ ] Spanish conjugation module (tense list, person list, compound tense definitions)
-- [ ] Conjugation display UI (collapsed by default, expandable per tense)
-- [ ] Mini translations per conjugation form
-- [ ] Tense usage descriptions (e.g. preterite vs imperfect)
+- [x] Define language-agnostic conjugation data structure (tenses, persons, forms)
+- [x] Spanish conjugation module (tense list, person list, compound tense definitions)
+- [x] Conjugation display UI (collapsed by default, expandable per tense)
+- [x] Mini translations per conjugation form
+- [x] Tense usage descriptions (e.g. preterite vs imperfect)
 - [ ] Static conjugation DB lookup for known verbs
 - **Tests:**
   - [ ] Unit: conjugation data structure validates correctly — all required tenses and persons present for a well-formed entry
@@ -312,12 +318,12 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [ ] Component: conjugation section is collapsed by default; clicking expands a tense; each form shows mini translation; tense descriptions are visible
 
 ### Phase 8: LLM Integration
-- [ ] Settings UI for LLM config (provider selector, API key input, model text field)
-- [ ] LLM API client (support Anthropic and OpenAI endpoint formats)
-- [ ] Secure local storage of API keys
-- [ ] Conjugation hydration via LLM (for verbs not in static DB)
-- [ ] "Hydrate" button on verb cards (new and existing)
-- [ ] Error handling for LLM failures (network, auth, rate limits)
+- [x] Settings UI for LLM config (provider selector, API key input, model text field)
+- [x] LLM API client (support Anthropic and OpenAI endpoint formats)
+- [x] Secure local storage of API keys
+- [x] Conjugation hydration via LLM (for verbs not in static DB)
+- [x] "Hydrate" button on verb cards (new and existing)
+- [x] Error handling for LLM failures (network, auth, rate limits)
 - **Tests:**
   - [ ] Unit (MSW): Anthropic API client — mock a successful response, verify parsed output matches expected conjugation/sentence format
   - [ ] Unit (MSW): OpenAI API client — same as above for OpenAI endpoint format
@@ -327,10 +333,10 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [ ] Integration (MSW): full hydration flow — add a verb card without conjugation data, click hydrate, mock LLM response, verify conjugation section populates and persists across page reload
 
 ### Phase 9: Construct Checklist
-- [ ] Define construct types per language (Spanish: tenses, moods)
-- [ ] Per-deck construct checklist UI (toggle which constructs are enabled)
+- [x] Define construct types per language (Spanish: tenses, moods)
+- [x] Per-deck construct checklist UI (toggle which constructs are enabled)
 - [ ] Filter review cards by enabled constructs (verb cards only show enabled tenses)
-- [ ] Persist checklist state per deck
+- [x] Persist checklist state per deck
 - **Tests:**
   - [ ] Unit: construct filtering — with only present tense enabled, a verb card's review only tests present tense forms; enabling preterite adds preterite forms to the review pool
   - [ ] Unit: non-verb cards are unaffected by construct checklist
@@ -339,12 +345,12 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [ ] E2E: create a deck with verb cards, enable only present tense, start review, verify only present tense forms appear; enable imperfect, verify imperfect forms now also appear
 
 ### Phase 10: Practice Sentence Generation
-- [ ] Programmatic vocab/construct selector (random verb, adjective, tense from reviewed pool + enabled constructs, with configurable None probabilities)
-- [ ] LLM prompt for sentence generation with selected components
-- [ ] Practice sentences tab UI (display generated sentences, show translations)
-- [ ] Sentences persist until user clicks regenerate
-- [ ] Convert practice sentence to permanent flashcard
-- [ ] Scope generation to per-deck vocabulary and construct settings
+- [x] Programmatic vocab/construct selector (random verb, adjective, tense from reviewed pool + enabled constructs, with configurable None probabilities)
+- [x] LLM prompt for sentence generation with selected components
+- [x] Practice sentences tab UI (display generated sentences, show translations)
+- [x] Sentences persist until user clicks regenerate
+- [x] Convert practice sentence to permanent flashcard
+- [x] Scope generation to per-deck vocabulary and construct settings
 - **Tests:**
   - [ ] Unit: vocab selector — only selects from reviewed words, not unreviewed; only selects from enabled constructs; respects None probability (run many times, verify None appears at roughly the configured rate)
   - [ ] Unit: vocab selector — with no reviewed words, returns empty/error (not a crash)
