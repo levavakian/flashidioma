@@ -54,9 +54,15 @@ describe('Full pipeline integration', () => {
     expect(result.imported + result.skipped).toBe(10)
     expect(result.imported).toBeGreaterThan(0)
 
-    // Verify cards are in DB
+    // Verify cards are in DB — each imported word creates 2 cards (both directions)
     const cards = await db.cards.where('deckId').equals(deck.id).toArray()
-    expect(cards).toHaveLength(result.imported)
+    expect(cards).toHaveLength(result.imported * 2)
+
+    // Verify both directions exist
+    const s2t = cards.filter(c => c.direction === 'source-to-target')
+    const t2s = cards.filter(c => c.direction === 'target-to-source')
+    expect(s2t.length).toBe(result.imported)
+    expect(t2s.length).toBe(result.imported)
 
     // Verify cards have required fields
     for (const card of cards) {

@@ -29,11 +29,11 @@ describe('ImportDecksPage', () => {
       expect(screen.getByText('Spanish Frequency (Top Words)')).toBeInTheDocument()
     })
 
-    // Should show card count
-    expect(screen.getByText(/cards available/)).toBeInTheDocument()
+    // Should show word count
+    expect(screen.getByText(/words available/)).toBeInTheDocument()
   })
 
-  it('imports cards into a user deck', async () => {
+  it('imports cards into a user deck (both directions)', async () => {
     const deck = await createDeck('My Spanish')
     renderPage()
 
@@ -50,14 +50,20 @@ describe('ImportDecksPage', () => {
     // Click Import
     await user.click(screen.getByRole('button', { name: 'Import' }))
 
-    // Wait for import to complete
+    // Wait for import to complete — 5 words imported, each creating 2 cards
     await waitFor(() => {
       expect(screen.getByText(/Imported 5 cards/)).toBeInTheDocument()
     })
 
-    // Verify cards in DB
+    // Verify cards in DB — 5 words × 2 directions = 10 cards
     const cards = await db.cards.where('deckId').equals(deck.id).toArray()
-    expect(cards).toHaveLength(5)
+    expect(cards).toHaveLength(10)
+
+    // Verify both directions exist
+    const s2t = cards.filter(c => c.direction === 'source-to-target')
+    const t2s = cards.filter(c => c.direction === 'target-to-source')
+    expect(s2t.length).toBe(5)
+    expect(t2s.length).toBe(5)
   })
 
   it('importing twice does not create duplicates', async () => {
@@ -85,8 +91,8 @@ describe('ImportDecksPage', () => {
       expect(screen.getByText(/skipped 3 duplicates/)).toBeInTheDocument()
     })
 
-    // Should still only have 3 cards
+    // Should still only have 6 cards (3 words × 2 directions)
     const cards = await db.cards.where('deckId').equals(deck.id).toArray()
-    expect(cards).toHaveLength(3)
+    expect(cards).toHaveLength(6)
   })
 })

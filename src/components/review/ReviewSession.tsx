@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { reviewCard, getReviewQueue } from '../../services/review'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { reviewCard, getReviewQueue, getSchedulingPreview, formatInterval } from '../../services/review'
 import ConjugationView from '../cards/ConjugationView'
 import type { Deck, Card } from '../../types'
 
@@ -20,6 +20,19 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const gradingRef = useRef(false)
 
   const currentCard = queue[currentIndex]
+
+  // Compute scheduling preview for the current card when revealed
+  const schedulingPreview = useMemo(() => {
+    if (!currentCard || !revealed) return null
+    const now = new Date()
+    const dueDates = getSchedulingPreview(currentCard, now)
+    return {
+      1: formatInterval(now, dueDates[1]),
+      2: formatInterval(now, dueDates[2]),
+      3: formatInterval(now, dueDates[3]),
+      4: formatInterval(now, dueDates[4]),
+    }
+  }, [currentCard, revealed])
 
   // Keyboard shortcuts: space to reveal, 1-4 to grade
   useEffect(() => {
@@ -151,28 +164,36 @@ export default function ReviewSession({ deck, onComplete }: Props) {
                 className="bg-red-500 text-white py-3 rounded-lg font-medium text-sm hover:bg-red-600 active:scale-95 transition-transform"
               >
                 Again
-                <span className="block text-xs opacity-75 mt-0.5">1</span>
+                <span className="block text-xs opacity-75 mt-0.5">
+                  {schedulingPreview ? schedulingPreview[1] : '1'}
+                </span>
               </button>
               <button
                 onClick={() => handleGrade(2)}
                 className="bg-orange-500 text-white py-3 rounded-lg font-medium text-sm hover:bg-orange-600 active:scale-95 transition-transform"
               >
                 Hard
-                <span className="block text-xs opacity-75 mt-0.5">2</span>
+                <span className="block text-xs opacity-75 mt-0.5">
+                  {schedulingPreview ? schedulingPreview[2] : '2'}
+                </span>
               </button>
               <button
                 onClick={() => handleGrade(3)}
                 className="bg-green-500 text-white py-3 rounded-lg font-medium text-sm hover:bg-green-600 active:scale-95 transition-transform"
               >
                 Good
-                <span className="block text-xs opacity-75 mt-0.5">3</span>
+                <span className="block text-xs opacity-75 mt-0.5">
+                  {schedulingPreview ? schedulingPreview[3] : '3'}
+                </span>
               </button>
               <button
                 onClick={() => handleGrade(4)}
                 className="bg-blue-500 text-white py-3 rounded-lg font-medium text-sm hover:bg-blue-600 active:scale-95 transition-transform"
               >
                 Easy
-                <span className="block text-xs opacity-75 mt-0.5">4</span>
+                <span className="block text-xs opacity-75 mt-0.5">
+                  {schedulingPreview ? schedulingPreview[4] : '4'}
+                </span>
               </button>
             </div>
           </>

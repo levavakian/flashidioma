@@ -3,6 +3,8 @@ import { createCard } from './card'
 import { checkDuplicate } from './deduplication'
 import type { ImportableDeck } from '../types'
 
+export type { ProcessedCard }
+
 interface ProcessedCard {
   word: string
   pos: string
@@ -42,6 +44,16 @@ export async function getImportableDecks(): Promise<ImportableDeck[]> {
   ]
 }
 
+export async function getPrebuiltDeckCards(
+  importableDeckId: string,
+): Promise<ProcessedCard[]> {
+  const data = await loadDeckData()
+  if (data.id !== importableDeckId) {
+    throw new Error(`Unknown importable deck: ${importableDeckId}`)
+  }
+  return data.cards
+}
+
 export async function importPrebuiltDeck(
   importableDeckId: string,
   targetDeckId: string,
@@ -59,7 +71,8 @@ export async function importPrebuiltDeck(
   let imported = 0
   let skipped = 0
 
-  for (const card of cardsToImport) {
+  for (let i = 0; i < cardsToImport.length; i++) {
+    const card = cardsToImport[i]
     // Check for duplicates
     const dups = await checkDuplicate(targetDeckId, card.word)
     if (dups.length > 0) {
@@ -67,6 +80,7 @@ export async function importPrebuiltDeck(
       continue
     }
 
+    // Create source-to-target card (English front → Spanish back)
     await createCard({
       deckId: targetDeckId,
       frontText: card.translation,
@@ -74,7 +88,20 @@ export async function importPrebuiltDeck(
       direction: 'source-to-target',
       tags: [card.pos],
       source: 'imported',
+      sortOrder: i * 2,
     })
+
+    // Create target-to-source card (Spanish front → English back)
+    await createCard({
+      deckId: targetDeckId,
+      frontText: card.translation,
+      backText: card.word,
+      direction: 'target-to-source',
+      tags: [card.pos],
+      source: 'imported',
+      sortOrder: i * 2 + 1,
+    })
+
     imported++
   }
 

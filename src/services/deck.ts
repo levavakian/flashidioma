@@ -19,6 +19,9 @@ export async function createDeck(
     constructChecklist: checklist,
     newCardBatchSize: 5,
     currentBatchCardIds: [],
+    newCardsPerDay: 20,
+    newCardsIntroducedToday: 0,
+    lastNewCardDate: null,
   }
 
   await db.decks.put(deck)

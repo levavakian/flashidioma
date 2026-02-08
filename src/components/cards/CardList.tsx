@@ -24,14 +24,25 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
   const [page, setPage] = useState(0)
 
   const filtered = useMemo(() => {
-    if (!search) return cards
-    const q = search.toLowerCase()
-    return cards.filter(
-      (c) =>
-        c.frontText.toLowerCase().includes(q) ||
-        c.backText.toLowerCase().includes(q) ||
-        c.tags.some((t) => t.toLowerCase().includes(q))
-    )
+    let result = cards
+    if (search) {
+      const q = search.toLowerCase()
+      result = result.filter(
+        (c) =>
+          c.frontText.toLowerCase().includes(q) ||
+          c.backText.toLowerCase().includes(q) ||
+          c.tags.some((t) => t.toLowerCase().includes(q))
+      )
+    }
+    // Sort by sortOrder (frequency rank) if present, then createdAt
+    return [...result].sort((a, b) => {
+      if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
+        return a.sortOrder - b.sortOrder
+      }
+      if (a.sortOrder !== undefined) return -1
+      if (b.sortOrder !== undefined) return 1
+      return a.createdAt.localeCompare(b.createdAt)
+    })
   }, [cards, search])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)

@@ -1,4 +1,5 @@
 import { db } from '../db'
+import { incrementDailyNewCardCount } from './review'
 import type { Card, CardDirection, FSRSState } from '../types'
 
 function newFSRSState(): FSRSState {
@@ -24,6 +25,7 @@ export interface CreateCardInput {
   tags?: string[]
   notes?: string
   source?: Card['source']
+  sortOrder?: number
 }
 
 export async function createCard(input: CreateCardInput): Promise<Card> {
@@ -38,9 +40,16 @@ export async function createCard(input: CreateCardInput): Promise<Card> {
     fsrs: newFSRSState(),
     createdAt: new Date().toISOString(),
     source: input.source ?? 'manual',
+    ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
   }
 
   await db.cards.put(card)
+
+  // Manual and practice cards count against the daily new card limit
+  if (card.source === 'manual' || card.source === 'practice') {
+    await incrementDailyNewCardCount(card.deckId)
+  }
+
   return card
 }
 

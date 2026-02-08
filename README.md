@@ -371,6 +371,19 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [x] E2E: large deck performance — import a deck with 1000+ cards, verify card list renders without lag (measure render time, assert under threshold)
   - [x] Component: error boundaries — simulate a component crash, verify a fallback error message is shown instead of a white screen
 
+### Phase 12: UX Improvements & Anki-like Review
+
+- [x] Fix bottom nav bar to be fixed/sticky (no scroll bounce)
+- [x] Add version number (commit hash) to settings page, injected at build time
+- [x] Filter proper nouns from the starter deck (preprocessing)
+- [x] Preserve frequency ordering in imported cards (sortOrder field)
+- [x] Import both directions for each card (English→Spanish and Spanish→English)
+- [x] Add deck preview/inspect before importing (searchable, paginated table)
+- [x] Anki-like daily new card limit (newCardsPerDay with daily reset)
+- [x] Manual/practice cards count against daily new card limit
+- [x] Show next review intervals on grading buttons (like Anki)
+- [x] Add conjugation display to practice tab (expandable per sentence)
+
 ### Known Issues
 <!-- Track bugs and issues here as they arise during development -->
 | # | Description | Status |

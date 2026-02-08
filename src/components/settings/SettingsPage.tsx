@@ -264,6 +264,7 @@ export default function SettingsPage() {
       <div className="text-center text-xs text-gray-400 pb-4">
         <p>FlashIdioma - Language Learning Flashcards</p>
         <p>All data stored locally on your device.</p>
+        <p className="mt-1 font-mono">Version: {__COMMIT_HASH__}</p>
       </div>
     </div>
   )

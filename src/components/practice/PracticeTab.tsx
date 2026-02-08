@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { generatePracticeSentence } from '../../services/llm'
 import { createCard } from '../../services/card'
 import { getCardsByDeck } from '../../services/card'
+import { lookupConjugation } from '../../services/conjugationLookup'
 import { db } from '../../db'
 import { spanishLanguageModule } from '../../languages/spanish'
-import type { Deck, PracticeSentence } from '../../types'
+import ConjugationView from '../cards/ConjugationView'
+import type { Deck, PracticeSentence, VerbData } from '../../types'
 
 interface Props {
   deck: Deck
@@ -15,6 +17,8 @@ export default function PracticeTab({ deck }: Props) {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
   const [addedMessage, setAddedMessage] = useState('')
+  const [expandedConjugation, setExpandedConjugation] = useState<string | null>(null)
+  const [conjugationCache, setConjugationCache] = useState<Record<string, VerbData | null>>({})
 
   useEffect(() => {
     db.practiceSentences
@@ -115,6 +119,21 @@ export default function PracticeTab({ deck }: Props) {
     setAddedMessage(`Added card: "${sentence.sourceText}"`)
   }
 
+  const handleToggleConjugation = async (sentenceId: string, verb: string) => {
+    if (expandedConjugation === sentenceId) {
+      setExpandedConjugation(null)
+      return
+    }
+
+    // Load conjugation if not cached
+    if (!(verb in conjugationCache)) {
+      const data = await lookupConjugation(verb)
+      setConjugationCache((prev) => ({ ...prev, [verb]: data }))
+    }
+
+    setExpandedConjugation(sentenceId)
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -158,7 +177,7 @@ export default function PracticeTab({ deck }: Props) {
           <div key={sentence.id} className="bg-white rounded-lg border p-4">
             <p className="font-medium text-lg">{sentence.sourceText}</p>
             <p className="text-gray-600 mt-1">{sentence.targetText}</p>
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
               {sentence.selectedVerb && (
                 <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
                   {sentence.selectedVerb}
@@ -174,6 +193,14 @@ export default function PracticeTab({ deck }: Props) {
                   {sentence.selectedConstruct}
                 </span>
               )}
+              {sentence.selectedVerb && (
+                <button
+                  onClick={() => handleToggleConjugation(sentence.id, sentence.selectedVerb!)}
+                  className="text-xs text-blue-500 hover:text-blue-700 underline"
+                >
+                  {expandedConjugation === sentence.id ? 'Hide Conjugation' : 'Show Conjugation'}
+                </button>
+              )}
               <button
                 onClick={() => handleConvertToCard(sentence)}
                 className="ml-auto text-xs bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
@@ -181,6 +208,21 @@ export default function PracticeTab({ deck }: Props) {
                 Add as Card
               </button>
             </div>
+
+            {expandedConjugation === sentence.id && sentence.selectedVerb && (
+              <div className="mt-3">
+                {conjugationCache[sentence.selectedVerb] ? (
+                  <ConjugationView
+                    verbData={conjugationCache[sentence.selectedVerb]!}
+                    enabledConstructs={deck.constructChecklist}
+                  />
+                ) : conjugationCache[sentence.selectedVerb] === null ? (
+                  <p className="text-sm text-gray-400">No conjugation data available for "{sentence.selectedVerb}"</p>
+                ) : (
+                  <p className="text-sm text-gray-400">Loading conjugation...</p>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>

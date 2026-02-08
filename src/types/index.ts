@@ -17,6 +17,7 @@ export interface Card {
   fsrs: FSRSState
   createdAt: string // ISO date
   source: 'manual' | 'imported' | 'practice'
+  sortOrder?: number // Frequency rank for imported cards
 }
 
 export interface FSRSState {
@@ -40,6 +41,9 @@ export interface Deck {
   constructChecklist: ConstructChecklist
   newCardBatchSize: number
   currentBatchCardIds: string[]
+  newCardsPerDay: number // Anki-like daily new card limit (default 20)
+  newCardsIntroducedToday: number // How many new cards introduced today
+  lastNewCardDate: string | null // ISO date (date portion only, e.g. "2026-02-08")
 }
 
 export interface ConstructChecklist {

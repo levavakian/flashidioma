@@ -221,7 +221,14 @@ function main() {
     })
   }
 
-  console.log(`  Generated ${cards.length} cards`)
+  // Filter proper nouns (capitalized words in lemma form)
+  const beforeFilter = cards.length
+  const filteredCards = cards.filter((c) => c.word[0] === c.word[0].toLowerCase())
+  console.log(`  Generated ${beforeFilter} cards, filtered ${beforeFilter - filteredCards.length} proper nouns, ${filteredCards.length} remaining`)
+
+  // Replace cards array with filtered version
+  cards.length = 0
+  cards.push(...filteredCards)
 
   // Generate verb conjugation tables (compact format)
   console.log('Generating verb conjugation tables...')
