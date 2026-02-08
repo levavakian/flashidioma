@@ -10,12 +10,14 @@
 import { execSync } from 'child_process'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { conjugateVerb, type ConjugationTable } from './spanish-conjugator'
 
 const REPO = 'https://github.com/doozan/spanish_data.git'
 const TAG = '2026-02-01'
 const DATA_DIR = join(process.cwd(), 'spanish_data')
 const OUTPUT_DIR = join(process.cwd(), 'src', 'data')
 const OUTPUT_FILE = join(OUTPUT_DIR, 'spanish-deck.json')
+const CONJUGATION_FILE = join(OUTPUT_DIR, 'spanish-conjugations.json')
 
 interface FrequencyEntry {
   word: string
@@ -110,30 +112,47 @@ function parseDictionary(): Map<string, DictionaryEntry[]> {
     if (lines.length < 2) continue
 
     const word = lines[0].trim()
-    let pos = ''
-    const glosses: string[] = []
-    let etymology: string | undefined
+    if (!word) continue
+
+    // A single block can contain multiple POS sections.
+    // Split on 'pos:' lines to handle each section separately.
+    let currentPos = ''
+    let currentGlosses: string[] = []
+    let currentEtymology: string | undefined
+
+    const flushEntry = () => {
+      if (currentPos && currentGlosses.length > 0) {
+        const entry: DictionaryEntry = {
+          word,
+          pos: currentPos,
+          glosses: [...currentGlosses],
+          etymology: currentEtymology,
+        }
+        const existing = dict.get(word)
+        if (existing) {
+          existing.push(entry)
+        } else {
+          dict.set(word, [entry])
+        }
+      }
+    }
 
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim()
       if (line.startsWith('pos: ')) {
-        pos = line.substring(5).trim()
+        // Flush previous POS section
+        flushEntry()
+        currentPos = line.substring(5).trim()
+        currentGlosses = []
+        currentEtymology = undefined
       } else if (line.startsWith('gloss: ')) {
-        glosses.push(line.substring(7).trim())
+        currentGlosses.push(line.substring(7).trim())
       } else if (line.startsWith('etymology: ')) {
-        etymology = line.substring(11).trim()
+        currentEtymology = line.substring(11).trim()
       }
     }
-
-    if (!word || !pos || glosses.length === 0) continue
-
-    const entry: DictionaryEntry = { word, pos, glosses, etymology }
-    const existing = dict.get(word)
-    if (existing) {
-      existing.push(entry)
-    } else {
-      dict.set(word, [entry])
-    }
+    // Flush last section
+    flushEntry()
   }
 
   return dict
@@ -204,6 +223,37 @@ function main() {
 
   console.log(`  Generated ${cards.length} cards`)
 
+  // Generate verb conjugation tables (compact format)
+  console.log('Generating verb conjugation tables...')
+  const verbs = cards.filter((c) => c.pos === 'v')
+
+  // Build compact conjugation data:
+  // - tenses: shared metadata (name, description, persons)
+  // - verbs: { infinitive: [[form, form, ...], ...] } indexed by tense order
+  const firstVerb = verbs.length > 0 ? conjugateVerb(verbs[0].word) : null
+  const tenseMetadata = firstVerb
+    ? firstVerb.tenses.map((t) => ({
+        tenseId: t.tenseId,
+        tenseName: t.tenseName,
+        description: t.description,
+        persons: t.conjugations.map((c) => c.person),
+      }))
+    : []
+
+  const compactVerbs: Record<string, string[][]> = {}
+  let conjugated = 0
+
+  for (const verb of verbs) {
+    const table = conjugateVerb(verb.word)
+    if (table) {
+      compactVerbs[verb.word] = table.tenses.map((t) =>
+        t.conjugations.map((c) => c.form)
+      )
+      conjugated++
+    }
+  }
+  console.log(`  Generated conjugation tables for ${conjugated} verbs`)
+
   const deck: ProcessedDeck = {
     id: 'spanish-frequency',
     name: 'Spanish Frequency (Top Words)',
@@ -218,8 +268,20 @@ function main() {
   }
 
   writeFileSync(OUTPUT_FILE, JSON.stringify(deck, null, 2))
-  console.log(`Output written to ${OUTPUT_FILE}`)
+  console.log(`Deck output written to ${OUTPUT_FILE}`)
+
+  // Write conjugation data as a separate artifact (compact format)
+  const conjugationData = {
+    language: 'spanish',
+    generatedAt: new Date().toISOString(),
+    verbCount: conjugated,
+    tenses: tenseMetadata,
+    verbs: compactVerbs,
+  }
+  writeFileSync(CONJUGATION_FILE, JSON.stringify(conjugationData))
+  console.log(`Conjugation output written to ${CONJUGATION_FILE}`)
   console.log(`Total cards: ${cards.length}`)
+  console.log(`Total verb conjugations: ${conjugated}`)
 
   // Print some stats
   const posStats = new Map<string, number>()

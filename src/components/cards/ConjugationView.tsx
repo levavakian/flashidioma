@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import type { VerbData } from '../../types'
+import { useState, useMemo } from 'react'
+import type { VerbData, ConstructChecklist } from '../../types'
 
 interface Props {
   verbData: VerbData
+  enabledConstructs?: ConstructChecklist
 }
 
-export default function ConjugationView({ verbData }: Props) {
+export default function ConjugationView({ verbData, enabledConstructs }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [expandedTenses, setExpandedTenses] = useState<Set<string>>(new Set())
 
@@ -18,6 +19,12 @@ export default function ConjugationView({ verbData }: Props) {
     })
   }
 
+  // Filter tenses by enabled constructs if provided
+  const visibleTenses = useMemo(() => {
+    if (!enabledConstructs) return verbData.tenses
+    return verbData.tenses.filter((t) => enabledConstructs[t.tenseId] !== false)
+  }, [verbData.tenses, enabledConstructs])
+
   return (
     <div className="mt-3 border-t pt-3">
       <button
@@ -29,7 +36,7 @@ export default function ConjugationView({ verbData }: Props) {
 
       {expanded && (
         <div className="mt-2 space-y-2">
-          {verbData.tenses.map((tense) => (
+          {visibleTenses.map((tense) => (
             <div key={tense.tenseId} className="border rounded">
               <button
                 onClick={() => toggleTense(tense.tenseId)}

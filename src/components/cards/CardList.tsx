@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { updateCard, deleteCard } from '../../services/card'
 import { hydrateConjugation } from '../../services/llm'
 import ConjugationView from './ConjugationView'
-import type { Card } from '../../types'
+import type { Card, ConstructChecklist } from '../../types'
 
 const PAGE_SIZE = 50
 
@@ -10,9 +10,10 @@ interface Props {
   cards: Card[]
   deckId: string
   onUpdate: () => void
+  enabledConstructs?: ConstructChecklist
 }
 
-export default function CardList({ cards, onUpdate }: Props) {
+export default function CardList({ cards, onUpdate, enabledConstructs }: Props) {
   const [search, setSearch] = useState('')
   const [editingCard, setEditingCard] = useState<Card | null>(null)
   const [editFront, setEditFront] = useState('')
@@ -235,7 +236,7 @@ export default function CardList({ cards, onUpdate }: Props) {
               </div>
             </div>
 
-            {card.verbData && <ConjugationView verbData={card.verbData} />}
+            {card.verbData && <ConjugationView verbData={card.verbData} enabledConstructs={enabledConstructs} />}
           </div>
         ))}
       </div>

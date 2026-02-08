@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { getSettings, updateSettings, db } from '../../db'
 import { exportAppState, importAppState, downloadJson } from '../../services/exportImport'
+import { getInstallPrompt, clearInstallPrompt } from '../../pwaInstall'
 import type { LLMProvider } from '../../types'
 
 export default function SettingsPage() {
@@ -11,7 +12,7 @@ export default function SettingsPage() {
   const [error, setError] = useState('')
   const [importMessage, setImportMessage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [installPrompt, setInstallPrompt] = useState(() => getInstallPrompt())
   const [stats, setStats] = useState({ decks: 0, cards: 0, reviews: 0 })
 
   const loadStats = async () => {
@@ -32,9 +33,8 @@ export default function SettingsPage() {
 
     loadStats()
 
-    const handler = (e: Event) => {
-      e.preventDefault()
-      setInstallPrompt(e as BeforeInstallPromptEvent)
+    const handler = () => {
+      setInstallPrompt(getInstallPrompt())
     }
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
@@ -116,6 +116,7 @@ export default function SettingsPage() {
   const handleInstall = async () => {
     if (!installPrompt) return
     await installPrompt.prompt()
+    clearInstallPrompt()
     setInstallPrompt(null)
   }
 
@@ -266,9 +267,4 @@ export default function SettingsPage() {
       </div>
     </div>
   )
-}
-
-// Type for PWA install prompt event
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>
 }

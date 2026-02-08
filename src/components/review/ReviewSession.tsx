@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { reviewCard, getReviewQueue } from '../../services/review'
+import ConjugationView from '../cards/ConjugationView'
 import type { Deck, Card } from '../../types'
 
 interface Props {
@@ -137,7 +138,14 @@ export default function ReviewSession({ deck, onComplete }: Props) {
               <p className="text-sm text-gray-400 mb-4 italic">{currentCard.notes}</p>
             )}
 
-            <div className="grid grid-cols-4 gap-2">
+            {currentCard.verbData && (
+              <ConjugationView
+                verbData={currentCard.verbData}
+                enabledConstructs={deck.constructChecklist}
+              />
+            )}
+
+            <div className="grid grid-cols-4 gap-2 mt-4">
               <button
                 onClick={() => handleGrade(1)}
                 className="bg-red-500 text-white py-3 rounded-lg font-medium text-sm hover:bg-red-600 active:scale-95 transition-transform"

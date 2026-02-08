@@ -113,4 +113,33 @@ describe('ConjugationView', () => {
     // Preterite description should also be visible
     expect(screen.getByText('Completed past actions')).toBeInTheDocument()
   })
+
+  it('filters tenses by enabled constructs', async () => {
+    const user = userEvent.setup()
+    render(
+      <ConjugationView
+        verbData={verbData}
+        enabledConstructs={{ present: true, preterite: false }}
+      />
+    )
+
+    // Expand the main section
+    await user.click(screen.getByText(/Conjugations \(hablar\)/))
+
+    // Only present tense should be visible
+    expect(screen.getByText('Present')).toBeInTheDocument()
+    expect(screen.queryByText('Preterite')).not.toBeInTheDocument()
+  })
+
+  it('shows all tenses when no construct checklist is provided', async () => {
+    const user = userEvent.setup()
+    render(<ConjugationView verbData={verbData} />)
+
+    // Expand the main section
+    await user.click(screen.getByText(/Conjugations \(hablar\)/))
+
+    // Both tenses should be visible
+    expect(screen.getByText('Present')).toBeInTheDocument()
+    expect(screen.getByText('Preterite')).toBeInTheDocument()
+  })
 })

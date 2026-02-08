@@ -101,7 +101,7 @@ export default function DeckDetailPage() {
       </div>
 
       {tab === 'cards' && (
-        <CardList cards={cards} deckId={deck.id} onUpdate={loadDeck} />
+        <CardList cards={cards} deckId={deck.id} onUpdate={loadDeck} enabledConstructs={deck.constructChecklist} />
       )}
 
       {tab === 'review' && (

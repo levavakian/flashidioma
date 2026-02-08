@@ -292,7 +292,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 ### Phase 6: Spanish Data Preprocessing & Import
 - [x] Build preprocessing script to fetch `doozan/spanish_data@2026-02-01`
 - [x] Parse `frequency.csv` + `es-en.data` + `es_allforms.csv` into JSON artifact
-- [ ] Generate pre-computed verb conjugation tables for common verbs
+- [x] Generate pre-computed verb conjugation tables for common verbs
 - [x] Bundle artifact with the app build
 - [x] "Importable Decks" tab UI
 - [x] Import pre-built deck(s) into user deck(s)
@@ -309,12 +309,12 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Conjugation display UI (collapsed by default, expandable per tense)
 - [x] Mini translations per conjugation form
 - [x] Tense usage descriptions (e.g. preterite vs imperfect)
-- [ ] Static conjugation DB lookup for known verbs
+- [x] Static conjugation DB lookup for known verbs
 - **Tests:**
-  - [ ] Unit: conjugation data structure validates correctly — all required tenses and persons present for a well-formed entry
-  - [ ] Unit: Spanish module — spot-check conjugations for irregular verbs (ser, ir, tener) against known correct forms
-  - [ ] Unit: compound tense generation — verify "he comido", "había comido", etc. are correctly formed from auxiliary + participle
-  - [ ] Unit: static DB lookup — known verbs return conjugation data, unknown verbs return null
+  - [x] Unit: conjugation data structure validates correctly — all required tenses and persons present for a well-formed entry
+  - [x] Unit: Spanish module — spot-check conjugations for irregular verbs (ser, ir, tener) against known correct forms
+  - [x] Unit: compound tense generation — verify "he comido", "había comido", etc. are correctly formed from auxiliary + participle
+  - [x] Unit: static DB lookup — known verbs return conjugation data, unknown verbs return null
   - [x] Component: conjugation section is collapsed by default; clicking expands a tense; each form shows mini translation; tense descriptions are visible
 
 ### Phase 8: LLM Integration
@@ -335,7 +335,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 ### Phase 9: Construct Checklist
 - [x] Define construct types per language (Spanish: tenses, moods)
 - [x] Per-deck construct checklist UI (toggle which constructs are enabled)
-- [ ] Filter review cards by enabled constructs (verb cards only show enabled tenses)
+- [x] Filter review cards by enabled constructs (verb cards only show enabled tenses)
 - [x] Persist checklist state per deck
 - **Tests:**
   - [ ] Unit: construct filtering — with only present tense enabled, a verb card's review only tests present tense forms; enabling preterite adds preterite forms to the review pool

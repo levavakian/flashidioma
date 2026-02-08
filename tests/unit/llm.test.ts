@@ -194,21 +194,33 @@ describe('hydrateConjugation', () => {
     })
   })
 
-  it('parses a valid conjugation JSON response', async () => {
+  it('returns static DB data for known verbs without calling LLM', async () => {
+    // 'hablar' exists in the static conjugation DB, so no LLM call should be made
+    const result = await hydrateConjugation('hablar')
+
+    expect(result.infinitive).toBe('hablar')
+    expect(result.language).toBe('spanish')
+    expect(result.tenses.length).toBeGreaterThan(0)
+    expect(result.tenses[0].tenseId).toBe('present')
+    expect(result.tenses[0].conjugations[0].form).toBe('hablo')
+  })
+
+  it('falls back to LLM for unknown verbs and parses response', async () => {
+    // Use a made-up verb not in the static DB
     const conjugationData = {
-      infinitive: 'hablar',
+      infinitive: 'xyzverbar',
       tenses: [
         {
           tenseId: 'present',
           tenseName: 'Present',
           description: 'Actions happening now',
           conjugations: [
-            { person: 'yo', form: 'hablo', miniTranslation: 'I speak' },
-            { person: 'tú', form: 'hablas', miniTranslation: 'you speak' },
-            { person: 'él/ella/usted', form: 'habla', miniTranslation: 'he/she speaks' },
-            { person: 'nosotros/as', form: 'hablamos', miniTranslation: 'we speak' },
-            { person: 'vosotros/as', form: 'habláis', miniTranslation: 'you all speak' },
-            { person: 'ellos/ellas/ustedes', form: 'hablan', miniTranslation: 'they speak' },
+            { person: 'yo', form: 'xyzverbo', miniTranslation: 'I xyzverb' },
+            { person: 'tú', form: 'xyzveras', miniTranslation: 'you xyzverb' },
+            { person: 'él/ella/usted', form: 'xyzverba', miniTranslation: 'he/she xyzverbs' },
+            { person: 'nosotros/as', form: 'xyzverbamos', miniTranslation: 'we xyzverb' },
+            { person: 'vosotros/as', form: 'xyzvervais', miniTranslation: 'you all xyzverb' },
+            { person: 'ellos/ellas/ustedes', form: 'xyzverban', miniTranslation: 'they xyzverb' },
           ],
         },
       ],
@@ -222,26 +234,26 @@ describe('hydrateConjugation', () => {
       })
     )
 
-    const result = await hydrateConjugation('hablar')
+    const result = await hydrateConjugation('xyzverbar')
 
-    expect(result.infinitive).toBe('hablar')
+    expect(result.infinitive).toBe('xyzverbar')
     expect(result.language).toBe('spanish')
     expect(result.tenses).toHaveLength(1)
     expect(result.tenses[0].tenseId).toBe('present')
     expect(result.tenses[0].conjugations).toHaveLength(6)
-    expect(result.tenses[0].conjugations[0].form).toBe('hablo')
+    expect(result.tenses[0].conjugations[0].form).toBe('xyzverbo')
   })
 
-  it('strips markdown code fences from the response', async () => {
+  it('strips markdown code fences from LLM response', async () => {
     const conjugationData = {
-      infinitive: 'comer',
+      infinitive: 'xyzverbar',
       tenses: [
         {
           tenseId: 'present',
           tenseName: 'Present',
           description: 'Actions happening now',
           conjugations: [
-            { person: 'yo', form: 'como', miniTranslation: 'I eat' },
+            { person: 'yo', form: 'xyzverbo', miniTranslation: 'I xyzverb' },
           ],
         },
       ],
@@ -257,14 +269,14 @@ describe('hydrateConjugation', () => {
       })
     )
 
-    const result = await hydrateConjugation('comer')
+    const result = await hydrateConjugation('xyzverbar')
 
-    expect(result.infinitive).toBe('comer')
+    expect(result.infinitive).toBe('xyzverbar')
     expect(result.language).toBe('spanish')
-    expect(result.tenses[0].conjugations[0].form).toBe('como')
+    expect(result.tenses[0].conjugations[0].form).toBe('xyzverbo')
   })
 
-  it('throws on invalid JSON', async () => {
+  it('throws on invalid JSON from LLM', async () => {
     server.use(
       http.post('https://api.anthropic.com/v1/messages', () => {
         return HttpResponse.json({
@@ -273,12 +285,13 @@ describe('hydrateConjugation', () => {
       })
     )
 
-    await expect(hydrateConjugation('hablar')).rejects.toThrow(
+    // Use a verb NOT in the static DB to trigger LLM fallback
+    await expect(hydrateConjugation('xyzverbar')).rejects.toThrow(
       'Failed to parse conjugation data from LLM response'
     )
   })
 
-  it('throws on missing infinitive field', async () => {
+  it('throws on missing infinitive field from LLM', async () => {
     server.use(
       http.post('https://api.anthropic.com/v1/messages', () => {
         return HttpResponse.json({
@@ -287,21 +300,21 @@ describe('hydrateConjugation', () => {
       })
     )
 
-    await expect(hydrateConjugation('hablar')).rejects.toThrow(
+    await expect(hydrateConjugation('xyzverbar')).rejects.toThrow(
       'Invalid conjugation data structure from LLM'
     )
   })
 
-  it('throws on missing tenses array', async () => {
+  it('throws on missing tenses array from LLM', async () => {
     server.use(
       http.post('https://api.anthropic.com/v1/messages', () => {
         return HttpResponse.json({
-          content: [{ type: 'text', text: JSON.stringify({ infinitive: 'hablar' }) }],
+          content: [{ type: 'text', text: JSON.stringify({ infinitive: 'xyzverbar' }) }],
         })
       })
     )
 
-    await expect(hydrateConjugation('hablar')).rejects.toThrow(
+    await expect(hydrateConjugation('xyzverbar')).rejects.toThrow(
       'Invalid conjugation data structure from LLM'
     )
   })

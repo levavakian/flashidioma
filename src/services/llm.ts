@@ -1,5 +1,6 @@
 import { getSettings } from '../db'
 import type { VerbData, TenseData } from '../types'
+import { lookupConjugation } from './conjugationLookup'
 
 interface LLMMessage {
   role: 'user' | 'assistant' | 'system'
@@ -123,6 +124,11 @@ For compound tenses, show the full form (e.g. "he comido", "había comido").
 For imperative, only include tú, usted, nosotros, vosotros, ustedes.`
 
 export async function hydrateConjugation(verb: string): Promise<VerbData> {
+  // Try static conjugation database first
+  const staticData = await lookupConjugation(verb)
+  if (staticData) return staticData
+
+  // Fall back to LLM for verbs not in the static DB
   const response = await callLLM([
     { role: 'system', content: CONJUGATION_PROMPT },
     { role: 'user', content: `Conjugate the Spanish verb: ${verb}` },
