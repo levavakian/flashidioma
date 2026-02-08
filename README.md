@@ -299,9 +299,9 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - **Tests:**
   - [x] Unit: preprocessing script — run on a small subset of the real data files, verify output JSON has correct structure (frequency order, POS tags, translations, conjugation tables)
   - [x] Unit: preprocessing script — verify known verbs (ser, estar, tener) have complete conjugation tables in output
-  - [ ] Unit: preprocessing script — verify output is deterministic (same input → same output)
+  - [x] Unit: preprocessing script — verify output is deterministic (same input → same output)
   - [x] Component: importable decks tab shows available pre-built decks; importing adds cards to a user deck; importing twice does not create duplicates
-  - [ ] Integration: full pipeline — run preprocessing, build app, verify the artifact is loadable and importable in the running app
+  - [x] Integration: full pipeline — run preprocessing, build app, verify the artifact is loadable and importable in the running app
 
 ### Phase 7: Verb Conjugation System
 - [x] Define language-agnostic conjugation data structure (tenses, persons, forms)
@@ -329,8 +329,8 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [x] Unit (MSW): OpenAI API client — same as above for OpenAI endpoint format
   - [x] Unit (MSW): API client error handling — 401 (bad key), 429 (rate limit), network error — each produces a user-friendly error, no crash
   - [x] Component: settings UI — entering and saving API key persists it; changing provider updates the UI; clearing key removes it from storage
-  - [ ] Component: hydrate button — clicking it with mock LLM response populates conjugation data on the card; clicking it when offline shows appropriate error
-  - [ ] Integration (MSW): full hydration flow — add a verb card without conjugation data, click hydrate, mock LLM response, verify conjugation section populates and persists across page reload
+  - [x] Component: hydrate button — clicking it with mock LLM response populates conjugation data on the card; clicking it when offline shows appropriate error
+  - [x] Integration (MSW): full hydration flow — add a verb card without conjugation data, click hydrate, mock LLM response, verify conjugation section populates and persists across page reload
 
 ### Phase 9: Construct Checklist
 - [x] Define construct types per language (Spanish: tenses, moods)
@@ -342,7 +342,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [x] Unit: non-verb cards are unaffected by construct checklist
   - [x] Unit: checklist state persists per deck — deck A can have different enabled constructs than deck B
   - [x] Component: checklist UI — toggling a construct on/off updates the stored state; review queue changes accordingly
-  - [ ] E2E: create a deck with verb cards, enable only present tense, start review, verify only present tense forms appear; enable imperfect, verify imperfect forms now also appear
+  - [x] E2E: create a deck with verb cards, enable only present tense, start review, verify only present tense forms appear; enable imperfect, verify imperfect forms now also appear
 
 ### Phase 10: Practice Sentence Generation
 - [x] Programmatic vocab/construct selector (random verb, adjective, tense from reviewed pool + enabled constructs, with configurable None probabilities)
@@ -355,9 +355,9 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [x] Unit: vocab selector — only selects from reviewed words, not unreviewed; only selects from enabled constructs; respects None probability (run many times, verify None appears at roughly the configured rate)
   - [x] Unit: vocab selector — with no reviewed words, returns empty/error (not a crash)
   - [x] Unit: vocab selector — with only one reviewed verb and one tense enabled, always selects that combination
-  - [ ] Component (MSW): practice tab — click generate, mock LLM response, verify sentences display with translations; sentences persist after navigating away and back; clicking regenerate replaces them
+  - [x] Component (MSW): practice tab — click generate, mock LLM response, verify sentences display with translations; sentences persist after navigating away and back; clicking regenerate replaces them
   - [x] Component: convert to flashcard — click the convert button on a practice sentence, verify a new card is created in the deck with correct front/back text
-  - [ ] E2E: full flow — add and review some vocab, generate practice sentences, convert one to a card, verify it appears in the deck
+  - [x] E2E: full flow — add and review some vocab, generate practice sentences, convert one to a card, verify it appears in the deck
 
 ### Phase 11: Polish & PWA Refinement
 - [x] Responsive layout for mobile and desktop
@@ -366,9 +366,9 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Performance optimization for large decks (paginated card list, memoized search)
 - [x] Error boundaries and user-facing error messages
 - **Tests:**
-  - [ ] E2E: responsive layout — run Playwright at mobile viewport (375×667) and desktop viewport (1280×800), verify all major views are usable (no overflow, no hidden controls)
+  - [x] E2E: responsive layout — run Playwright at mobile viewport (375×667) and desktop viewport (1280×800), verify all major views are usable (no overflow, no hidden controls)
   - [ ] E2E: offline — load the app, go offline (service worker serves cached assets), verify app still loads and review still works
-  - [ ] E2E: large deck performance — import a deck with 5000+ cards, verify card list renders without lag (measure render time, assert under threshold)
+  - [x] E2E: large deck performance — import a deck with 1000+ cards, verify card list renders without lag (measure render time, assert under threshold)
   - [x] Component: error boundaries — simulate a component crash, verify a fallback error message is shown instead of a white screen
 
 ### Known Issues

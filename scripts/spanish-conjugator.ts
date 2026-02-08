@@ -154,7 +154,6 @@ const IRREGULAR_PARTICIPLES: Record<string, string> = {
   sobreponer: 'sobrepuesto',
   anteponer: 'antepuesto',
   reponer: 'repuesto',
-  deshacer: 'deshecho',
 }
 
 function conjugateRegularPresent(stem: string, type: VerbType): string[] {
