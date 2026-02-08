@@ -1,5 +1,5 @@
 import { getSettings } from '../db'
-import type { VerbData, TenseData, ConjugationForm } from '../types'
+import type { VerbData, TenseData } from '../types'
 
 interface LLMMessage {
   role: 'user' | 'assistant' | 'system'

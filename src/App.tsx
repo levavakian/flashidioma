@@ -1,15 +1,13 @@
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
+import { HashRouter, Routes, Route, NavLink } from 'react-router-dom'
 import DecksPage from './components/decks/DecksPage'
 import DeckDetailPage from './components/decks/DeckDetailPage'
 import ImportDecksPage from './components/decks/ImportDecksPage'
 import TranslatePage from './components/translate/TranslatePage'
 import SettingsPage from './components/settings/SettingsPage'
 
-const basename = import.meta.env.BASE_URL
-
 function App() {
   return (
-    <BrowserRouter basename={basename}>
+    <HashRouter>
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <header className="bg-blue-500 text-white px-4 py-3 shadow-md">
           <h1 className="text-xl font-bold">FlashIdioma</h1>
@@ -55,7 +53,7 @@ function App() {
           </NavLink>
         </nav>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 
