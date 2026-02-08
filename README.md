@@ -220,76 +220,76 @@ This section is the combined implementation plan and issue tracker. Phases are o
 **Testing stack:** Vitest for unit/integration tests, React Testing Library for component tests, Playwright for E2E tests, `fake-indexeddb` for storage tests in Node, MSW (Mock Service Worker) for mocking HTTP requests (Google Translate, LLM APIs).
 
 ### Phase 1: Project Scaffolding
-- [ ] Initialize React + TypeScript project with Vite
-- [ ] Configure TailwindCSS
-- [ ] Set up PWA (service worker, manifest, offline caching)
-- [ ] Configure GitHub Pages deployment (build output, base path)
-- [ ] Set up local storage layer (IndexedDB via Dexie or similar)
-- [ ] Define core TypeScript types/interfaces (Card, Deck, Settings, etc.)
-- [ ] Set up testing infrastructure (Vitest, React Testing Library, Playwright, fake-indexeddb, MSW)
+- [x] Initialize React + TypeScript project with Vite
+- [x] Configure TailwindCSS
+- [x] Set up PWA (service worker, manifest, offline caching)
+- [x] Configure GitHub Pages deployment (build output, base path)
+- [x] Set up local storage layer (IndexedDB via Dexie or similar)
+- [x] Define core TypeScript types/interfaces (Card, Deck, Settings, etc.)
+- [x] Set up testing infrastructure (Vitest, React Testing Library, Playwright, fake-indexeddb, MSW)
 - **Verify:** app builds, dev server runs, `npm test` passes with a trivial test, production build deploys to GitHub Pages and loads, PWA manifest is served and app is installable
 
 ### Phase 2: Core Data & State
-- [ ] Implement data model (decks, cards, tags, settings) with IndexedDB persistence
-- [ ] Full app state export to JSON
-- [ ] Full app state import from JSON (with validation)
-- [ ] Implement FSRS algorithm (scheduling, review grading, state updates)
-- [ ] New card batch introduction logic (configurable batch size, gate on previous batch reviewed)
+- [x] Implement data model (decks, cards, tags, settings) with IndexedDB persistence
+- [x] Full app state export to JSON
+- [x] Full app state import from JSON (with validation)
+- [x] Implement FSRS algorithm (scheduling, review grading, state updates)
+- [x] New card batch introduction logic (configurable batch size, gate on previous batch reviewed)
 - **Tests:**
-  - [ ] Unit: CRUD operations on decks and cards — create, read, update, delete — verify IndexedDB state via fake-indexeddb
-  - [ ] Unit: export produces valid JSON containing all app state; import from that JSON restores identical state
-  - [ ] Unit: import rejects malformed JSON and partially valid data gracefully (no crash, user-facing error)
-  - [ ] Unit: FSRS scheduling — given a card with known state and a grade, verify next due date, stability, and difficulty match expected FSRS output
-  - [ ] Unit: FSRS edge cases — new card first review, card at maximum interval, all four grade buttons
-  - [ ] Unit: batch introduction — new cards are gated until current batch is fully reviewed; batch size is respected; next batch unlocks correctly
-  - [ ] Integration: round-trip test — create decks/cards, export, clear storage, import, verify all data matches
+  - [x] Unit: CRUD operations on decks and cards — create, read, update, delete — verify IndexedDB state via fake-indexeddb
+  - [x] Unit: export produces valid JSON containing all app state; import from that JSON restores identical state
+  - [x] Unit: import rejects malformed JSON and partially valid data gracefully (no crash, user-facing error)
+  - [x] Unit: FSRS scheduling — given a card with known state and a grade, verify next due date, stability, and difficulty match expected FSRS output
+  - [x] Unit: FSRS edge cases — new card first review, card at maximum interval, all four grade buttons
+  - [x] Unit: batch introduction — new cards are gated until current batch is fully reviewed; batch size is respected; next batch unlocks correctly
+  - [x] Integration: round-trip test — create decks/cards, export, clear storage, import, verify all data matches
 
 ### Phase 3: Basic Flashcard UI
-- [ ] Deck list view (create, rename, delete decks)
-- [ ] Card list/browse view within a deck (search by content, filter by tags)
-- [ ] Add card manually (front text, back text, direction selection, tags)
-- [ ] Edit and delete existing cards
-- [ ] Review session UI (show card front → reveal back → grade with FSRS buttons)
-- [ ] Due card queue display (count of due cards, new cards remaining in batch)
+- [x] Deck list view (create, rename, delete decks)
+- [x] Card list/browse view within a deck (search by content, filter by tags)
+- [x] Add card manually (front text, back text, direction selection, tags)
+- [x] Edit and delete existing cards
+- [x] Review session UI (show card front → reveal back → grade with FSRS buttons)
+- [x] Due card queue display (count of due cards, new cards remaining in batch)
 - **Tests:**
-  - [ ] Component: deck list renders decks, create/rename/delete update the list
-  - [ ] Component: add card form — submitting with valid data creates a card; "both directions" creates two independent cards; empty required fields show validation
-  - [ ] Component: review session — card front is shown, clicking reveal shows back, grading advances to next card, session ends when queue is empty
+  - [x] Component: deck list renders decks, create/rename/delete update the list
+  - [x] Component: add card form — submitting with valid data creates a card; "both directions" creates two independent cards; empty required fields show validation
+  - [x] Component: review session — card front is shown, clicking reveal shows back, grading advances to next card, session ends when queue is empty
   - [ ] E2E: full workflow — create a deck, add 3 cards, start review, grade all cards, verify due counts update
 
 ### Phase 4: Tagging & Deduplication
-- [ ] Tag management (add, remove, rename tags on cards)
-- [ ] Search/filter cards by tags
-- [ ] Accent-insensitive deduplication check on target language text when adding cards
-- [ ] Deduplication warning prompt (non-blocking — user can proceed)
+- [x] Tag management (add, remove, rename tags on cards)
+- [x] Search/filter cards by tags
+- [x] Accent-insensitive deduplication check on target language text when adding cards
+- [x] Deduplication warning prompt (non-blocking — user can proceed)
 - **Tests:**
-  - [ ] Unit: accent-insensitive comparison — "está" matches "esta", "café" matches "cafe", "ñoño" matches "nono"
-  - [ ] Unit: deduplication only checks target language text — same English word with different Spanish translations should not trigger
-  - [ ] Component: adding a card with a duplicate target word shows warning; user can dismiss and add anyway
-  - [ ] Component: tag filter — selecting a tag shows only cards with that tag; clearing filter shows all; searching by card content works
+  - [x] Unit: accent-insensitive comparison — "está" matches "esta", "café" matches "cafe", "ñoño" matches "nono"
+  - [x] Unit: deduplication only checks target language text — same English word with different Spanish translations should not trigger
+  - [x] Component: adding a card with a duplicate target word shows warning; user can dismiss and add anyway
+  - [x] Component: tag filter — selecting a tag shows only cards with that tag; clearing filter shows all; searching by card content works
 
 ### Phase 5: Translation Integration
-- [ ] Google Translate integration via unofficial web endpoint
-- [ ] Translator tab UI (input text, select languages, show result)
-- [ ] "Add as card" flow after translation (one direction, reverse, or both → two independent cards)
-- [ ] Offline detection and graceful fallback to manual input
-- [ ] Side deck for cards pending translation
-- [ ] Batch translate side deck cards when back online
+- [x] Google Translate integration via unofficial web endpoint
+- [x] Translator tab UI (input text, select languages, show result)
+- [x] "Add as card" flow after translation (one direction, reverse, or both → two independent cards)
+- [x] Offline detection and graceful fallback to manual input
+- [x] Side deck for cards pending translation
+- [x] Batch translate side deck cards when back online
 - **Tests:**
-  - [ ] Unit: Google Translate client parses the response format correctly (mock a real response payload)
-  - [ ] Unit: Google Translate client handles error responses (rate limit, network error) without crashing
+  - [x] Unit: Google Translate client parses the response format correctly (mock a real response payload)
+  - [x] Unit: Google Translate client handles error responses (rate limit, network error) without crashing
   - [ ] Component (MSW): translator tab — type a word, mock a successful translation response, verify translation displays and "add as card" buttons appear
   - [ ] Component: offline mode — simulate offline (MSW returns network error), verify manual input fallback is shown and card goes to side deck
   - [ ] Component: side deck — cards appear in side deck list; going "online" (MSW returns success) and batch-translating moves them to the target deck
   - [ ] E2E: translate a word, add as card in both directions, verify two cards exist in deck with correct front/back
 
 ### Phase 6: Spanish Data Preprocessing & Import
-- [ ] Build preprocessing script to fetch `doozan/spanish_data@2026-02-01`
-- [ ] Parse `frequency.csv` + `es-en.data` + `es_allforms.csv` into JSON artifact
+- [x] Build preprocessing script to fetch `doozan/spanish_data@2026-02-01`
+- [x] Parse `frequency.csv` + `es-en.data` + `es_allforms.csv` into JSON artifact
 - [ ] Generate pre-computed verb conjugation tables for common verbs
-- [ ] Bundle artifact with the app build
-- [ ] "Importable Decks" tab UI
-- [ ] Import pre-built deck(s) into user deck(s)
+- [x] Bundle artifact with the app build
+- [x] "Importable Decks" tab UI
+- [x] Import pre-built deck(s) into user deck(s)
 - **Tests:**
   - [ ] Unit: preprocessing script — run on a small subset of the real data files, verify output JSON has correct structure (frequency order, POS tags, translations, conjugation tables)
   - [ ] Unit: preprocessing script — verify known verbs (ser, estar, tener) have complete conjugation tables in output
