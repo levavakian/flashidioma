@@ -7,8 +7,10 @@ import type { Deck, Card } from '../../types'
 import CardList from '../cards/CardList'
 import AddCardForm from '../cards/AddCardForm'
 import ReviewSession from '../review/ReviewSession'
+import ConstructChecklist from './ConstructChecklist'
+import PracticeTab from '../practice/PracticeTab'
 
-type Tab = 'cards' | 'review' | 'add'
+type Tab = 'cards' | 'review' | 'add' | 'practice' | 'constructs'
 
 export default function DeckDetailPage() {
   const { deckId } = useParams<{ deckId: string }>()
@@ -91,6 +93,26 @@ export default function DeckDetailPage() {
         >
           + Add Card
         </button>
+        <button
+          onClick={() => setTab('practice')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === 'practice'
+              ? 'border-blue-500 text-blue-500'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Practice
+        </button>
+        <button
+          onClick={() => setTab('constructs')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === 'constructs'
+              ? 'border-blue-500 text-blue-500'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Constructs
+        </button>
       </div>
 
       {tab === 'cards' && (
@@ -109,6 +131,12 @@ export default function DeckDetailPage() {
             setTab('cards')
           }}
         />
+      )}
+
+      {tab === 'practice' && <PracticeTab deck={deck} />}
+
+      {tab === 'constructs' && (
+        <ConstructChecklist deck={deck} onUpdate={loadDeck} />
       )}
     </div>
   )

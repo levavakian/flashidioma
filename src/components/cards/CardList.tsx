@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { updateCard, deleteCard } from '../../services/card'
+import { hydrateConjugation } from '../../services/llm'
+import ConjugationView from './ConjugationView'
 import type { Card } from '../../types'
 
 interface Props {
@@ -14,6 +16,8 @@ export default function CardList({ cards, onUpdate }: Props) {
   const [editFront, setEditFront] = useState('')
   const [editBack, setEditBack] = useState('')
   const [editNotes, setEditNotes] = useState('')
+  const [hydratingId, setHydratingId] = useState<string | null>(null)
+  const [hydrateError, setHydrateError] = useState('')
 
   const filtered = search
     ? cards.filter(
@@ -48,6 +52,22 @@ export default function CardList({ cards, onUpdate }: Props) {
     onUpdate()
   }
 
+  const handleHydrate = async (card: Card) => {
+    setHydrateError('')
+    setHydratingId(card.id)
+    try {
+      // Use the Spanish word (target language) for conjugation
+      const verb = card.direction === 'source-to-target' ? card.backText : card.frontText
+      const verbData = await hydrateConjugation(verb)
+      await updateCard(card.id, { verbData })
+      onUpdate()
+    } catch (e) {
+      setHydrateError(e instanceof Error ? e.message : 'Hydration failed')
+    } finally {
+      setHydratingId(null)
+    }
+  }
+
   const stateLabel = (state: Card['fsrs']['state']) => {
     switch (state) {
       case 'new': return 'New'
@@ -66,6 +86,8 @@ export default function CardList({ cards, onUpdate }: Props) {
     }
   }
 
+  const isVerb = (card: Card) => card.tags.includes('v') || card.tags.includes('verb')
+
   return (
     <div>
       <input
@@ -75,6 +97,10 @@ export default function CardList({ cards, onUpdate }: Props) {
         placeholder="Search cards..."
         className="w-full border rounded px-3 py-2 mb-3"
       />
+
+      {hydrateError && (
+        <div className="bg-red-50 text-red-600 px-3 py-2 rounded mb-3 text-sm">{hydrateError}</div>
+      )}
 
       {filtered.length === 0 && (
         <p className="text-gray-500 text-sm">
@@ -135,51 +161,62 @@ export default function CardList({ cards, onUpdate }: Props) {
 
       <div className="space-y-2">
         {filtered.map((card) => (
-          <div
-            key={card.id}
-            className="bg-white rounded-lg border p-3 flex items-center justify-between"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-medium truncate">{card.frontText}</span>
-                <span className="text-gray-400">&rarr;</span>
-                <span className="text-gray-600 truncate">{card.backText}</span>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full ${stateColor(card.fsrs.state)}`}
-                >
-                  {stateLabel(card.fsrs.state)}
-                </span>
-                {card.tags.map((tag) => (
+          <div key={card.id} className="bg-white rounded-lg border p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium truncate">{card.frontText}</span>
+                  <span className="text-gray-400">&rarr;</span>
+                  <span className="text-gray-600 truncate">{card.backText}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span
-                    key={tag}
-                    className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
+                    className={`text-xs px-2 py-0.5 rounded-full ${stateColor(card.fsrs.state)}`}
                   >
-                    {tag}
+                    {stateLabel(card.fsrs.state)}
                   </span>
-                ))}
-                <span className="text-xs text-gray-400">
-                  {card.direction === 'source-to-target' ? 'S\u2192T' : 'T\u2192S'}
-                </span>
+                  {card.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  <span className="text-xs text-gray-400">
+                    {card.direction === 'source-to-target' ? 'S\u2192T' : 'T\u2192S'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-1 ml-2">
+                {isVerb(card) && !card.verbData && (
+                  <button
+                    onClick={() => handleHydrate(card)}
+                    disabled={hydratingId === card.id}
+                    className="text-blue-400 hover:text-blue-600 p-1 text-xs disabled:opacity-50"
+                    title="Hydrate conjugations"
+                  >
+                    {hydratingId === card.id ? '...' : 'Conj'}
+                  </button>
+                )}
+                <button
+                  onClick={() => handleEdit(card)}
+                  className="text-gray-400 hover:text-gray-600 p-1 text-sm"
+                  title="Edit"
+                >
+                  &#9998;
+                </button>
+                <button
+                  onClick={() => handleDelete(card)}
+                  className="text-gray-400 hover:text-red-500 p-1 text-sm"
+                  title="Delete"
+                >
+                  &#128465;
+                </button>
               </div>
             </div>
-            <div className="flex gap-1 ml-2">
-              <button
-                onClick={() => handleEdit(card)}
-                className="text-gray-400 hover:text-gray-600 p-1 text-sm"
-                title="Edit"
-              >
-                &#9998;
-              </button>
-              <button
-                onClick={() => handleDelete(card)}
-                className="text-gray-400 hover:text-red-500 p-1 text-sm"
-                title="Delete"
-              >
-                &#128465;
-              </button>
-            </div>
+
+            {card.verbData && <ConjugationView verbData={card.verbData} />}
           </div>
         ))}
       </div>

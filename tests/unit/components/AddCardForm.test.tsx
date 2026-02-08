@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AddCardForm from '../../../src/components/cards/AddCardForm'
 import { db } from '../../../src/db'
@@ -29,7 +29,7 @@ describe('AddCardForm', () => {
     await user.type(screen.getByPlaceholderText('e.g. hola'), 'gato')
     await user.click(screen.getByText('Add Card'))
 
-    expect(onAdded).toHaveBeenCalled()
+    await waitFor(() => expect(onAdded).toHaveBeenCalled())
 
     const cards = await db.cards.toArray()
     expect(cards).toHaveLength(1)
