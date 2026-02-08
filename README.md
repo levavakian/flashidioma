@@ -315,7 +315,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [ ] Unit: Spanish module — spot-check conjugations for irregular verbs (ser, ir, tener) against known correct forms
   - [ ] Unit: compound tense generation — verify "he comido", "había comido", etc. are correctly formed from auxiliary + participle
   - [ ] Unit: static DB lookup — known verbs return conjugation data, unknown verbs return null
-  - [ ] Component: conjugation section is collapsed by default; clicking expands a tense; each form shows mini translation; tense descriptions are visible
+  - [x] Component: conjugation section is collapsed by default; clicking expands a tense; each form shows mini translation; tense descriptions are visible
 
 ### Phase 8: LLM Integration
 - [x] Settings UI for LLM config (provider selector, API key input, model text field)
@@ -328,7 +328,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [x] Unit (MSW): Anthropic API client — mock a successful response, verify parsed output matches expected conjugation/sentence format
   - [x] Unit (MSW): OpenAI API client — same as above for OpenAI endpoint format
   - [x] Unit (MSW): API client error handling — 401 (bad key), 429 (rate limit), network error — each produces a user-friendly error, no crash
-  - [ ] Component: settings UI — entering and saving API key persists it; changing provider updates the UI; clearing key removes it from storage
+  - [x] Component: settings UI — entering and saving API key persists it; changing provider updates the UI; clearing key removes it from storage
   - [ ] Component: hydrate button — clicking it with mock LLM response populates conjugation data on the card; clicking it when offline shows appropriate error
   - [ ] Integration (MSW): full hydration flow — add a verb card without conjugation data, click hydrate, mock LLM response, verify conjugation section populates and persists across page reload
 
@@ -341,7 +341,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [ ] Unit: construct filtering — with only present tense enabled, a verb card's review only tests present tense forms; enabling preterite adds preterite forms to the review pool
   - [x] Unit: non-verb cards are unaffected by construct checklist
   - [x] Unit: checklist state persists per deck — deck A can have different enabled constructs than deck B
-  - [ ] Component: checklist UI — toggling a construct on/off updates the stored state; review queue changes accordingly
+  - [x] Component: checklist UI — toggling a construct on/off updates the stored state; review queue changes accordingly
   - [ ] E2E: create a deck with verb cards, enable only present tense, start review, verify only present tense forms appear; enable imperfect, verify imperfect forms now also appear
 
 ### Phase 10: Practice Sentence Generation
