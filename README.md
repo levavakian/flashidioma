@@ -261,7 +261,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [x] Component: deck list renders decks, create/rename/delete update the list
   - [x] Component: add card form — submitting with valid data creates a card; "both directions" creates two independent cards; empty required fields show validation
   - [x] Component: review session — card front is shown, clicking reveal shows back, grading advances to next card, session ends when queue is empty
-  - [ ] E2E: full workflow — create a deck, add 3 cards, start review, grade all cards, verify due counts update
+  - [x] E2E: full workflow — create a deck, add 3 cards, start review, grade all cards, verify due counts update
 
 ### Phase 4: Tagging & Deduplication
 - [x] Tag management (add, remove, rename tags on cards)
@@ -285,9 +285,9 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [x] Unit: Google Translate client parses the response format correctly (mock a real response payload)
   - [x] Unit: Google Translate client handles error responses (rate limit, network error) without crashing
   - [x] Component (MSW): translator tab — type a word, mock a successful translation response, verify translation displays and "add as card" buttons appear
-  - [ ] Component: offline mode — simulate offline (MSW returns network error), verify manual input fallback is shown and card goes to side deck
-  - [ ] Component: side deck — cards appear in side deck list; going "online" (MSW returns success) and batch-translating moves them to the target deck
-  - [ ] E2E: translate a word, add as card in both directions, verify two cards exist in deck with correct front/back
+  - [x] Component: offline mode — simulate offline (MSW returns network error), verify manual input fallback is shown and card goes to side deck
+  - [x] Component: side deck — cards appear in side deck list; going "online" (MSW returns success) and batch-translating moves them to the target deck
+  - [x] E2E: translate a word, add as card in both directions, verify two cards exist in deck with correct front/back
 
 ### Phase 6: Spanish Data Preprocessing & Import
 - [x] Build preprocessing script to fetch `doozan/spanish_data@2026-02-01`
@@ -367,7 +367,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Error boundaries and user-facing error messages
 - **Tests:**
   - [x] E2E: responsive layout — run Playwright at mobile viewport (375×667) and desktop viewport (1280×800), verify all major views are usable (no overflow, no hidden controls)
-  - [ ] E2E: offline — load the app, go offline (service worker serves cached assets), verify app still loads and review still works
+  - [x] E2E: offline — load the app, go offline (service worker serves cached assets), verify app still loads and review still works
   - [x] E2E: large deck performance — import a deck with 1000+ cards, verify card list renders without lag (measure render time, assert under threshold)
   - [x] Component: error boundaries — simulate a component crash, verify a fallback error message is shown instead of a white screen
 

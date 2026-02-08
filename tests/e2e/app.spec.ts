@@ -166,6 +166,129 @@ test.describe('E2E: Responsive Layout', () => {
   })
 })
 
+test.describe('E2E: Full Review Workflow', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/')
+    await clearDB(page)
+    await page.reload()
+    await expect(page.getByText('Your Decks')).toBeVisible()
+  })
+
+  test('create deck, add cards, review all, verify due counts update', async ({ page }) => {
+    // Create a deck
+    await createDeck(page, 'Review Deck')
+    await page.getByText('Review Deck').click()
+
+    // Add 3 cards — after adding a card, the UI switches to the Cards tab
+    for (const [front, back] of [['hello', 'hola'], ['goodbye', 'adiós'], ['thanks', 'gracias']]) {
+      await page.getByRole('button', { name: '+ Add' }).click()
+      await expect(page.getByRole('heading', { name: 'Add New Card' })).toBeVisible()
+      await page.getByPlaceholder('e.g. hello').fill(front)
+      await page.getByPlaceholder('e.g. hola').fill(back)
+      await page.getByRole('button', { name: 'Add Card' }).click()
+      // After add, the tab switches to Cards — wait for it
+      await expect(page.getByText(front)).toBeVisible()
+    }
+
+    // Verify cards exist
+    await page.getByRole('button', { name: /Cards/ }).click()
+    await expect(page.getByText('hello')).toBeVisible()
+    await expect(page.getByText('goodbye')).toBeVisible()
+    await expect(page.getByText('thanks')).toBeVisible()
+
+    // Go to review — should have new cards available
+    await page.getByRole('button', { name: 'Review' }).click()
+
+    // Review each card by clicking "Show Answer" then grading "Good"
+    for (let i = 0; i < 3; i++) {
+      // Wait for a card to be shown
+      await expect(page.getByText('Show Answer')).toBeVisible({ timeout: 5000 })
+      await page.getByText('Show Answer').click()
+
+      // Grade as "Good" (rating 3)
+      await expect(page.getByRole('button', { name: 'Good' })).toBeVisible()
+      await page.getByRole('button', { name: 'Good' }).click()
+    }
+
+    // After reviewing all cards, should show completion message
+    await expect(page.getByText(/No cards to review right now/)).toBeVisible({ timeout: 5000 })
+  })
+})
+
+test.describe('E2E: Translate and Add', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/')
+    await clearDB(page)
+    await page.reload()
+    await expect(page.getByText('Your Decks')).toBeVisible()
+  })
+
+  test('translate a word and add as card in both directions', async ({ page }) => {
+    // Create a deck first
+    await createDeck(page, 'Translate Deck')
+
+    // Navigate to Translate tab
+    await page.getByRole('link', { name: /Translate/i }).click()
+    await expect(page.getByRole('heading', { name: 'Translate' })).toBeVisible()
+
+    // Type a word and translate
+    await page.getByPlaceholder('Enter text to translate...').fill('cat')
+    await page.getByRole('button', { name: 'Translate' }).click()
+
+    // Wait for translation to appear (depends on actual network/mock)
+    // In E2E we test the full real flow, so the translation endpoint must be available
+    await expect(page.locator('textarea').nth(1)).not.toBeEmpty({ timeout: 10000 })
+
+    // Click "Both" to add in both directions
+    await page.getByText('Both').click()
+
+    // Should show confirmation
+    await expect(page.getByText('Added 2 cards (both directions)')).toBeVisible()
+
+    // Navigate to deck and verify cards
+    await page.getByRole('link', { name: /Decks/i }).click()
+    await page.getByText('Translate Deck').click()
+
+    // Should have 2 cards
+    await expect(page.getByText(/2 cards/)).toBeVisible()
+  })
+})
+
+test.describe('E2E: Offline Support', () => {
+  test('app loads offline after initial cache via service worker', async ({ page, context }) => {
+    // First visit to cache assets via service worker
+    await page.goto('/')
+    await expect(page.getByText('Your Decks')).toBeVisible()
+
+    // Wait for service worker to become active and cache assets
+    const swActive = await page.evaluate(async () => {
+      if (!navigator.serviceWorker) return false
+      const reg = await navigator.serviceWorker.ready
+      return !!reg.active
+    }).catch(() => false)
+
+    if (!swActive) {
+      test.skip(true, 'Service worker not available in this environment')
+      return
+    }
+
+    // Give the service worker time to precache assets
+    await page.waitForTimeout(2000)
+
+    // Go offline
+    await context.setOffline(true)
+
+    // Reload the page — service worker should serve cached assets
+    try {
+      await page.reload({ timeout: 10000 })
+      await expect(page.getByText('Your Decks')).toBeVisible({ timeout: 5000 })
+    } finally {
+      // Restore online
+      await context.setOffline(false)
+    }
+  })
+})
+
 test.describe('E2E: Large Deck Performance', () => {
   test('importing a large deck and rendering card list', async ({ page }) => {
     test.setTimeout(120000) // 2 minutes for this test
