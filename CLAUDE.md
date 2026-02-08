@@ -19,6 +19,15 @@ flashidioma is a language-learning flashcard PWA built with React + TailwindCSS.
 - **Multi-language ready:** data models and construct systems must be language-agnostic, even though only Spanish is implemented now.
 - **Static deployment:** the build output must be purely static assets deployable to GitHub Pages.
 
+## Development Environment
+
+Claude Code runs inside a Docker dev container. The container is defined by `Dockerfile`, `entrypoint.sh`, `build.sh`, and `run.sh` in the repo root.
+
+- **Build:** `./build.sh` builds the Docker image.
+- **Run:** `ANTHROPIC_API_KEY=<key> ./run.sh` starts the container and drops into a shell. The project directory is mounted at `/app` with UID/GID matching so file edits don't cause permission issues.
+- **Dev dependencies** (npm packages, etc.) should be managed by the project's package manager (npm) and installed at runtime via `npm install`. The Dockerfile should only be updated for **system-level** dependencies (e.g. new OS packages, global CLI tools). If a new system dependency is added, prompt the user to rebuild the Docker image with `./build.sh`.
+- **Git access:** The container has `git` and can clone/fetch public repos (e.g. `doozan/spanish_data`, this repo). There are **no SSH keys** in the container — the user handles `git push` from outside the Docker. Do not attempt to push.
+
 ## Spanish Data Dependency
 
 The app depends on [doozan/spanish_data](https://github.com/doozan/spanish_data) pinned to tag `2026-02-01`. This is NOT a git submodule — a preprocessing script fetches the raw data at build time and produces a JSON artifact that gets bundled with the app.

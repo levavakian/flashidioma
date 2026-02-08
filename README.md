@@ -159,6 +159,7 @@ The app is architected to support multiple target languages, even though only **
 App
 ├── Settings (global)
 │   ├── LLM provider config (provider, API key, model)
+│   ├── "Install as App" button (triggers PWA install prompt on supported devices)
 │   └── UI preferences
 ├── Decks[]
 │   ├── Deck metadata (name, target language, created date)
@@ -175,6 +176,24 @@ App
 ├── Side deck (cards pending translation)
 └── Importable decks catalog (pre-built decks available for import)
 ```
+
+## Development Setup
+
+Development (including running Claude Code) happens inside a Docker container. The dev container includes Node.js, npm, and the Claude Code CLI.
+
+**Prerequisites:** Docker, an `ANTHROPIC_API_KEY` environment variable.
+
+```bash
+# Build the dev image (only needed once, or when Dockerfile changes)
+./build.sh
+
+# Start the dev container and get a shell
+ANTHROPIC_API_KEY=<your-key> ./run.sh
+```
+
+The project directory is bind-mounted into the container at `/app` with host UID/GID matching, so files created or edited inside the container have correct ownership on the host.
+
+**When to rebuild the Docker image:** only when `Dockerfile` changes (e.g. new system-level packages). Day-to-day dependency changes via `npm install` do not require a rebuild.
 
 ## Build & Preprocessing
 
@@ -337,7 +356,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 ### Phase 11: Polish & PWA Refinement
 - [ ] Responsive layout for mobile and desktop
 - [ ] Offline service worker caching for all app assets
-- [ ] PWA install prompt handling
+- [ ] PWA install prompt: capture the `beforeinstallprompt` event and expose an "Install as App" button in Settings that triggers it (hidden when already installed or unsupported)
 - [ ] Performance optimization for large decks (virtualized lists, lazy loading)
 - [ ] Error boundaries and user-facing error messages
 - **Tests:**
