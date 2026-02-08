@@ -363,7 +363,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Responsive layout for mobile and desktop
 - [x] Offline service worker caching for all app assets
 - [x] PWA install prompt: capture the `beforeinstallprompt` event and expose an "Install as App" button in Settings that triggers it (hidden when already installed or unsupported)
-- [ ] Performance optimization for large decks (virtualized lists, lazy loading)
+- [x] Performance optimization for large decks (paginated card list, memoized search)
 - [x] Error boundaries and user-facing error messages
 - **Tests:**
   - [ ] E2E: responsive layout — run Playwright at mobile viewport (375×667) and desktop viewport (1280×800), verify all major views are usable (no overflow, no hidden controls)

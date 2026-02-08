@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { updateCard, deleteCard } from '../../services/card'
 import { hydrateConjugation } from '../../services/llm'
 import ConjugationView from './ConjugationView'
 import type { Card } from '../../types'
+
+const PAGE_SIZE = 50
 
 interface Props {
   cards: Card[]
@@ -18,15 +20,27 @@ export default function CardList({ cards, onUpdate }: Props) {
   const [editNotes, setEditNotes] = useState('')
   const [hydratingId, setHydratingId] = useState<string | null>(null)
   const [hydrateError, setHydrateError] = useState('')
+  const [page, setPage] = useState(0)
 
-  const filtered = search
-    ? cards.filter(
-        (c) =>
-          c.frontText.toLowerCase().includes(search.toLowerCase()) ||
-          c.backText.toLowerCase().includes(search.toLowerCase()) ||
-          c.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
-      )
-    : cards
+  const filtered = useMemo(() => {
+    if (!search) return cards
+    const q = search.toLowerCase()
+    return cards.filter(
+      (c) =>
+        c.frontText.toLowerCase().includes(q) ||
+        c.backText.toLowerCase().includes(q) ||
+        c.tags.some((t) => t.toLowerCase().includes(q))
+    )
+  }, [cards, search])
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
+  // Reset page when search changes
+  const handleSearch = (value: string) => {
+    setSearch(value)
+    setPage(0)
+  }
 
   const handleEdit = (card: Card) => {
     setEditingCard(card)
@@ -90,13 +104,18 @@ export default function CardList({ cards, onUpdate }: Props) {
 
   return (
     <div>
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search cards..."
-        className="w-full border rounded px-3 py-2 mb-3"
-      />
+      <div className="flex gap-2 mb-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder="Search cards..."
+          className="flex-1 border rounded px-3 py-2"
+        />
+        <span className="text-sm text-gray-400 self-center whitespace-nowrap">
+          {filtered.length} card{filtered.length !== 1 ? 's' : ''}
+        </span>
+      </div>
 
       {hydrateError && (
         <div className="bg-red-50 text-red-600 px-3 py-2 rounded mb-3 text-sm">{hydrateError}</div>
@@ -160,13 +179,13 @@ export default function CardList({ cards, onUpdate }: Props) {
       )}
 
       <div className="space-y-2">
-        {filtered.map((card) => (
+        {pageItems.map((card) => (
           <div key={card.id} className="bg-white rounded-lg border p-3">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium truncate">{card.frontText}</span>
-                  <span className="text-gray-400">&rarr;</span>
+                  <span className="text-gray-400 shrink-0">&rarr;</span>
                   <span className="text-gray-600 truncate">{card.backText}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -220,6 +239,29 @@ export default function CardList({ cards, onUpdate }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="px-3 py-1 rounded text-sm border disabled:opacity-30 hover:bg-gray-50"
+          >
+            Prev
+          </button>
+          <span className="text-sm text-gray-500">
+            {page + 1} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            className="px-3 py-1 rounded text-sm border disabled:opacity-30 hover:bg-gray-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   )
 }
