@@ -12,6 +12,14 @@ import PracticeTab from '../practice/PracticeTab'
 
 type Tab = 'cards' | 'review' | 'add' | 'practice' | 'constructs'
 
+const tabs: { id: Tab; label: string }[] = [
+  { id: 'cards', label: 'Cards' },
+  { id: 'review', label: 'Review' },
+  { id: 'add', label: '+ Add' },
+  { id: 'practice', label: 'Practice' },
+  { id: 'constructs', label: 'Constructs' },
+]
+
 export default function DeckDetailPage() {
   const { deckId } = useParams<{ deckId: string }>()
   const navigate = useNavigate()
@@ -20,6 +28,7 @@ export default function DeckDetailPage() {
   const [dueCount, setDueCount] = useState(0)
   const [newCount, setNewCount] = useState(0)
   const [tab, setTab] = useState<Tab>('cards')
+  const [loading, setLoading] = useState(true)
 
   const loadDeck = async () => {
     if (!deckId) return
@@ -37,13 +46,26 @@ export default function DeckDetailPage() {
 
     const newBatch = await getNewCardBatch(d)
     setNewCount(newBatch.length)
+    setLoading(false)
   }
 
   useEffect(() => {
     loadDeck()
   }, [deckId])
 
+  if (loading) {
+    return <p className="text-gray-500 py-8 text-center">Loading deck...</p>
+  }
+
   if (!deck) return null
+
+  const getTabLabel = (t: typeof tabs[0]) => {
+    if (t.id === 'cards') return `${t.label} (${cards.length})`
+    if (t.id === 'review') return t.label
+    return t.label
+  }
+
+  const reviewBadge = dueCount + newCount
 
   return (
     <div>
@@ -54,65 +76,28 @@ export default function DeckDetailPage() {
         >
           &larr; Back
         </button>
-        <h2 className="text-2xl font-bold">{deck.name}</h2>
+        <h2 className="text-2xl font-bold truncate">{deck.name}</h2>
       </div>
 
       <div className="flex border-b mb-4 overflow-x-auto -mx-4 px-4 scrollbar-hide">
-        <button
-          onClick={() => setTab('cards')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap shrink-0 ${
-            tab === 'cards'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Cards ({cards.length})
-        </button>
-        <button
-          onClick={() => setTab('review')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap shrink-0 ${
-            tab === 'review'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Review
-          {(dueCount > 0 || newCount > 0) && (
-            <span className="ml-1 bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full text-xs">
-              {dueCount + newCount}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab('add')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap shrink-0 ${
-            tab === 'add'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          + Add Card
-        </button>
-        <button
-          onClick={() => setTab('practice')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap shrink-0 ${
-            tab === 'practice'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Practice
-        </button>
-        <button
-          onClick={() => setTab('constructs')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap shrink-0 ${
-            tab === 'constructs'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Constructs
-        </button>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap shrink-0 ${
+              tab === t.id
+                ? 'border-blue-500 text-blue-500'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {getTabLabel(t)}
+            {t.id === 'review' && reviewBadge > 0 && (
+              <span className="ml-1 bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full text-xs">
+                {reviewBadge}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {tab === 'cards' && (

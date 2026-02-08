@@ -23,7 +23,7 @@ function App() {
           </Routes>
         </main>
 
-        <nav className="bg-white border-t border-gray-200 px-4 py-2 flex justify-around">
+        <nav className="bg-white border-t border-gray-200 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex justify-around">
           <NavLink
             to="/"
             className={({ isActive }) =>
