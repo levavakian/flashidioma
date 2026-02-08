@@ -297,8 +297,8 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] "Importable Decks" tab UI
 - [x] Import pre-built deck(s) into user deck(s)
 - **Tests:**
-  - [ ] Unit: preprocessing script — run on a small subset of the real data files, verify output JSON has correct structure (frequency order, POS tags, translations, conjugation tables)
-  - [ ] Unit: preprocessing script — verify known verbs (ser, estar, tener) have complete conjugation tables in output
+  - [x] Unit: preprocessing script — run on a small subset of the real data files, verify output JSON has correct structure (frequency order, POS tags, translations, conjugation tables)
+  - [x] Unit: preprocessing script — verify known verbs (ser, estar, tener) have complete conjugation tables in output
   - [ ] Unit: preprocessing script — verify output is deterministic (same input → same output)
   - [ ] Component: importable decks tab shows available pre-built decks; importing adds cards to a user deck; importing twice does not create duplicates
   - [ ] Integration: full pipeline — run preprocessing, build app, verify the artifact is loadable and importable in the running app
@@ -338,7 +338,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Filter review cards by enabled constructs (verb cards only show enabled tenses)
 - [x] Persist checklist state per deck
 - **Tests:**
-  - [ ] Unit: construct filtering — with only present tense enabled, a verb card's review only tests present tense forms; enabling preterite adds preterite forms to the review pool
+  - [x] Unit: construct filtering — with only present tense enabled, a verb card's review only tests present tense forms; enabling preterite adds preterite forms to the review pool
   - [x] Unit: non-verb cards are unaffected by construct checklist
   - [x] Unit: checklist state persists per deck — deck A can have different enabled constructs than deck B
   - [x] Component: checklist UI — toggling a construct on/off updates the stored state; review queue changes accordingly
@@ -369,7 +369,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [ ] E2E: responsive layout — run Playwright at mobile viewport (375×667) and desktop viewport (1280×800), verify all major views are usable (no overflow, no hidden controls)
   - [ ] E2E: offline — load the app, go offline (service worker serves cached assets), verify app still loads and review still works
   - [ ] E2E: large deck performance — import a deck with 5000+ cards, verify card list renders without lag (measure render time, assert under threshold)
-  - [ ] Component: error boundaries — simulate a component crash, verify a fallback error message is shown instead of a white screen
+  - [x] Component: error boundaries — simulate a component crash, verify a fallback error message is shown instead of a white screen
 
 ### Known Issues
 <!-- Track bugs and issues here as they arise during development -->
