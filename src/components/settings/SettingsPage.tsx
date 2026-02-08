@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { getSettings, updateSettings } from '../../db'
+import { getSettings, updateSettings, db } from '../../db'
 import { exportAppState, importAppState, downloadJson } from '../../services/exportImport'
 import type { LLMProvider } from '../../types'
 
@@ -12,6 +12,16 @@ export default function SettingsPage() {
   const [importMessage, setImportMessage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [stats, setStats] = useState({ decks: 0, cards: 0, reviews: 0 })
+
+  const loadStats = async () => {
+    const [decks, cards, reviews] = await Promise.all([
+      db.decks.count(),
+      db.cards.count(),
+      db.reviewHistory.count(),
+    ])
+    setStats({ decks, cards, reviews })
+  }
 
   useEffect(() => {
     getSettings().then((s) => {
@@ -19,6 +29,8 @@ export default function SettingsPage() {
       setApiKey(s.llmApiKey)
       setModel(s.llmModel)
     })
+
+    loadStats()
 
     const handler = (e: Event) => {
       e.preventDefault()
@@ -61,6 +73,11 @@ export default function SettingsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (!confirm('This will replace ALL existing data (decks, cards, review history, settings). Continue?')) {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     try {
       const text = await file.text()
       const data = JSON.parse(text)
@@ -71,12 +88,29 @@ export default function SettingsPage() {
       setProvider(s.llmProvider)
       setApiKey(s.llmApiKey)
       setModel(s.llmModel)
+      await loadStats()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Import failed')
     }
 
     // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleClearAll = async () => {
+    if (!confirm('This will permanently delete ALL data. This cannot be undone. Continue?')) return
+    if (!confirm('Are you absolutely sure? Export a backup first if needed.')) return
+
+    await db.transaction('rw', [db.decks, db.cards, db.reviewHistory, db.practiceSentences, db.sideDeckCards, db.settings], async () => {
+      await db.decks.clear()
+      await db.cards.clear()
+      await db.reviewHistory.clear()
+      await db.practiceSentences.clear()
+      await db.sideDeckCards.clear()
+      await db.settings.clear()
+    })
+    await loadStats()
+    setImportMessage('All data has been cleared.')
   }
 
   const handleInstall = async () => {
@@ -93,9 +127,31 @@ export default function SettingsPage() {
         <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm">{error}</div>
       )}
 
+      {/* Stats */}
+      <div className="bg-white rounded-lg shadow border p-4">
+        <h3 className="font-semibold text-lg mb-3">Overview</h3>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <p className="text-2xl font-bold text-blue-500">{stats.decks}</p>
+            <p className="text-xs text-gray-500">Decks</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-green-500">{stats.cards}</p>
+            <p className="text-xs text-gray-500">Cards</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-purple-500">{stats.reviews}</p>
+            <p className="text-xs text-gray-500">Reviews</p>
+          </div>
+        </div>
+      </div>
+
       {/* LLM Configuration */}
       <div className="bg-white rounded-lg shadow border p-4">
         <h3 className="font-semibold text-lg mb-3">LLM Configuration</h3>
+        <p className="text-sm text-gray-500 mb-3">
+          Required for conjugation hydration and practice sentence generation.
+        </p>
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
@@ -127,7 +183,7 @@ export default function SettingsPage() {
               value={model}
               onChange={(e) => setModel(e.target.value)}
               className="w-full border rounded px-3 py-2"
-              placeholder={provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'gpt-4o'}
+              placeholder={provider === 'anthropic' ? 'claude-sonnet-4-5-20250929' : 'gpt-4o'}
             />
           </div>
 
@@ -165,6 +221,9 @@ export default function SettingsPage() {
               onChange={handleImport}
               className="w-full text-sm"
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Warning: importing will replace all existing data.
+            </p>
           </div>
 
           {importMessage && (
@@ -172,6 +231,15 @@ export default function SettingsPage() {
               {importMessage}
             </div>
           )}
+
+          <hr />
+
+          <button
+            onClick={handleClearAll}
+            className="w-full bg-red-50 text-red-600 py-2 rounded font-medium hover:bg-red-100 text-sm"
+          >
+            Clear All Data
+          </button>
         </div>
       </div>
 
@@ -190,6 +258,12 @@ export default function SettingsPage() {
           </button>
         </div>
       )}
+
+      {/* About */}
+      <div className="text-center text-xs text-gray-400 pb-4">
+        <p>FlashIdioma - Language Learning Flashcards</p>
+        <p>All data stored locally on your device.</p>
+      </div>
     </div>
   )
 }
