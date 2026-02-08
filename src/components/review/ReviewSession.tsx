@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { reviewCard, getReviewQueue } from '../../services/review'
 import type { Deck, Card } from '../../types'
 
@@ -15,6 +15,29 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const [totalDue, setTotalDue] = useState(0)
   const [totalNew, setTotalNew] = useState(0)
   const [reviewed, setReviewed] = useState(0)
+
+  const gradingRef = useRef(false)
+
+  // Keyboard shortcuts: space to reveal, 1-4 to grade
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (gradingRef.current) return
+      if (!currentCard) return
+
+      if (!revealed && (e.key === ' ' || e.key === 'Enter')) {
+        e.preventDefault()
+        setRevealed(true)
+      } else if (revealed && e.key >= '1' && e.key <= '4') {
+        e.preventDefault()
+        gradingRef.current = true
+        handleGrade(parseInt(e.key)).finally(() => {
+          gradingRef.current = false
+        })
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  })
 
   const loadQueue = useCallback(async () => {
     setLoading(true)

@@ -47,12 +47,14 @@ describe('AddCardForm', () => {
     await user.selectOptions(screen.getByRole('combobox'), 'both')
     await user.click(screen.getByText('Add Card'))
 
-    const cards = await db.cards.toArray()
-    expect(cards).toHaveLength(2)
-    expect(cards.map((c) => c.direction).sort()).toEqual([
-      'source-to-target',
-      'target-to-source',
-    ])
+    await waitFor(async () => {
+      const cards = await db.cards.toArray()
+      expect(cards).toHaveLength(2)
+      expect(cards.map((c) => c.direction).sort()).toEqual([
+        'source-to-target',
+        'target-to-source',
+      ])
+    })
   })
 
   it('shows validation error for empty fields', async () => {
