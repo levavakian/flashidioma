@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getImportableDecks, importPrebuiltDeck } from '../../services/importDeck'
-import { getAllDecks } from '../../services/deck'
+import { getAllDecks, createDeck } from '../../services/deck'
 import type { Deck, ImportableDeck } from '../../types'
 
 export default function ImportDecksPage() {
@@ -13,13 +13,18 @@ export default function ImportDecksPage() {
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null)
   const [error, setError] = useState('')
   const [limit, setLimit] = useState(500)
+  const [showNewDeck, setShowNewDeck] = useState(false)
+  const [newDeckName, setNewDeckName] = useState('')
+
+  const loadDecks = async () => {
+    const d = await getAllDecks()
+    setUserDecks(d)
+    if (d.length > 0 && !selectedDeckId) setSelectedDeckId(d[0].id)
+  }
 
   useEffect(() => {
     getImportableDecks().then(setImportableDecks)
-    getAllDecks().then((d) => {
-      setUserDecks(d)
-      if (d.length > 0) setSelectedDeckId(d[0].id)
-    })
+    loadDecks()
   }, [])
 
   const handleImport = async (importableDeckId: string) => {
@@ -62,16 +67,65 @@ export default function ImportDecksPage() {
 
       <div className="mb-4 bg-white rounded-lg border p-4">
         <label className="block text-sm font-medium text-gray-700 mb-1">Import into deck</label>
-        <select
-          value={selectedDeckId}
-          onChange={(e) => setSelectedDeckId(e.target.value)}
-          className="w-full border rounded px-3 py-2"
-        >
-          {userDecks.length === 0 && <option value="">No decks available</option>}
-          {userDecks.map((d) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </select>
+        <div className="flex gap-2">
+          <select
+            value={selectedDeckId}
+            onChange={(e) => setSelectedDeckId(e.target.value)}
+            className="flex-1 border rounded px-3 py-2"
+          >
+            {userDecks.length === 0 && <option value="">No decks available</option>}
+            {userDecks.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setShowNewDeck(true)}
+            className="bg-gray-100 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-200 whitespace-nowrap"
+          >
+            + New
+          </button>
+        </div>
+
+        {showNewDeck && (
+          <div className="mt-2 flex gap-2">
+            <input
+              type="text"
+              value={newDeckName}
+              onChange={(e) => setNewDeckName(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && newDeckName.trim()) {
+                  const deck = await createDeck(newDeckName.trim())
+                  setSelectedDeckId(deck.id)
+                  setNewDeckName('')
+                  setShowNewDeck(false)
+                  await loadDecks()
+                }
+              }}
+              placeholder="New deck name"
+              className="flex-1 border rounded px-3 py-2"
+              autoFocus
+            />
+            <button
+              onClick={async () => {
+                if (!newDeckName.trim()) return
+                const deck = await createDeck(newDeckName.trim())
+                setSelectedDeckId(deck.id)
+                setNewDeckName('')
+                setShowNewDeck(false)
+                await loadDecks()
+              }}
+              className="bg-blue-500 text-white px-3 py-2 rounded text-sm"
+            >
+              Create
+            </button>
+            <button
+              onClick={() => { setShowNewDeck(false); setNewDeckName('') }}
+              className="text-gray-500 px-3 py-2 rounded text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
 
         <label className="block text-sm font-medium text-gray-700 mt-3 mb-1">
           Number of cards to import (by frequency)

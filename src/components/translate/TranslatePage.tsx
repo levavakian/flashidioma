@@ -152,17 +152,29 @@ export default function TranslatePage() {
           <select
             value={sourceLang}
             onChange={(e) => setSourceLang(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
+            className="flex-1 border rounded px-2 py-2 text-sm"
           >
             <option value="en">English</option>
             <option value="es">Spanish</option>
             <option value="auto">Auto-detect</option>
           </select>
-          <span className="text-gray-400">&rarr;</span>
+          <button
+            onClick={() => {
+              if (sourceLang !== 'auto') {
+                const tmp = sourceLang
+                setSourceLang(targetLang)
+                setTargetLang(tmp)
+              }
+            }}
+            className="text-gray-400 hover:text-gray-600 px-2 py-1"
+            title="Swap languages"
+          >
+            &#8646;
+          </button>
           <select
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
+            className="flex-1 border rounded px-2 py-2 text-sm"
           >
             <option value="es">Spanish</option>
             <option value="en">English</option>
