@@ -284,7 +284,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - **Tests:**
   - [x] Unit: Google Translate client parses the response format correctly (mock a real response payload)
   - [x] Unit: Google Translate client handles error responses (rate limit, network error) without crashing
-  - [ ] Component (MSW): translator tab — type a word, mock a successful translation response, verify translation displays and "add as card" buttons appear
+  - [x] Component (MSW): translator tab — type a word, mock a successful translation response, verify translation displays and "add as card" buttons appear
   - [ ] Component: offline mode — simulate offline (MSW returns network error), verify manual input fallback is shown and card goes to side deck
   - [ ] Component: side deck — cards appear in side deck list; going "online" (MSW returns success) and batch-translating moves them to the target deck
   - [ ] E2E: translate a word, add as card in both directions, verify two cards exist in deck with correct front/back
@@ -356,7 +356,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
   - [ ] Unit: vocab selector — with no reviewed words, returns empty/error (not a crash)
   - [ ] Unit: vocab selector — with only one reviewed verb and one tense enabled, always selects that combination
   - [ ] Component (MSW): practice tab — click generate, mock LLM response, verify sentences display with translations; sentences persist after navigating away and back; clicking regenerate replaces them
-  - [ ] Component: convert to flashcard — click the convert button on a practice sentence, verify a new card is created in the deck with correct front/back text
+  - [x] Component: convert to flashcard — click the convert button on a practice sentence, verify a new card is created in the deck with correct front/back text
   - [ ] E2E: full flow — add and review some vocab, generate practice sentences, convert one to a card, verify it appears in the deck
 
 ### Phase 11: Polish & PWA Refinement
