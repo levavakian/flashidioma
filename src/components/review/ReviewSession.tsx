@@ -1,11 +1,21 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { reviewCard, getReviewQueue, getSchedulingPreview, formatInterval } from '../../services/review'
+import { lookupConjugation } from '../../services/conjugationLookup'
 import ConjugationView from '../cards/ConjugationView'
-import type { Deck, Card } from '../../types'
+import type { Deck, Card, VerbData } from '../../types'
 
 interface Props {
   deck: Deck
   onComplete: () => void
+}
+
+function isVerb(card: Card): boolean {
+  return card.tags.includes('v') || card.tags.includes('verb')
+}
+
+/** Get the target-language word (Spanish) from a card regardless of direction */
+function getTargetWord(card: Card): string {
+  return card.direction === 'source-to-target' ? card.backText : card.frontText
 }
 
 export default function ReviewSession({ deck, onComplete }: Props) {
@@ -16,10 +26,39 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const [totalDue, setTotalDue] = useState(0)
   const [totalNew, setTotalNew] = useState(0)
   const [reviewed, setReviewed] = useState(0)
+  const [lookedUpVerbData, setLookedUpVerbData] = useState<VerbData | null>(null)
 
   const gradingRef = useRef(false)
 
   const currentCard = queue[currentIndex]
+
+  // Auto-lookup conjugation from static DB when a verb card is revealed
+  useEffect(() => {
+    if (!currentCard || !revealed) {
+      setLookedUpVerbData(null)
+      return
+    }
+
+    // If card already has verbData (from LLM hydration), no need to look up
+    if (currentCard.verbData) {
+      setLookedUpVerbData(null)
+      return
+    }
+
+    // Only look up verbs
+    if (!isVerb(currentCard)) {
+      setLookedUpVerbData(null)
+      return
+    }
+
+    const word = getTargetWord(currentCard)
+    lookupConjugation(word).then((data) => {
+      setLookedUpVerbData(data)
+    })
+  }, [currentCard, revealed])
+
+  // The verb data to display: prefer card's own verbData, fall back to static lookup
+  const displayVerbData = currentCard?.verbData ?? lookedUpVerbData
 
   // Compute scheduling preview for the current card when revealed
   const schedulingPreview = useMemo(() => {
@@ -151,9 +190,9 @@ export default function ReviewSession({ deck, onComplete }: Props) {
               <p className="text-sm text-gray-400 mb-4 italic">{currentCard.notes}</p>
             )}
 
-            {currentCard.verbData && (
+            {displayVerbData && (
               <ConjugationView
-                verbData={currentCard.verbData}
+                verbData={displayVerbData}
                 enabledConstructs={deck.constructChecklist}
               />
             )}

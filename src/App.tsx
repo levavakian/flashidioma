@@ -8,12 +8,12 @@ import SettingsPage from './components/settings/SettingsPage'
 function App() {
   return (
     <HashRouter>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <header className="bg-blue-500 text-white px-4 py-3 shadow-md">
+      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+        <header className="bg-blue-500 text-white px-4 py-3 shadow-md shrink-0">
           <h1 className="text-xl font-bold">FlashIdioma</h1>
         </header>
 
-        <main className="flex-1 p-4 pb-20 max-w-4xl mx-auto w-full">
+        <main className="flex-1 overflow-y-auto p-4 pb-20 max-w-4xl mx-auto w-full">
           <Routes>
             <Route path="/" element={<DecksPage />} />
             <Route path="/deck/:deckId" element={<DeckDetailPage />} />
