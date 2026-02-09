@@ -64,6 +64,7 @@ Uses the [Free Spaced Repetition Scheduler (FSRS)](https://github.com/open-space
 - Cards become due based on FSRS scheduling
 - **New card introduction:** new cards are introduced in configurable batches (default: 5 per day). The next batch is only introduced after the current batch of new cards have all been reviewed at least once (converting them from "new" to "review" cards)
 - Due cards accumulate in the review queue and are presented when the user opens the review tab
+- **Per-deck SRS settings:** each deck has a Settings tab where the user can adjust new cards per day, batch size, and auto-conjugation parameters
 
 ## Features
 
@@ -96,6 +97,17 @@ Each deck has a configurable checklist of language constructs that are "unlocked
 - Example: start with only present tense enabled → verb flashcards only test present tense forms
 - As the user enables more tenses, additional conjugation forms of already-learned verbs become available for review
 - This checklist also governs what constructs appear in practice sentence generation
+- The checklist also governs which conjugation forms are eligible for auto-addition (see Auto-Conjugation Cards below)
+
+### Auto-Conjugation Cards
+When reviewing a verb card and grading **Good** or **Easy**, the app automatically adds one random conjugation form of that verb as a new bidirectional flashcard pair:
+- **Once per verb per day:** each verb can only contribute one new conjugation card per day
+- **Respects construct checklist:** only conjugation forms from enabled tenses are eligible
+- **No duplicates:** forms already present as cards in the deck are skipped
+- **Reflexive verb support:** for reflexive verbs (e.g. levantarse), the card text includes the correct reflexive pronoun (e.g. "me levanto", not "levanto")
+- **Daily limit:** configurable max conjugation cards per day (default: 5) to avoid overwhelming the review queue
+- **Example flow:** reviewing "comer" and grading Good → a card "tú comes / you eat" is auto-added. Next day, reviewing "comer" or "tú comes" with Good → "yo como / I eat" is auto-added. Only tenses from the enabled construct checklist are used.
+- Can be toggled on/off in the deck's Settings tab
 
 ### Practice Sentence Generation
 A tab where the user can generate sentences to translate from source to target language.
@@ -171,6 +183,8 @@ App
 │   │   └── fsrs_state (stability, difficulty, due date, review count, etc.)
 │   ├── Construct checklist (which tenses/constructs are enabled)
 │   ├── New card batch settings (batch size, current batch)
+│   ├── SRS settings (newCardsPerDay, autoAddConjugations, maxConjugationCardsPerDay)
+│   ├── Conjugation auto-add tracking (per-verb per-day limits, added forms history)
 │   ├── Practice sentences[] (generated, persist until regenerated)
 │   └── Review history
 ├── Side deck (cards pending translation)
@@ -383,6 +397,59 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Manual/practice cards count against daily new card limit
 - [x] Show next review intervals on grading buttons (like Anki)
 - [x] Add conjugation display to practice tab (expandable per sentence)
+
+### Phase 13: Deck SRS Settings, Auto-Conjugation Cards & Reflexive Verb Support
+
+#### 13a: Deck SRS Settings Page
+Add a "Settings" tab to the deck detail page that lets the user adjust spaced repetition parameters for that deck:
+- [ ] Add a "Settings" tab to the deck detail page (alongside Cards, Review, + Add, Practice, Constructs)
+- [ ] New cards per day (`newCardsPerDay`) — slider or number input (default: 20)
+- [ ] New card batch size (`newCardBatchSize`) — slider or number input (default: 5)
+- [ ] Auto-add conjugations toggle (`autoAddConjugations`) — enable/disable the auto-conjugation card feature (see 13b), default: on
+- [ ] Max conjugation cards per day (`maxConjugationCardsPerDay`) — limit how many auto-conjugation cards can be added per day (default: 5)
+- [ ] Persist all settings to the Deck record in IndexedDB
+- [ ] Display current daily stats (new cards introduced today, conjugation cards added today)
+- **Tests:**
+  - [ ] Component: settings tab renders all controls with current deck values; changing a value persists to DB
+  - [ ] Component: settings changes are reflected immediately in review behavior (e.g. lowering newCardsPerDay caps new cards)
+
+#### 13b: Auto-Add Conjugation Cards on Good/Easy Review
+When reviewing a verb card and grading Good (3) or Easy (4), automatically add one random conjugation from that verb as a new bidirectional card pair. This happens at most once per verb per day.
+- [ ] Detect if a reviewed card is a verb (has verbData with non-empty tenses, or the card's pair verb card has verbData)
+- [ ] On Good/Easy grade for a verb card, check if a conjugation card has already been added for this verb today (track per-verb per-day in a new `conjugationAutoAdds` table or field)
+- [ ] Pick a random conjugation form from the verb's conjugation data that:
+  - Is from a tense enabled in the deck's construct checklist
+  - Has not already been added as a card in this deck (check for duplicates by conjugated form text)
+- [ ] Create a bidirectional card pair (e.g. front: "tú comes" / back: "you eat" using the conjugation's `form` and `miniTranslation`)
+- [ ] For reflexive verbs, construct the card text with the correct reflexive pronoun (see 13c)
+- [ ] The auto-added cards should use source `'practice'` and be tagged with the verb's infinitive and tense name
+- [ ] Respect the deck's `maxConjugationCardsPerDay` limit
+- [ ] Show a brief toast/notification when a conjugation card is auto-added (e.g. "Added: tú comes")
+- [ ] Track which conjugation forms have been auto-added per verb (so subsequent reviews of the same verb pick the next un-added form)
+- **Tests:**
+  - [ ] Unit: given a verb card with verbData, Good/Easy grade triggers conjugation card creation; Again/Hard does not
+  - [ ] Unit: only conjugations from enabled constructs are eligible
+  - [ ] Unit: already-added conjugation forms are skipped; when all forms are added, no new card is created
+  - [ ] Unit: per-verb per-day limit is enforced — reviewing the same verb twice in one day only adds one conjugation card
+  - [ ] Unit: daily limit (`maxConjugationCardsPerDay`) is enforced across all verbs
+  - [ ] Unit: reflexive verbs produce correctly formed cards (see 13c tests)
+  - [ ] Component: after grading Good on a verb, a toast notification appears showing the added conjugation card
+  - [ ] Integration: review a verb card with Good, verify a new conjugation card pair exists in the deck with correct front/back text
+
+#### 13c: Reflexive Verb Support in Conjugation Cards
+When auto-generating conjugation cards for reflexive verbs, ensure the reflexive pronoun is included correctly.
+- [ ] Detect reflexive verbs (infinitive ends in "-se": levantarse, vestirse, etc.)
+- [ ] Map persons to reflexive pronouns: yo→me, tú→te, él/ella/usted→se, nosotros→nos, vosotros→os, ellos/ellas/ustedes→se
+- [ ] When creating the card text for a reflexive verb conjugation, prepend the reflexive pronoun to the form (e.g. "me levanto" not "levanto" or "yo levanto")
+- [ ] For compound tenses (e.g. present perfect), place the pronoun before the auxiliary: "me he levantado" not "he me levantado"
+- [ ] For imperative affirmative, attach pronoun to end: "levántate" (this may already be in the conjugation data — verify and handle both cases)
+- [ ] Display reflexive forms correctly in ConjugationView as well (not just auto-added cards)
+- **Tests:**
+  - [ ] Unit: reflexive detection — "levantarse" → true, "comer" → false, "irse" → true
+  - [ ] Unit: reflexive pronoun mapping — yo→me, tú→te, él→se, nosotros→nos, vosotros→os, ellos→se
+  - [ ] Unit: card text generation — "levantarse" present tense yo → "me levanto", not "levanto"
+  - [ ] Unit: compound tense — "levantarse" present perfect yo → "me he levantado"
+  - [ ] Unit: non-reflexive verbs are unaffected — "comer" present tense yo → "como" (no pronoun)
 
 ### Known Issues
 <!-- Track bugs and issues here as they arise during development -->
