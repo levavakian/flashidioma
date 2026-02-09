@@ -13,13 +13,30 @@ interface Props {
   onComplete: () => void
 }
 
-function isVerb(card: Card): boolean {
-  return card.tags.includes('v') || card.tags.includes('verb')
-}
-
 /** Get the target-language word (Spanish) from a card regardless of direction */
 function getTargetWord(card: Card): string {
   return card.direction === 'source-to-target' ? card.backText : card.frontText
+}
+
+/**
+ * Try to look up conjugation data for a card from the static DB.
+ * Tries both frontText and backText since imported/both-direction cards
+ * may have the Spanish word in backText regardless of direction.
+ */
+async function tryConjugationLookup(card: Card): Promise<VerbData | null> {
+  // Try the canonical target word first
+  const targetWord = getTargetWord(card)
+  const result = await lookupConjugation(targetWord)
+  if (result) return result
+
+  // Fallback: try the other text field (handles imported cards where
+  // both directions share the same frontText/backText layout)
+  const otherWord = card.direction === 'source-to-target' ? card.frontText : card.backText
+  if (otherWord !== targetWord) {
+    return lookupConjugation(otherWord)
+  }
+
+  return null
 }
 
 export default function ReviewSession({ deck, onComplete }: Props) {
@@ -53,7 +70,7 @@ export default function ReviewSession({ deck, onComplete }: Props) {
     }
   }, [])
 
-  // Auto-lookup conjugation from static DB when a verb card is revealed
+  // Auto-lookup conjugation from static DB when a card is revealed
   useEffect(() => {
     if (!currentCard || !revealed) {
       setLookedUpVerbData(null)
@@ -67,14 +84,10 @@ export default function ReviewSession({ deck, onComplete }: Props) {
       return
     }
 
-    // Only auto-lookup for verb-tagged cards
-    if (!isVerb(currentCard)) {
-      setLookedUpVerbData(null)
-      return
-    }
-
-    const word = getTargetWord(currentCard)
-    lookupConjugation(word).then((data) => {
+    // Try looking up any card in the static conjugation DB
+    // (no verb-tag gate — this handles imported cards without tags and
+    // cards where the Spanish word may be in either text field)
+    tryConjugationLookup(currentCard).then((data) => {
       setLookedUpVerbData(data)
     })
   }, [currentCard, revealed])
@@ -87,10 +100,18 @@ export default function ReviewSession({ deck, onComplete }: Props) {
     setHydratingReview(true)
     setHydrateMessage('')
     try {
-      const word = getTargetWord(currentCard)
-      const verbData = await hydrateConjugation(word)
+      // Try target word first, then the other text field as fallback
+      const targetWord = getTargetWord(currentCard)
+      let verbData = await hydrateConjugation(targetWord)
       if (verbData === null) {
-        setHydrateMessage(`"${word}" is not a verb.`)
+        const otherWord = currentCard.direction === 'source-to-target'
+          ? currentCard.frontText : currentCard.backText
+        if (otherWord !== targetWord) {
+          verbData = await hydrateConjugation(otherWord)
+        }
+      }
+      if (verbData === null) {
+        setHydrateMessage('Not a verb, or not found.')
         return
       }
       // Save to card and update local state

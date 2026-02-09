@@ -9,6 +9,7 @@
 
 import { db } from '../db'
 import { createCard } from './card'
+import { lookupConjugation } from './conjugationLookup'
 import { removeAccents } from './deduplication'
 import { formatReflexiveForm } from './reflexive'
 import type { Card, Deck, VerbData, ConjugationAutoAdd, ConstructChecklist } from '../types'
@@ -18,20 +19,31 @@ function todayString(now: Date = new Date()): string {
   return now.toISOString().split('T')[0]
 }
 
-/** Get verbData from a card, or look it up from its pair card in the deck */
+/**
+ * Get verbData from a card. Tries in order:
+ * 1. Card's own verbData
+ * 2. Paired card's verbData (same word pair, opposite direction)
+ * 3. Static conjugation DB lookup (tries both text fields)
+ */
 async function getVerbDataForCard(card: Card): Promise<VerbData | null> {
   if (card.verbData?.tenses?.length) return card.verbData
 
-  // Try to find the paired card (same deck, opposite direction, same text)
+  // Try to find the paired card (same deck, same text pair)
   const deckCards = await db.cards.where('deckId').equals(card.deckId).toArray()
   for (const other of deckCards) {
     if (other.id === card.id) continue
     if (!other.verbData?.tenses?.length) continue
-    // Check if it's the same word pair
     const sameWord =
       (card.frontText === other.frontText && card.backText === other.backText) ||
       (card.frontText === other.backText && card.backText === other.frontText)
     if (sameWord) return other.verbData
+  }
+
+  // Fallback: try static DB with both text fields
+  const result = await lookupConjugation(card.backText)
+  if (result) return result
+  if (card.frontText !== card.backText) {
+    return lookupConjugation(card.frontText)
   }
 
   return null
@@ -63,11 +75,13 @@ async function getEligibleConjugations(
     .toArray()
   const addedForms = new Set(autoAdds.map(a => `${a.tenseId}:${a.person}`))
 
-  // Build set of existing target-language texts in the deck (accent-insensitive)
+  // Build set of existing card texts in the deck (accent-insensitive)
+  // Check both text fields since imported/both-direction cards may have
+  // the Spanish text in backText regardless of direction
   const existingTexts = new Set<string>()
   for (const card of existingCards) {
-    const targetText = card.direction === 'source-to-target' ? card.backText : card.frontText
-    existingTexts.add(removeAccents(targetText))
+    existingTexts.add(removeAccents(card.frontText))
+    existingTexts.add(removeAccents(card.backText))
   }
 
   const eligible: EligibleConjugation[] = []
@@ -160,9 +174,9 @@ export async function maybeAutoAddConjugationCard(
   // Build the translation text
   const translation = pick.miniTranslation || pick.form
 
-  // Create bidirectional card pair
-  // Source-to-target: English → Spanish conjugated form
-  // Target-to-source: Spanish conjugated form → English
+  // Create bidirectional card pair using the same layout as importPrebuiltDeck:
+  // frontText=English, backText=Spanish for both directions.
+  // The direction field controls which is shown first during review.
   await createCard({
     deckId: deck.id,
     frontText: translation,
@@ -173,8 +187,8 @@ export async function maybeAutoAddConjugationCard(
   })
   await createCard({
     deckId: deck.id,
-    frontText: pick.form,
-    backText: translation,
+    frontText: translation,
+    backText: pick.form,
     direction: 'target-to-source',
     tags: [verbData.infinitive, pick.tenseName.toLowerCase()],
     source: 'practice',

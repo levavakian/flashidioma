@@ -2,6 +2,17 @@ import { db } from '../db'
 import type { Deck, ConstructChecklist } from '../types'
 import { getDefaultSpanishChecklist } from '../languages/spanish'
 
+/** Apply default values for Phase 13 fields to decks created before v2 */
+function applyDeckDefaults(deck: Deck): Deck {
+  return {
+    ...deck,
+    autoAddConjugations: deck.autoAddConjugations ?? true,
+    maxConjugationCardsPerDay: deck.maxConjugationCardsPerDay ?? 5,
+    conjugationCardsAddedToday: deck.conjugationCardsAddedToday ?? 0,
+    lastConjugationCardDate: deck.lastConjugationCardDate ?? null,
+  }
+}
+
 export async function createDeck(
   name: string,
   targetLanguage: string = 'spanish'
@@ -33,11 +44,13 @@ export async function createDeck(
 }
 
 export async function getDeck(id: string): Promise<Deck | undefined> {
-  return db.decks.get(id)
+  const deck = await db.decks.get(id)
+  return deck ? applyDeckDefaults(deck) : undefined
 }
 
 export async function getAllDecks(): Promise<Deck[]> {
-  return db.decks.toArray()
+  const decks = await db.decks.toArray()
+  return decks.map(applyDeckDefaults)
 }
 
 export async function updateDeck(
