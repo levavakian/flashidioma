@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { reviewCard, getReviewQueue, getSchedulingPreview, formatInterval } from '../../services/review'
+import { reviewCard, getReviewQueue, getDueCards, getNextLearningDue, getSchedulingPreview, formatInterval } from '../../services/review'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { hydrateConjugation } from '../../services/llm'
 import { updateCard } from '../../services/card'
@@ -51,6 +51,7 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const [hydratingReview, setHydratingReview] = useState(false)
   const [hydrateMessage, setHydrateMessage] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+  const [waitingUntil, setWaitingUntil] = useState<Date | null>(null)
 
   const gradingRef = useRef(false)
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -177,6 +178,47 @@ export default function ReviewSession({ deck, onComplete }: Props) {
     loadQueue()
   }, [loadQueue])
 
+  // Check for learning/relearning cards that became due (from "Again" grading)
+  const checkForMoreCards = useCallback(async () => {
+    const now = new Date()
+    const dueNow = await getDueCards(deck.id, now)
+    if (dueNow.length > 0) {
+      // More cards due (likely from "Again" grading) — continue session
+      setQueue(dueNow)
+      setCurrentIndex(0)
+      setRevealed(false)
+      return
+    }
+
+    // Check if learning/relearning cards will be due soon
+    const nextDue = await getNextLearningDue(deck.id)
+    if (nextDue) {
+      const waitMs = nextDue.getTime() - now.getTime()
+      if (waitMs <= 10 * 60 * 1000) { // Within 10 minutes — wait for them
+        setWaitingUntil(nextDue)
+        return
+      }
+    }
+
+    // Truly done — no more cards coming
+    onComplete()
+    await loadQueue()
+  }, [deck.id, onComplete, loadQueue])
+
+  // Timer: poll for due cards while waiting for learning/relearning cards
+  useEffect(() => {
+    if (!waitingUntil) return
+    const interval = setInterval(async () => {
+      const now = new Date()
+      if (now >= waitingUntil) {
+        clearInterval(interval)
+        setWaitingUntil(null)
+        await checkForMoreCards()
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [waitingUntil, checkForMoreCards])
+
   const handleGrade = async (grade: number) => {
     if (!currentCard) return
 
@@ -200,14 +242,31 @@ export default function ReviewSession({ deck, onComplete }: Props) {
       setCurrentIndex((i) => i + 1)
       setRevealed(false)
     } else {
-      // Session complete
-      onComplete()
-      await loadQueue()
+      // Queue exhausted — check for "Again" cards that may now be due
+      await checkForMoreCards()
     }
   }
 
   if (loading) {
     return <p className="text-gray-500 py-8 text-center">Loading review queue...</p>
+  }
+
+  if (waitingUntil) {
+    const waitMs = Math.max(0, waitingUntil.getTime() - Date.now())
+    const waitSec = Math.ceil(waitMs / 1000)
+    const waitMin = Math.floor(waitSec / 60)
+    const waitSecRem = waitSec % 60
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500 text-lg mb-2">Waiting for next card...</p>
+        <p className="text-2xl font-mono text-blue-500">
+          {waitMin > 0 ? `${waitMin}m ${waitSecRem}s` : `${waitSec}s`}
+        </p>
+        <p className="text-gray-400 text-sm mt-2">
+          Cards graded "Again" will reappear shortly
+        </p>
+      </div>
+    )
   }
 
   if (queue.length === 0) {

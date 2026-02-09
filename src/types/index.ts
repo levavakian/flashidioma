@@ -16,7 +16,7 @@ export interface Card {
   verbData?: VerbData
   fsrs: FSRSState
   createdAt: string // ISO date
-  source: 'manual' | 'imported' | 'practice'
+  source: 'manual' | 'imported' | 'practice' | 'auto-conjugation'
   sortOrder?: number // Frequency rank for imported cards
 }
 

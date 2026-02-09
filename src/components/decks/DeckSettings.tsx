@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { updateDeck } from '../../services/deck'
+import { updateDeck, skipForwardOneDay } from '../../services/deck'
 import type { Deck } from '../../types'
 
 interface Props {
@@ -181,6 +181,23 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
             <span className="ml-1 font-medium">{conjCardsToday} / {autoAddConjugations ? maxConjugationCardsPerDay : 'off'}</span>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow border p-4">
+        <h3 className="font-semibold text-lg mb-2">Time Controls</h3>
+        <p className="text-xs text-gray-400 mb-3">
+          Shift all card schedules forward by one day. Makes tomorrow's due cards available for review today and resets daily counters.
+        </p>
+        <button
+          onClick={async () => {
+            if (!confirm('Skip forward one day? This will shift all card due dates back by 24 hours and reset daily counters.')) return
+            await skipForwardOneDay(deck.id)
+            onUpdate()
+          }}
+          className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-600"
+        >
+          Skip Forward One Day
+        </button>
       </div>
     </div>
   )

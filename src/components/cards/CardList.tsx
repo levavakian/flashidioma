@@ -116,6 +116,37 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
     }
   }
 
+  const formatDueDate = (card: Card): string | null => {
+    if (card.fsrs.state === 'new') return null
+    const now = Date.now()
+    const due = new Date(card.fsrs.dueDate).getTime()
+    const diffMs = due - now
+    if (diffMs <= 0) {
+      const overMs = -diffMs
+      const overMin = Math.round(overMs / 60000)
+      if (overMin < 60) return 'Due now'
+      const overH = Math.round(overMin / 60)
+      if (overH < 24) return `Overdue ${overH}h`
+      const overD = Math.round(overH / 24)
+      return `Overdue ${overD}d`
+    }
+    const min = Math.round(diffMs / 60000)
+    if (min < 60) return `Due in ${min}m`
+    const hours = Math.round(min / 60)
+    if (hours < 24) return `Due in ${hours}h`
+    const days = Math.round(hours / 24)
+    if (days < 30) return `Due in ${days}d`
+    const months = Math.round(days / 30)
+    return `Due in ${months}mo`
+  }
+
+  const dueColor = (card: Card): string => {
+    if (card.fsrs.state === 'new') return ''
+    const due = new Date(card.fsrs.dueDate).getTime()
+    if (due <= Date.now()) return 'text-orange-500 font-medium'
+    return 'text-gray-400'
+  }
+
   return (
     <div>
       <div className="flex gap-2 mb-3">
@@ -208,6 +239,11 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
                   >
                     {stateLabel(card.fsrs.state)}
                   </span>
+                  {formatDueDate(card) && (
+                    <span className={`text-xs ${dueColor(card)}`}>
+                      {formatDueDate(card)}
+                    </span>
+                  )}
                   {card.tags.map((tag) => (
                     <span
                       key={tag}

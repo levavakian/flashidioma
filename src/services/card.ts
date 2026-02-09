@@ -17,6 +17,24 @@ function newFSRSState(): FSRSState {
   }
 }
 
+/** Create an FSRS state that starts as "learning" with due=now.
+ * Used for auto-added conjugation cards so they're immediately
+ * available for review without consuming a "new card" slot. */
+function learningFSRSState(): FSRSState {
+  return {
+    stability: 0,
+    difficulty: 0,
+    dueDate: new Date().toISOString(),
+    lastReview: null,
+    reviewCount: 0,
+    lapses: 0,
+    state: 'learning',
+    elapsedDays: 0,
+    scheduledDays: 0,
+    reps: 0,
+  }
+}
+
 export interface CreateCardInput {
   deckId: string
   frontText: string
@@ -29,6 +47,10 @@ export interface CreateCardInput {
 }
 
 export async function createCard(input: CreateCardInput): Promise<Card> {
+  // Auto-conjugation cards start as "learning" so they're immediately
+  // available for review without consuming a "new card" slot
+  const isAutoConj = input.source === 'auto-conjugation'
+
   const card: Card = {
     id: crypto.randomUUID(),
     deckId: input.deckId,
@@ -37,7 +59,7 @@ export async function createCard(input: CreateCardInput): Promise<Card> {
     direction: input.direction,
     tags: input.tags ?? [],
     notes: input.notes ?? '',
-    fsrs: newFSRSState(),
+    fsrs: isAutoConj ? learningFSRSState() : newFSRSState(),
     createdAt: new Date().toISOString(),
     source: input.source ?? 'manual',
     ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
@@ -46,6 +68,7 @@ export async function createCard(input: CreateCardInput): Promise<Card> {
   await db.cards.put(card)
 
   // Manual and practice cards count against the daily new card limit
+  // Auto-conjugation cards do NOT count (they start as "learning")
   if (card.source === 'manual' || card.source === 'practice') {
     await incrementDailyNewCardCount(card.deckId)
   }

@@ -177,13 +177,15 @@ export async function maybeAutoAddConjugationCard(
   // Create bidirectional card pair using the same layout as importPrebuiltDeck:
   // frontText=English, backText=Spanish for both directions.
   // The direction field controls which is shown first during review.
+  // Source 'auto-conjugation' means these start as "learning" (not "new")
+  // and don't count against the daily new card limit.
   await createCard({
     deckId: deck.id,
     frontText: translation,
     backText: pick.form,
     direction: 'source-to-target',
     tags: [verbData.infinitive, pick.tenseName.toLowerCase()],
-    source: 'practice',
+    source: 'auto-conjugation',
   })
   await createCard({
     deckId: deck.id,
@@ -191,7 +193,7 @@ export async function maybeAutoAddConjugationCard(
     backText: pick.form,
     direction: 'target-to-source',
     tags: [verbData.infinitive, pick.tenseName.toLowerCase()],
-    source: 'practice',
+    source: 'auto-conjugation',
   })
 
   // Record the auto-add

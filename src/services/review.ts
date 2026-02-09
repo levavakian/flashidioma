@@ -224,6 +224,21 @@ export async function getReviewQueue(
   return { dueCards, newCards }
 }
 
+/**
+ * Get the earliest due date among learning/relearning cards in a deck.
+ * Returns null if no learning/relearning cards exist.
+ * Used to determine if "Again" cards will become due soon in the current session.
+ */
+export async function getNextLearningDue(deckId: string): Promise<Date | null> {
+  const cards = await db.cards.where('deckId').equals(deckId).toArray()
+  const learningCards = cards.filter(c =>
+    c.fsrs.state === 'learning' || c.fsrs.state === 'relearning'
+  )
+  if (learningCards.length === 0) return null
+  const earliest = Math.min(...learningCards.map(c => new Date(c.fsrs.dueDate).getTime()))
+  return new Date(earliest)
+}
+
 export function createNewFSRSCard(): FSRSState {
   const empty = createEmptyCard()
   return fsrsCardToState(empty)

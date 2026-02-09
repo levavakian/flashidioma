@@ -65,6 +65,40 @@ export async function updateDeck(
   return updated
 }
 
+/**
+ * Skip forward one day: shift all card due dates back by 24 hours
+ * and reset daily counters, making tomorrow's cards available today.
+ */
+export async function skipForwardOneDay(id: string): Promise<void> {
+  const DAY_MS = 24 * 60 * 60 * 1000
+
+  await db.transaction('rw', [db.decks, db.cards], async () => {
+    // Shift all card due dates and last review dates back by 24 hours
+    const cards = await db.cards.where('deckId').equals(id).toArray()
+    for (const card of cards) {
+      const updatedCard = {
+        ...card,
+        fsrs: {
+          ...card.fsrs,
+          dueDate: new Date(new Date(card.fsrs.dueDate).getTime() - DAY_MS).toISOString(),
+          lastReview: card.fsrs.lastReview
+            ? new Date(new Date(card.fsrs.lastReview).getTime() - DAY_MS).toISOString()
+            : null,
+        },
+      }
+      await db.cards.put(updatedCard)
+    }
+
+    // Reset daily counters as if a new day started
+    await db.decks.update(id, {
+      newCardsIntroducedToday: 0,
+      lastNewCardDate: null,
+      conjugationCardsAddedToday: 0,
+      lastConjugationCardDate: null,
+    })
+  })
+}
+
 export async function deleteDeck(id: string): Promise<void> {
   await db.transaction('rw', [db.decks, db.cards, db.practiceSentences, db.reviewHistory, db.conjugationAutoAdds], async () => {
     await db.cards.where('deckId').equals(id).delete()
