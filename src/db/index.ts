@@ -60,19 +60,25 @@ db.on('blocked', () => {
  * On Android Chrome/PWA, the v1→v2 upgrade can be blocked by old connections
  * from frozen tabs or the PWA shell, causing all DB operations to hang.
  * This detects that situation early so the UI can show a helpful message.
+ *
+ * IMPORTANT: The db.open() promise has its own .catch() so that if the
+ * timeout wins the race and db.open() later rejects, the rejection is
+ * handled (preventing unhandled rejection errors that break SW registration).
  */
+const openPromise = db.open().then(() => true).catch((err) => {
+  console.error('[FlashIdioma] Database failed to open:', err)
+  return false
+})
+
 export const dbReady: Promise<boolean> = Promise.race([
-  db.open().then(() => true),
+  openPromise,
   new Promise<boolean>((resolve) =>
     setTimeout(() => {
       console.warn('[FlashIdioma] DB open timed out — likely blocked by another connection')
       resolve(false)
     }, 8000)
   ),
-]).catch((err) => {
-  console.error('[FlashIdioma] Database failed to open:', err)
-  return false
-})
+])
 
 const DEFAULT_SETTINGS: Settings = {
   id: 'settings',

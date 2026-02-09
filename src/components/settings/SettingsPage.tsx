@@ -101,23 +101,34 @@ export default function SettingsPage() {
     if (!confirm('This will permanently delete ALL data. This cannot be undone. Continue?')) return
     if (!confirm('Are you absolutely sure? Export a backup first if needed.')) return
 
-    await db.transaction('rw', [db.decks, db.cards, db.reviewHistory, db.practiceSentences, db.sideDeckCards, db.settings], async () => {
+    await db.transaction('rw', [db.decks, db.cards, db.reviewHistory, db.practiceSentences, db.sideDeckCards, db.settings, db.conjugationAutoAdds], async () => {
       await db.decks.clear()
       await db.cards.clear()
       await db.reviewHistory.clear()
       await db.practiceSentences.clear()
       await db.sideDeckCards.clear()
       await db.settings.clear()
+      await db.conjugationAutoAdds.clear()
     })
     await loadStats()
     setImportMessage('All data has been cleared.')
   }
 
+  const [installing, setInstalling] = useState(false)
+
   const handleInstall = async () => {
     if (!installPrompt) return
-    await installPrompt.prompt()
-    clearInstallPrompt()
-    setInstallPrompt(null)
+    setInstalling(true)
+    try {
+      await installPrompt.prompt()
+      clearInstallPrompt()
+      setInstallPrompt(null)
+    } catch (e) {
+      console.error('PWA install failed:', e)
+      setError(`Install failed: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    } finally {
+      setInstalling(false)
+    }
   }
 
   return (
@@ -253,9 +264,10 @@ export default function SettingsPage() {
           </p>
           <button
             onClick={handleInstall}
-            className="w-full bg-blue-500 text-white py-2 rounded font-medium hover:bg-blue-600"
+            disabled={installing}
+            className="w-full bg-blue-500 text-white py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
           >
-            Install as App
+            {installing ? 'Installing...' : 'Install as App'}
           </button>
         </div>
       )}
