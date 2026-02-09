@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { reviewCard, getReviewQueue, getSchedulingPreview, formatInterval } from '../../services/review'
 import { lookupConjugation } from '../../services/conjugationLookup'
+import { hydrateConjugation } from '../../services/llm'
+import { updateCard } from '../../services/card'
 import ConjugationView from '../cards/ConjugationView'
 import type { Deck, Card, VerbData } from '../../types'
 
@@ -27,6 +29,8 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const [totalNew, setTotalNew] = useState(0)
   const [reviewed, setReviewed] = useState(0)
   const [lookedUpVerbData, setLookedUpVerbData] = useState<VerbData | null>(null)
+  const [hydratingReview, setHydratingReview] = useState(false)
+  const [hydrateMessage, setHydrateMessage] = useState('')
 
   const gradingRef = useRef(false)
 
@@ -36,6 +40,7 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   useEffect(() => {
     if (!currentCard || !revealed) {
       setLookedUpVerbData(null)
+      setHydrateMessage('')
       return
     }
 
@@ -45,7 +50,7 @@ export default function ReviewSession({ deck, onComplete }: Props) {
       return
     }
 
-    // Only look up verbs
+    // Only auto-lookup for verb-tagged cards
     if (!isVerb(currentCard)) {
       setLookedUpVerbData(null)
       return
@@ -59,6 +64,27 @@ export default function ReviewSession({ deck, onComplete }: Props) {
 
   // The verb data to display: prefer card's own verbData, fall back to static lookup
   const displayVerbData = currentCard?.verbData ?? lookedUpVerbData
+
+  const handleReviewHydrate = async () => {
+    if (!currentCard) return
+    setHydratingReview(true)
+    setHydrateMessage('')
+    try {
+      const word = getTargetWord(currentCard)
+      const verbData = await hydrateConjugation(word)
+      if (verbData === null) {
+        setHydrateMessage(`"${word}" is not a verb.`)
+        return
+      }
+      // Save to card and update local state
+      await updateCard(currentCard.id, { verbData })
+      setLookedUpVerbData(verbData)
+    } catch (e) {
+      setHydrateMessage(e instanceof Error ? e.message : 'Lookup failed')
+    } finally {
+      setHydratingReview(false)
+    }
+  }
 
   // Compute scheduling preview for the current card when revealed
   const schedulingPreview = useMemo(() => {
@@ -195,6 +221,23 @@ export default function ReviewSession({ deck, onComplete }: Props) {
                 verbData={displayVerbData}
                 enabledConstructs={deck.constructChecklist}
               />
+            )}
+
+            {!displayVerbData && !hydratingReview && (
+              <button
+                onClick={handleReviewHydrate}
+                className="text-blue-500 hover:text-blue-700 text-sm underline mb-2"
+              >
+                Look Up Conjugation
+              </button>
+            )}
+
+            {hydratingReview && (
+              <p className="text-sm text-gray-400 mb-2">Looking up conjugation...</p>
+            )}
+
+            {hydrateMessage && (
+              <p className="text-sm text-orange-500 mb-2">{hydrateMessage}</p>
             )}
 
             <div className="grid grid-cols-4 gap-2 mt-4">

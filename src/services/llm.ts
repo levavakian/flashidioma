@@ -96,7 +96,10 @@ export async function callLLM(messages: LLMMessage[]): Promise<LLMResponse> {
   }
 }
 
-const CONJUGATION_PROMPT = `You are a Spanish language expert. Given a Spanish verb, provide its complete conjugation data in JSON format.
+const CONJUGATION_PROMPT = `You are a Spanish language expert. Given a Spanish word, determine if it is a verb. If it is NOT a verb, respond with ONLY this JSON:
+{"error": "not_a_verb", "message": "The word 'X' is not a Spanish verb."}
+
+If it IS a verb, provide its complete conjugation data in JSON format.
 
 Return ONLY valid JSON with this structure (no markdown, no explanation):
 {
@@ -123,22 +126,25 @@ Include these tenses: present, preterite, imperfect, future, conditional, presen
 For compound tenses, show the full form (e.g. "he comido", "había comido").
 For imperative, only include tú, usted, nosotros, vosotros, ustedes.`
 
-export async function hydrateConjugation(verb: string): Promise<VerbData> {
+/**
+ * Look up conjugation for a word. Tries static DB first, then LLM.
+ * Returns null if the word is not a verb (LLM rejection) or not found.
+ * Throws on network/auth errors.
+ */
+export async function hydrateConjugation(word: string): Promise<VerbData | null> {
   // Try static conjugation database first
-  const staticData = await lookupConjugation(verb)
+  const staticData = await lookupConjugation(word)
   if (staticData) return staticData
 
-  // Fall back to LLM for verbs not in the static DB
+  // Fall back to LLM
   const response = await callLLM([
     { role: 'system', content: CONJUGATION_PROMPT },
-    { role: 'user', content: `Conjugate the Spanish verb: ${verb}` },
+    { role: 'user', content: `Conjugate the Spanish word: ${word}` },
   ])
 
-  let parsed: { infinitive: string; tenses: TenseData[] }
+  let parsed: Record<string, unknown>
   try {
-    // Try to extract JSON from the response
     let jsonText = response.text.trim()
-    // Remove markdown code blocks if present
     if (jsonText.startsWith('```')) {
       jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
     }
@@ -147,14 +153,19 @@ export async function hydrateConjugation(verb: string): Promise<VerbData> {
     throw new Error('Failed to parse conjugation data from LLM response')
   }
 
+  // LLM rejected: word is not a verb
+  if (parsed.error === 'not_a_verb') {
+    return null
+  }
+
   if (!parsed.infinitive || !Array.isArray(parsed.tenses)) {
     throw new Error('Invalid conjugation data structure from LLM')
   }
 
   return {
-    infinitive: parsed.infinitive,
+    infinitive: parsed.infinitive as string,
     language: 'spanish',
-    tenses: parsed.tenses,
+    tenses: parsed.tenses as TenseData[],
   }
 }
 

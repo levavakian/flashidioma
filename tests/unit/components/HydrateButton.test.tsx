@@ -149,7 +149,7 @@ describe('Hydrate button', () => {
     expect(onUpdate).not.toHaveBeenCalled()
   })
 
-  it('does not show hydrate button for non-verb cards', async () => {
+  it('shows hydrate button for non-verb cards (allows manual lookup)', async () => {
     // Create a non-verb card
     await createCard({
       deckId: deck.id,
@@ -166,7 +166,54 @@ describe('Hydrate button', () => {
       <CardList cards={nonVerbCards} deckId={deck.id} onUpdate={vi.fn()} />
     )
 
-    expect(screen.queryByText('Conj')).not.toBeInTheDocument()
+    // All cards without verbData show the Conj button
+    expect(screen.queryByText('Conj')).toBeInTheDocument()
+  })
+
+  it('shows not-a-verb message when LLM rejects hydration', async () => {
+    const user = userEvent.setup()
+
+    const notAVerbResponse = JSON.stringify({
+      error: 'not_a_verb',
+      message: 'The word "casa" is not a Spanish verb.',
+    })
+
+    server.use(
+      http.post('https://api.anthropic.com/v1/messages', () => {
+        return HttpResponse.json({
+          id: 'msg_456',
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'text', text: notAVerbResponse }],
+          model: 'claude-sonnet-4-20250514',
+          stop_reason: 'end_turn',
+        })
+      })
+    )
+
+    const nounCard = await createCard({
+      deckId: deck.id,
+      frontText: 'house',
+      backText: 'casa',
+      direction: 'source-to-target',
+      tags: ['n'],
+    })
+
+    const cards = [nounCard]
+
+    render(
+      <CardList cards={cards} deckId={deck.id} onUpdate={vi.fn()} />
+    )
+
+    await user.click(screen.getByText('Conj'))
+
+    await waitFor(() => {
+      expect(screen.getByText('"casa" is not a verb.')).toBeInTheDocument()
+    })
+
+    // Card should NOT have verbData
+    const card = await db.cards.get(nounCard.id)
+    expect(card!.verbData).toBeUndefined()
   })
 
   it('does not show hydrate button for verb cards that already have verbData', async () => {

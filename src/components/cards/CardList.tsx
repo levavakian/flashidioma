@@ -85,6 +85,10 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
       // Use the Spanish word (target language) for conjugation
       const verb = card.direction === 'source-to-target' ? card.backText : card.frontText
       const verbData = await hydrateConjugation(verb)
+      if (verbData === null) {
+        setHydrateError(`"${verb}" is not a verb.`)
+        return
+      }
       await updateCard(card.id, { verbData })
       onUpdate()
     } catch (e) {
@@ -111,8 +115,6 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
       case 'relearning': return 'bg-orange-100 text-orange-700'
     }
   }
-
-  const isVerb = (card: Card) => card.tags.includes('v') || card.tags.includes('verb')
 
   return (
     <div>
@@ -220,7 +222,7 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
                 </div>
               </div>
               <div className="flex gap-1 ml-2">
-                {isVerb(card) && !card.verbData && (
+                {!card.verbData && (
                   <button
                     onClick={() => handleHydrate(card)}
                     disabled={hydratingId === card.id}
