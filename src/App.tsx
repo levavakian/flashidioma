@@ -8,12 +8,12 @@ import SettingsPage from './components/settings/SettingsPage'
 function App() {
   return (
     <HashRouter>
-      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
         <header className="bg-blue-500 text-white px-4 py-3 shadow-md shrink-0">
           <h1 className="text-xl font-bold">FlashIdioma</h1>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 pb-20 max-w-4xl mx-auto w-full">
+        <main className="flex-1 overflow-y-auto p-4 max-w-4xl mx-auto w-full">
           <Routes>
             <Route path="/" element={<DecksPage />} />
             <Route path="/deck/:deckId" element={<DeckDetailPage />} />
@@ -23,7 +23,7 @@ function App() {
           </Routes>
         </main>
 
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex justify-around">
+        <nav className="shrink-0 bg-white border-t border-gray-200 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex justify-around">
           <NavLink
             to="/"
             className={({ isActive }) =>
