@@ -245,6 +245,23 @@ export function createNewFSRSCard(): FSRSState {
 }
 
 /**
+ * Create an FSRS state for auto-added conjugation cards.
+ * Simulates a first "Again" review on a new card to get valid FSRS values
+ * (stability, difficulty) then overrides dueDate to now so the card is
+ * immediately available. This avoids NaN scheduling issues from manually
+ * constructing a learning state with zero stability/difficulty.
+ */
+export function createLearningFSRSCard(now: Date = new Date()): FSRSState {
+  const empty = createEmptyCard()
+  const result = scheduler.repeat(empty, now)
+  const afterReview = result[Rating.Again].card
+  const state = fsrsCardToState(afterReview)
+  // Override due date to now so the card appears immediately in the review queue
+  state.dueDate = now.toISOString()
+  return state
+}
+
+/**
  * Get a preview of what each grade would schedule for a given card.
  * Returns the due date for each grade (1=Again, 2=Hard, 3=Good, 4=Easy)
  * without actually saving anything.

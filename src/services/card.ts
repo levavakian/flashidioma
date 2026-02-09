@@ -1,5 +1,5 @@
 import { db } from '../db'
-import { incrementDailyNewCardCount } from './review'
+import { incrementDailyNewCardCount, createLearningFSRSCard } from './review'
 import type { Card, CardDirection, FSRSState } from '../types'
 
 function newFSRSState(): FSRSState {
@@ -17,23 +17,6 @@ function newFSRSState(): FSRSState {
   }
 }
 
-/** Create an FSRS state that starts as "learning" with due=now.
- * Used for auto-added conjugation cards so they're immediately
- * available for review without consuming a "new card" slot. */
-function learningFSRSState(): FSRSState {
-  return {
-    stability: 0,
-    difficulty: 0,
-    dueDate: new Date().toISOString(),
-    lastReview: null,
-    reviewCount: 0,
-    lapses: 0,
-    state: 'learning',
-    elapsedDays: 0,
-    scheduledDays: 0,
-    reps: 0,
-  }
-}
 
 export interface CreateCardInput {
   deckId: string
@@ -59,7 +42,7 @@ export async function createCard(input: CreateCardInput): Promise<Card> {
     direction: input.direction,
     tags: input.tags ?? [],
     notes: input.notes ?? '',
-    fsrs: isAutoConj ? learningFSRSState() : newFSRSState(),
+    fsrs: isAutoConj ? createLearningFSRSCard() : newFSRSState(),
     createdAt: new Date().toISOString(),
     source: input.source ?? 'manual',
     ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),

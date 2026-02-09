@@ -171,8 +171,14 @@ export async function maybeAutoAddConjugationCard(
   // Pick a random eligible form
   const pick = eligible[Math.floor(Math.random() * eligible.length)]
 
-  // Build the translation text
-  const translation = pick.miniTranslation || pick.form
+  // Build the translation text.
+  // miniTranslation is populated by LLM hydration (e.g. "you eat").
+  // For the static conjugation DB, miniTranslation is always empty.
+  // In that case, construct a translation from the verb's English text
+  // (from the reviewed card) + person/tense context.
+  // For imported cards, frontText is always the English translation.
+  const verbEnglish = card.frontText
+  const translation = pick.miniTranslation || `${verbEnglish} (${pick.person}, ${pick.tenseName.toLowerCase()})`
 
   // Create bidirectional card pair using the same layout as importPrebuiltDeck:
   // frontText=English, backText=Spanish for both directions.
