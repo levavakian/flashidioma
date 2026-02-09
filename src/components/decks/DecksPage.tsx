@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createDeck, getAllDecks, updateDeck, deleteDeck } from '../../services/deck'
-import { db } from '../../db'
+import { db, dbReady } from '../../db'
 import type { Deck } from '../../types'
 
 interface DeckWithCounts extends Deck {
@@ -16,23 +16,34 @@ export default function DecksPage() {
   const [newDeckName, setNewDeckName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [dbError, setDbError] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const loadDecks = async () => {
-    const allDecks = await getAllDecks()
-    const now = new Date()
+    const ready = await dbReady
+    if (!ready) {
+      setDbError('Database is blocked by another tab or old app version. Close all other FlashIdioma tabs, then reload this page.')
+      return
+    }
+    try {
+      const allDecks = await getAllDecks()
+      const now = new Date()
 
-    const decksWithCounts = await Promise.all(
-      allDecks.map(async (deck) => {
-        const cards = await db.cards.where('deckId').equals(deck.id).toArray()
-        const dueCards = cards.filter(
-          (c) => c.fsrs.state !== 'new' && new Date(c.fsrs.dueDate) <= now
-        ).length
-        const newCards = cards.filter((c) => c.fsrs.state === 'new').length
-        return { ...deck, totalCards: cards.length, dueCards, newCards }
-      })
-    )
-    setDecks(decksWithCounts)
+      const decksWithCounts = await Promise.all(
+        allDecks.map(async (deck) => {
+          const cards = await db.cards.where('deckId').equals(deck.id).toArray()
+          const dueCards = cards.filter(
+            (c) => c.fsrs.state !== 'new' && new Date(c.fsrs.dueDate) <= now
+          ).length
+          const newCards = cards.filter((c) => c.fsrs.state === 'new').length
+          return { ...deck, totalCards: cards.length, dueCards, newCards }
+        })
+      )
+      setDecks(decksWithCounts)
+    } catch (e) {
+      console.error('Failed to load decks:', e)
+      setDbError(`Failed to load decks: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    }
   }
 
   useEffect(() => {
@@ -42,10 +53,20 @@ export default function DecksPage() {
   const handleCreate = async () => {
     const name = newDeckName.trim()
     if (!name) return
-    await createDeck(name)
-    setNewDeckName('')
-    setShowCreate(false)
-    await loadDecks()
+    try {
+      const ready = await dbReady
+      if (!ready) {
+        setDbError('Database is blocked. Close all other FlashIdioma tabs and reload.')
+        return
+      }
+      await createDeck(name)
+      setNewDeckName('')
+      setShowCreate(false)
+      await loadDecks()
+    } catch (e) {
+      console.error('Failed to create deck:', e)
+      setDbError(`Failed to create deck: ${e instanceof Error ? e.message : 'Unknown error'}. Try closing other tabs and reloading.`)
+    }
   }
 
   const handleRename = async (id: string) => {
@@ -65,6 +86,36 @@ export default function DecksPage() {
 
   return (
     <div>
+      {dbError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-700 text-sm font-medium mb-2">{dbError}</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setDbError(null)
+                window.location.reload()
+              }}
+              className="text-red-600 text-sm underline hover:text-red-800"
+            >
+              Reload Page
+            </button>
+            <button
+              onClick={async () => {
+                // Unregister all service workers to clear stale connections
+                if ('serviceWorker' in navigator) {
+                  const registrations = await navigator.serviceWorker.getRegistrations()
+                  await Promise.all(registrations.map(r => r.unregister()))
+                }
+                window.location.reload()
+              }}
+              className="text-red-600 text-sm underline hover:text-red-800"
+            >
+              Force Reset &amp; Reload
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Your Decks</h2>
         <div className="flex gap-2">
