@@ -114,26 +114,11 @@ export default function SettingsPage() {
     setImportMessage('All data has been cleared.')
   }
 
-  const [installing, setInstalling] = useState(false)
-
   const handleInstall = async () => {
     if (!installPrompt) return
-    setInstalling(true)
-    try {
-      const result = await installPrompt.prompt()
-      if (result?.outcome === 'accepted') {
-        clearInstallPrompt()
-        setInstallPrompt(null)
-      } else {
-        // User dismissed — keep the button available
-        setError('')
-      }
-    } catch (e) {
-      console.error('PWA install failed:', e)
-      setError(`Install failed: ${e instanceof Error ? e.message : 'Unknown error'}`)
-    } finally {
-      setInstalling(false)
-    }
+    await installPrompt.prompt()
+    clearInstallPrompt()
+    setInstallPrompt(null)
   }
 
   return (
@@ -269,10 +254,9 @@ export default function SettingsPage() {
           </p>
           <button
             onClick={handleInstall}
-            disabled={installing}
-            className="w-full bg-blue-500 text-white py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
+            className="w-full bg-blue-500 text-white py-2 rounded font-medium hover:bg-blue-600"
           >
-            {installing ? 'Installing...' : 'Install as App'}
+            Install as App
           </button>
         </div>
       )}
