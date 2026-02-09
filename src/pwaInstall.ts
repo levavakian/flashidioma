@@ -1,7 +1,8 @@
 // Capture the PWA install prompt globally so it's available when the user visits Settings
 
 interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>
+  prompt(): Promise<{ outcome: 'accepted' | 'dismissed' }>
+  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
 let deferredInstallPrompt: BeforeInstallPromptEvent | null = null

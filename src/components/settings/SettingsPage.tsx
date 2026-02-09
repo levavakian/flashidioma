@@ -120,9 +120,14 @@ export default function SettingsPage() {
     if (!installPrompt) return
     setInstalling(true)
     try {
-      await installPrompt.prompt()
-      clearInstallPrompt()
-      setInstallPrompt(null)
+      const result = await installPrompt.prompt()
+      if (result?.outcome === 'accepted') {
+        clearInstallPrompt()
+        setInstallPrompt(null)
+      } else {
+        // User dismissed — keep the button available
+        setError('')
+      }
     } catch (e) {
       console.error('PWA install failed:', e)
       setError(`Install failed: ${e instanceof Error ? e.message : 'Unknown error'}`)
