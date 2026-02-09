@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { formatReflexiveForm, isReflexiveVerb } from '../../services/reflexive'
 import type { VerbData, ConstructChecklist } from '../../types'
 
 interface Props {
@@ -55,13 +56,18 @@ export default function ConjugationView({ verbData, enabledConstructs }: Props) 
                   )}
                   <table className="w-full text-sm">
                     <tbody>
-                      {tense.conjugations.map((conj) => (
-                        <tr key={conj.person} className="border-b last:border-b-0">
-                          <td className="py-1 text-gray-500 w-1/3">{conj.person}</td>
-                          <td className="py-1 font-medium">{conj.form}</td>
-                          <td className="py-1 text-gray-400 text-xs">{conj.miniTranslation}</td>
-                        </tr>
-                      ))}
+                      {tense.conjugations.map((conj) => {
+                        const displayForm = isReflexiveVerb(verbData.infinitive)
+                          ? formatReflexiveForm(conj.form, conj.person, verbData.infinitive, tense.tenseId)
+                          : conj.form
+                        return (
+                          <tr key={conj.person} className="border-b last:border-b-0">
+                            <td className="py-1 text-gray-500 w-1/3">{conj.person}</td>
+                            <td className="py-1 font-medium">{displayForm}</td>
+                            <td className="py-1 text-gray-400 text-xs">{conj.miniTranslation}</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

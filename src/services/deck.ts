@@ -22,6 +22,10 @@ export async function createDeck(
     newCardsPerDay: 20,
     newCardsIntroducedToday: 0,
     lastNewCardDate: null,
+    autoAddConjugations: true,
+    maxConjugationCardsPerDay: 5,
+    conjugationCardsAddedToday: 0,
+    lastConjugationCardDate: null,
   }
 
   await db.decks.put(deck)
@@ -49,10 +53,11 @@ export async function updateDeck(
 }
 
 export async function deleteDeck(id: string): Promise<void> {
-  await db.transaction('rw', [db.decks, db.cards, db.practiceSentences, db.reviewHistory], async () => {
+  await db.transaction('rw', [db.decks, db.cards, db.practiceSentences, db.reviewHistory, db.conjugationAutoAdds], async () => {
     await db.cards.where('deckId').equals(id).delete()
     await db.practiceSentences.where('deckId').equals(id).delete()
     await db.reviewHistory.where('deckId').equals(id).delete()
+    await db.conjugationAutoAdds.where('deckId').equals(id).delete()
     await db.decks.delete(id)
   })
 }

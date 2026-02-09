@@ -1,10 +1,10 @@
 import { db, getSettings } from '../db'
-import type { AppExport, Settings, Deck, Card, ReviewHistory, PracticeSentence, SideDeckCard } from '../types'
+import type { AppExport, Settings, Deck, Card, ReviewHistory, PracticeSentence, SideDeckCard, ConjugationAutoAdd } from '../types'
 
 const EXPORT_VERSION = 1
 
 export async function exportAppState(): Promise<AppExport> {
-  const [settings, decks, cards, reviewHistory, practiceSentences, sideDeckCards] =
+  const [settings, decks, cards, reviewHistory, practiceSentences, sideDeckCards, conjugationAutoAdds] =
     await Promise.all([
       getSettings(),
       db.decks.toArray(),
@@ -12,6 +12,7 @@ export async function exportAppState(): Promise<AppExport> {
       db.reviewHistory.toArray(),
       db.practiceSentences.toArray(),
       db.sideDeckCards.toArray(),
+      db.conjugationAutoAdds.toArray(),
     ])
 
   return {
@@ -23,6 +24,7 @@ export async function exportAppState(): Promise<AppExport> {
     reviewHistory,
     practiceSentences,
     sideDeckCards,
+    conjugationAutoAdds,
   }
 }
 
@@ -73,7 +75,7 @@ export async function importAppState(data: unknown): Promise<void> {
 
   await db.transaction(
     'rw',
-    [db.settings, db.decks, db.cards, db.reviewHistory, db.practiceSentences, db.sideDeckCards],
+    [db.settings, db.decks, db.cards, db.reviewHistory, db.practiceSentences, db.sideDeckCards, db.conjugationAutoAdds],
     async () => {
       // Clear all existing data
       await Promise.all([
@@ -83,6 +85,7 @@ export async function importAppState(data: unknown): Promise<void> {
         db.reviewHistory.clear(),
         db.practiceSentences.clear(),
         db.sideDeckCards.clear(),
+        db.conjugationAutoAdds.clear(),
       ])
 
       // Import all data
@@ -97,6 +100,8 @@ export async function importAppState(data: unknown): Promise<void> {
         await db.practiceSentences.bulkPut(data.practiceSentences as PracticeSentence[])
       if (data.sideDeckCards.length > 0)
         await db.sideDeckCards.bulkPut(data.sideDeckCards as SideDeckCard[])
+      if (data.conjugationAutoAdds && data.conjugationAutoAdds.length > 0)
+        await db.conjugationAutoAdds.bulkPut(data.conjugationAutoAdds as ConjugationAutoAdd[])
     }
   )
 }

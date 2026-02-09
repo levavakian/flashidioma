@@ -44,6 +44,22 @@ export interface Deck {
   newCardsPerDay: number // Anki-like daily new card limit (default 20)
   newCardsIntroducedToday: number // How many new cards introduced today
   lastNewCardDate: string | null // ISO date (date portion only, e.g. "2026-02-08")
+  autoAddConjugations: boolean // Whether to auto-add conjugation cards on Good/Easy review
+  maxConjugationCardsPerDay: number // Daily limit for auto-added conjugation cards (default 5)
+  conjugationCardsAddedToday: number // How many conjugation cards added today
+  lastConjugationCardDate: string | null // ISO date for daily reset
+}
+
+/** Tracks which conjugation forms have been auto-added per verb per deck */
+export interface ConjugationAutoAdd {
+  id: string // UUID
+  deckId: string
+  verbInfinitive: string // e.g. "comer"
+  tenseId: string // e.g. "present"
+  person: string // e.g. "tú"
+  form: string // e.g. "comes"
+  addedDate: string // ISO date (YYYY-MM-DD) — for per-verb per-day limiting
+  createdAt: string // Full ISO timestamp
 }
 
 export interface ConstructChecklist {
@@ -135,6 +151,7 @@ export interface AppExport {
   reviewHistory: ReviewHistory[]
   practiceSentences: PracticeSentence[]
   sideDeckCards: SideDeckCard[]
+  conjugationAutoAdds?: ConjugationAutoAdd[]
 }
 
 // Importable deck catalog

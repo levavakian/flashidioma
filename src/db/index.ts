@@ -6,6 +6,7 @@ import type {
   PracticeSentence,
   SideDeckCard,
   ReviewHistory,
+  ConjugationAutoAdd,
 } from '../types'
 
 class FlashIdiomaDB extends Dexie {
@@ -15,6 +16,7 @@ class FlashIdiomaDB extends Dexie {
   practiceSentences!: EntityTable<PracticeSentence, 'id'>
   sideDeckCards!: EntityTable<SideDeckCard, 'id'>
   reviewHistory!: EntityTable<ReviewHistory, 'id'>
+  conjugationAutoAdds!: EntityTable<ConjugationAutoAdd, 'id'>
 
   constructor() {
     super('flashidioma')
@@ -26,6 +28,24 @@ class FlashIdiomaDB extends Dexie {
       practiceSentences: 'id, deckId',
       sideDeckCards: 'id',
       reviewHistory: 'id, cardId, deckId, reviewedAt',
+    })
+
+    this.version(2).stores({
+      cards: 'id, deckId, *tags, [deckId+fsrs.state]',
+      decks: 'id',
+      settings: 'id',
+      practiceSentences: 'id, deckId',
+      sideDeckCards: 'id',
+      reviewHistory: 'id, cardId, deckId, reviewedAt',
+      conjugationAutoAdds: 'id, deckId, [deckId+verbInfinitive], [deckId+addedDate]',
+    }).upgrade(tx => {
+      // Add new fields to existing decks with defaults
+      return tx.table('decks').toCollection().modify(deck => {
+        if (deck.autoAddConjugations === undefined) deck.autoAddConjugations = true
+        if (deck.maxConjugationCardsPerDay === undefined) deck.maxConjugationCardsPerDay = 5
+        if (deck.conjugationCardsAddedToday === undefined) deck.conjugationCardsAddedToday = 0
+        if (deck.lastConjugationCardDate === undefined) deck.lastConjugationCardDate = null
+      })
     })
   }
 }

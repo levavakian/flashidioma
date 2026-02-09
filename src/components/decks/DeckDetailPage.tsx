@@ -8,9 +8,10 @@ import CardList from '../cards/CardList'
 import AddCardForm from '../cards/AddCardForm'
 import ReviewSession from '../review/ReviewSession'
 import ConstructChecklist from './ConstructChecklist'
+import DeckSettings from './DeckSettings'
 import PracticeTab from '../practice/PracticeTab'
 
-type Tab = 'cards' | 'review' | 'add' | 'practice' | 'constructs'
+type Tab = 'cards' | 'review' | 'add' | 'practice' | 'constructs' | 'settings'
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'cards', label: 'Cards' },
@@ -18,6 +19,7 @@ const tabs: { id: Tab; label: string }[] = [
   { id: 'add', label: '+ Add' },
   { id: 'practice', label: 'Practice' },
   { id: 'constructs', label: 'Constructs' },
+  { id: 'settings', label: 'Settings' },
 ]
 
 export default function DeckDetailPage() {
@@ -122,6 +124,10 @@ export default function DeckDetailPage() {
 
       {tab === 'constructs' && (
         <ConstructChecklist deck={deck} onUpdate={loadDeck} />
+      )}
+
+      {tab === 'settings' && (
+        <DeckSettings deck={deck} onUpdate={loadDeck} />
       )}
     </div>
   )

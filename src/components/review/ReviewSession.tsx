@@ -3,6 +3,8 @@ import { reviewCard, getReviewQueue, getSchedulingPreview, formatInterval } from
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { hydrateConjugation } from '../../services/llm'
 import { updateCard } from '../../services/card'
+import { maybeAutoAddConjugationCard } from '../../services/conjugationAutoAdd'
+import { getDeck } from '../../services/deck'
 import ConjugationView from '../cards/ConjugationView'
 import type { Deck, Card, VerbData } from '../../types'
 
@@ -31,10 +33,25 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const [lookedUpVerbData, setLookedUpVerbData] = useState<VerbData | null>(null)
   const [hydratingReview, setHydratingReview] = useState(false)
   const [hydrateMessage, setHydrateMessage] = useState('')
+  const [toast, setToast] = useState<string | null>(null)
 
   const gradingRef = useRef(false)
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const currentCard = queue[currentIndex]
+
+  const showToast = (message: string) => {
+    setToast(message)
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 3000)
+  }
+
+  // Cleanup toast timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+    }
+  }, [])
 
   // Auto-lookup conjugation from static DB when a verb card is revealed
   useEffect(() => {
@@ -145,6 +162,19 @@ export default function ReviewSession({ deck, onComplete }: Props) {
     await reviewCard(currentCard.id, grade)
     setReviewed((r) => r + 1)
 
+    // Try auto-adding a conjugation card (fires and handles its own errors)
+    try {
+      const freshDeck = await getDeck(deck.id)
+      if (freshDeck) {
+        const result = await maybeAutoAddConjugationCard(currentCard, grade, freshDeck)
+        if (result.added && result.form) {
+          showToast(`Added: ${result.form}`)
+        }
+      }
+    } catch {
+      // Non-critical — don't interrupt review flow
+    }
+
     if (currentIndex + 1 < queue.length) {
       setCurrentIndex((i) => i + 1)
       setRevealed(false)
@@ -197,6 +227,13 @@ export default function ReviewSession({ deck, onComplete }: Props) {
           style={{ width: `${progress}%` }}
         />
       </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm animate-fade-in">
+          {toast}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow border p-6 text-center min-h-[200px] flex flex-col justify-center">
         <p className="text-2xl font-medium mb-4">{displayFront}</p>
