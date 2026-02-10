@@ -110,13 +110,14 @@ export default function TranslatePage() {
       })
       setAddedMessage('Added 2 cards (both directions)')
     } else {
-      // For single-direction, look up the target language word for conjugation
-      const spanishWord = direction === 'source-to-target' ? back : front
-      const verbData = (await lookupConjugation(spanishWord)) ?? undefined
+      // Look up conjugation data — try both texts since either could be the Spanish verb
+      const cardFront = direction === 'source-to-target' ? front : back
+      const cardBack = direction === 'source-to-target' ? back : front
+      const verbData = (await lookupConjugation(cardBack)) ?? (await lookupConjugation(cardFront)) ?? undefined
       await createCard({
         deckId: selectedDeckId,
-        frontText: direction === 'source-to-target' ? front : back,
-        backText: direction === 'source-to-target' ? back : front,
+        frontText: cardFront,
+        backText: cardBack,
         direction,
         ...(verbData ? { verbData } : {}),
       })

@@ -59,9 +59,8 @@ export default function AddCardForm({ deckId, onAdded, initialFront, initialBack
         tags: tagList,
       })
     } else {
-      // backText is the target language word for source-to-target
-      const targetWord = direction === 'source-to-target' ? back : front
-      const verbData = (await lookupConjugation(targetWord)) ?? undefined
+      // Back field is always the target language (Spanish) word
+      const verbData = (await lookupConjugation(back)) ?? undefined
       await createCard({
         deckId,
         frontText: front,
@@ -96,8 +95,7 @@ export default function AddCardForm({ deckId, onAdded, initialFront, initialBack
         tags: tagList,
       })
     } else {
-      const targetWord = direction === 'source-to-target' ? back : front
-      const verbData = (await lookupConjugation(targetWord)) ?? undefined
+      const verbData = (await lookupConjugation(back)) ?? undefined
       await createCard({
         deckId,
         frontText: front,

@@ -66,9 +66,10 @@ export async function createCardBothDirections(
   input: Omit<CreateCardInput, 'direction'>
 ): Promise<[Card, Card]> {
   // Auto-lookup conjugation data from static DB if not provided
+  // Try backText first (usually the target/Spanish word), then frontText as fallback
   let verbData = input.verbData
   if (!verbData) {
-    verbData = (await lookupConjugation(input.backText)) ?? undefined
+    verbData = (await lookupConjugation(input.backText)) ?? (await lookupConjugation(input.frontText)) ?? undefined
   }
   const withVerb = verbData ? { ...input, verbData } : input
   const card1 = await createCard({ ...withVerb, direction: 'source-to-target' })
