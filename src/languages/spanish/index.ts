@@ -77,6 +77,32 @@ const spanishConstructs: ConstructDefinition[] = [
     category: 'tense',
     description: 'Hypothetical completed actions (habría comido)',
   },
+  // Progressive tenses
+  {
+    id: 'present-progressive',
+    name: 'Present Progressive',
+    category: 'tense',
+    description: 'Actions happening right now (estoy hablando)',
+  },
+  {
+    id: 'imperfect-progressive',
+    name: 'Imperfect Progressive',
+    category: 'tense',
+    description: 'Ongoing past actions in progress (estaba hablando)',
+  },
+  // Modal verb constructs
+  {
+    id: 'poder-present',
+    name: 'Poder + Infinitive',
+    category: 'tense',
+    description: 'Ability or possibility (puedo hablar)',
+  },
+  {
+    id: 'deber-present',
+    name: 'Deber + Infinitive',
+    category: 'tense',
+    description: 'Obligation or probability (debo hablar)',
+  },
 ]
 
 const spanishPersons = [

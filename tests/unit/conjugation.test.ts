@@ -157,15 +157,16 @@ describe('Spanish conjugation engine', () => {
   })
 
   describe('tense metadata', () => {
-    it('includes all 12 tenses', () => {
+    it('includes all 16 tenses', () => {
       const result = conjugateVerb('hablar')!
-      expect(result.tenses).toHaveLength(12)
+      expect(result.tenses).toHaveLength(16)
 
       const tenseIds = result.tenses.map((t) => t.tenseId)
       expect(tenseIds).toEqual([
         'present', 'preterite', 'imperfect', 'future', 'conditional',
         'present-subjunctive', 'imperfect-subjunctive', 'imperative',
         'present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect',
+        'present-progressive', 'imperfect-progressive', 'poder-present', 'deber-present',
       ])
     })
 

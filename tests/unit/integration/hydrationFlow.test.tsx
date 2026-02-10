@@ -106,11 +106,17 @@ describe('Full hydration flow integration', () => {
       expect(screen.getByText('to xyzverb')).toBeInTheDocument()
     })
 
-    // The "Conj" hydrate button should be visible (verb without verbData)
-    expect(screen.getByText('Conj')).toBeInTheDocument()
+    // Expand the card by clicking on it to reveal action buttons
+    const cardButtons = screen.getAllByRole('button')
+    const expandButton = cardButtons.find(b => b.textContent?.includes('xyzverbar'))
+    expect(expandButton).toBeDefined()
+    await user.click(expandButton!)
+
+    // The "Hydrate (LLM)" button should be visible (verb without verbData)
+    expect(screen.getByText('Hydrate (LLM)')).toBeInTheDocument()
 
     // Click hydrate
-    await user.click(screen.getByText('Conj'))
+    await user.click(screen.getByText('Hydrate (LLM)'))
 
     // Wait for the DB to be updated (the onUpdate callback from CardList calls loadDeck)
     await waitFor(

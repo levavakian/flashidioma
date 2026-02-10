@@ -41,9 +41,9 @@ describe('Static conjugation DB lookup', () => {
     expect(forms).toEqual(['soy', 'eres', 'es', 'somos', 'sois', 'son'])
   })
 
-  it('returns all 12 tenses for a verb', async () => {
+  it('returns all 16 tenses for a verb', async () => {
     const result = await lookupConjugation('hablar')
-    expect(result!.tenses).toHaveLength(12)
+    expect(result!.tenses).toHaveLength(16)
 
     const tenseIds = result!.tenses.map((t) => t.tenseId)
     expect(tenseIds).toContain('present')
@@ -58,6 +58,10 @@ describe('Static conjugation DB lookup', () => {
     expect(tenseIds).toContain('pluperfect')
     expect(tenseIds).toContain('future-perfect')
     expect(tenseIds).toContain('conditional-perfect')
+    expect(tenseIds).toContain('present-progressive')
+    expect(tenseIds).toContain('imperfect-progressive')
+    expect(tenseIds).toContain('poder-present')
+    expect(tenseIds).toContain('deber-present')
   })
 
   it('compound tenses include haber forms', async () => {

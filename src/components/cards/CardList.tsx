@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { updateCard, deleteCard } from '../../services/card'
 import { hydrateConjugation } from '../../services/llm'
+import { lookupConjugation } from '../../services/conjugationLookup'
 import ConjugationView from './ConjugationView'
-import type { Card, ConstructChecklist } from '../../types'
+import type { Card, VerbData, ConstructChecklist } from '../../types'
 
 const PAGE_SIZE = 50
 
@@ -22,6 +23,8 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
   const [hydratingId, setHydratingId] = useState<string | null>(null)
   const [hydrateError, setHydrateError] = useState('')
   const [page, setPage] = useState(0)
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [lookedUpConjugations, setLookedUpConjugations] = useState<Map<string, VerbData | null>>(new Map())
 
   const filtered = useMemo(() => {
     let result = cards
@@ -47,6 +50,26 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
+  // Auto-load conjugation from static DB when a card is expanded
+  const autoLoadConjugation = useCallback(async (card: Card) => {
+    if (card.verbData) return // Already has hydrated data
+    if (lookedUpConjugations.has(card.id)) return // Already looked up
+
+    const verb = card.direction === 'source-to-target' ? card.backText : card.frontText
+    const result = await lookupConjugation(verb)
+    setLookedUpConjugations(prev => {
+      const next = new Map(prev)
+      next.set(card.id, result)
+      return next
+    })
+  }, [lookedUpConjugations])
+
+  useEffect(() => {
+    if (!expandedCardId) return
+    const card = cards.find(c => c.id === expandedCardId)
+    if (card) autoLoadConjugation(card)
+  }, [expandedCardId, cards, autoLoadConjugation])
 
   // Reset page when search changes
   const handleSearch = (value: string) => {
@@ -75,6 +98,7 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
   const handleDelete = async (card: Card) => {
     if (!confirm(`Delete card "${card.frontText}"?`)) return
     await deleteCard(card.id)
+    setExpandedCardId(null)
     onUpdate()
   }
 
@@ -96,6 +120,15 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
     } finally {
       setHydratingId(null)
     }
+  }
+
+  const toggleExpand = (cardId: string) => {
+    setExpandedCardId(prev => prev === cardId ? null : cardId)
+  }
+
+  const getConjugationData = (card: Card): VerbData | null => {
+    if (card.verbData) return card.verbData
+    return lookedUpConjugations.get(card.id) ?? null
   }
 
   const stateLabel = (state: Card['fsrs']['state']) => {
@@ -224,70 +257,90 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
       )}
 
       <div className="space-y-2">
-        {pageItems.map((card) => (
-          <div key={card.id} className="bg-white rounded-lg border p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium truncate">{card.frontText}</span>
-                  <span className="text-gray-400 shrink-0">&rarr;</span>
-                  <span className="text-gray-600 truncate">{card.backText}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${stateColor(card.fsrs.state)}`}
-                  >
-                    {stateLabel(card.fsrs.state)}
-                  </span>
-                  {formatDueDate(card) && (
-                    <span className={`text-xs ${dueColor(card)}`}>
-                      {formatDueDate(card)}
-                    </span>
-                  )}
-                  {card.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  <span className="text-xs text-gray-400">
-                    {card.direction === 'source-to-target' ? 'S\u2192T' : 'T\u2192S'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-1 ml-2">
-                {!card.verbData && (
-                  <button
-                    onClick={() => handleHydrate(card)}
-                    disabled={hydratingId === card.id}
-                    className="text-blue-400 hover:text-blue-600 p-1 text-xs disabled:opacity-50"
-                    title="Hydrate conjugations"
-                  >
-                    {hydratingId === card.id ? '...' : 'Conj'}
-                  </button>
-                )}
-                <button
-                  onClick={() => handleEdit(card)}
-                  className="text-gray-400 hover:text-gray-600 p-1 text-sm"
-                  title="Edit"
-                >
-                  &#9998;
-                </button>
-                <button
-                  onClick={() => handleDelete(card)}
-                  className="text-gray-400 hover:text-red-500 p-1 text-sm"
-                  title="Delete"
-                >
-                  &#128465;
-                </button>
-              </div>
-            </div>
+        {pageItems.map((card) => {
+          const isExpanded = expandedCardId === card.id
+          const conjData = isExpanded ? getConjugationData(card) : null
 
-            {card.verbData && <ConjugationView verbData={card.verbData} enabledConstructs={enabledConstructs} />}
-          </div>
-        ))}
+          return (
+            <div key={card.id} className="bg-white rounded-lg border">
+              <button
+                onClick={() => toggleExpand(card.id)}
+                className="w-full text-left p-3 flex items-center justify-between"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium truncate">{card.frontText}</span>
+                    <span className="text-gray-400 shrink-0">&rarr;</span>
+                    <span className="text-gray-600 truncate">{card.backText}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${stateColor(card.fsrs.state)}`}
+                    >
+                      {stateLabel(card.fsrs.state)}
+                    </span>
+                    {formatDueDate(card) && (
+                      <span className={`text-xs ${dueColor(card)}`}>
+                        {formatDueDate(card)}
+                      </span>
+                    )}
+                    {card.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    <span className="text-xs text-gray-400">
+                      {card.direction === 'source-to-target' ? 'S\u2192T' : 'T\u2192S'}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-gray-400 ml-2 shrink-0 text-sm">
+                  {isExpanded ? '\u25BC' : '\u25B6'}
+                </span>
+              </button>
+
+              {isExpanded && (
+                <div className="border-t px-3 pb-3">
+                  {/* Action buttons */}
+                  <div className="flex gap-2 py-2">
+                    <button
+                      onClick={() => handleEdit(card)}
+                      className="text-sm text-blue-500 hover:text-blue-700"
+                    >
+                      Edit
+                    </button>
+                    {!card.verbData && (
+                      <button
+                        onClick={() => handleHydrate(card)}
+                        disabled={hydratingId === card.id}
+                        className="text-sm text-purple-500 hover:text-purple-700 disabled:opacity-50"
+                      >
+                        {hydratingId === card.id ? 'Hydrating...' : 'Hydrate (LLM)'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(card)}
+                      className="text-sm text-red-500 hover:text-red-700 ml-auto"
+                    >
+                      Delete
+                    </button>
+                  </div>
+
+                  {/* Conjugation view */}
+                  {conjData && (
+                    <ConjugationView verbData={conjData} enabledConstructs={enabledConstructs} />
+                  )}
+                  {!conjData && !card.verbData && lookedUpConjugations.has(card.id) && (
+                    <p className="text-xs text-gray-400 italic">No conjugation data found for this card.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* Pagination */}

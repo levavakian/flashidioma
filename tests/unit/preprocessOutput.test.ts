@@ -44,7 +44,7 @@ describe('Preprocessing script output', () => {
       expect(conjugationData.generatedAt).toBeTruthy()
       expect(conjugationData.verbCount).toBeGreaterThan(2000)
       expect(Array.isArray(conjugationData.tenses)).toBe(true)
-      expect(conjugationData.tenses).toHaveLength(12)
+      expect(conjugationData.tenses).toHaveLength(16)
       expect(typeof conjugationData.verbs).toBe('object')
     })
 

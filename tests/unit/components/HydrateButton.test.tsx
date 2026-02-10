@@ -61,6 +61,16 @@ const mockConjugationResponse = JSON.stringify({
   ],
 })
 
+/** Helper: expand the first card's dropdown by clicking the card row */
+async function expandFirstCard(user: ReturnType<typeof userEvent.setup>) {
+  // Card rows are buttons with the chevron arrow — click the first one
+  const cardButtons = screen.getAllByRole('button')
+  const expandButton = cardButtons.find(b => b.textContent?.includes('xyzificar') || b.textContent?.includes('casa') || b.textContent?.includes('house'))
+  if (expandButton) {
+    await user.click(expandButton)
+  }
+}
+
 describe('Hydrate button', () => {
   it('clicking hydrate with mock LLM response populates conjugation data on the card', async () => {
     const user = userEvent.setup()
@@ -85,12 +95,14 @@ describe('Hydrate button', () => {
       <CardList cards={cards} deckId={deck.id} onUpdate={onUpdate} />
     )
 
-    // The verb card should show the "Conj" hydrate button (no verbData yet)
-    expect(screen.getByTitle('Hydrate conjugations')).toBeInTheDocument()
-    expect(screen.getByText('Conj')).toBeInTheDocument()
+    // Expand the card to reveal action buttons
+    await expandFirstCard(user)
+
+    // The "Hydrate (LLM)" button should be visible (no verbData yet)
+    expect(screen.getByText('Hydrate (LLM)')).toBeInTheDocument()
 
     // Click the hydrate button
-    await user.click(screen.getByText('Conj'))
+    await user.click(screen.getByText('Hydrate (LLM)'))
 
     // Wait for hydration to complete
     await waitFor(() => {
@@ -110,8 +122,11 @@ describe('Hydrate button', () => {
       <CardList cards={updatedCards} deckId={deck.id} onUpdate={onUpdate} />
     )
 
-    // The "Conj" button should no longer appear since the card now has verbData
-    expect(screen.queryByText('Conj')).not.toBeInTheDocument()
+    // Expand the card again
+    await expandFirstCard(user)
+
+    // The "Hydrate (LLM)" button should no longer appear since the card now has verbData
+    expect(screen.queryByText('Hydrate (LLM)')).not.toBeInTheDocument()
   })
 
   it('shows error when LLM call fails (e.g. network error)', async () => {
@@ -133,8 +148,11 @@ describe('Hydrate button', () => {
       <CardList cards={cards} deckId={deck.id} onUpdate={onUpdate} />
     )
 
+    // Expand the card
+    await expandFirstCard(user)
+
     // Click the hydrate button
-    await user.click(screen.getByText('Conj'))
+    await user.click(screen.getByText('Hydrate (LLM)'))
 
     // Wait for error message
     await waitFor(() => {
@@ -149,7 +167,9 @@ describe('Hydrate button', () => {
     expect(onUpdate).not.toHaveBeenCalled()
   })
 
-  it('shows hydrate button for non-verb cards (allows manual lookup)', async () => {
+  it('shows hydrate button for non-verb cards when expanded', async () => {
+    const user = userEvent.setup()
+
     // Create a non-verb card
     await createCard({
       deckId: deck.id,
@@ -166,8 +186,14 @@ describe('Hydrate button', () => {
       <CardList cards={nonVerbCards} deckId={deck.id} onUpdate={vi.fn()} />
     )
 
-    // All cards without verbData show the Conj button
-    expect(screen.queryByText('Conj')).toBeInTheDocument()
+    // Before expanding, hydrate button should not be visible
+    expect(screen.queryByText('Hydrate (LLM)')).not.toBeInTheDocument()
+
+    // Expand the card
+    await expandFirstCard(user)
+
+    // All cards without verbData show the Hydrate button when expanded
+    expect(screen.queryByText('Hydrate (LLM)')).toBeInTheDocument()
   })
 
   it('shows not-a-verb message when LLM rejects hydration', async () => {
@@ -205,7 +231,10 @@ describe('Hydrate button', () => {
       <CardList cards={cards} deckId={deck.id} onUpdate={vi.fn()} />
     )
 
-    await user.click(screen.getByText('Conj'))
+    // Expand the card
+    await expandFirstCard(user)
+
+    await user.click(screen.getByText('Hydrate (LLM)'))
 
     await waitFor(() => {
       expect(screen.getByText('"casa" is not a verb.')).toBeInTheDocument()
@@ -217,6 +246,8 @@ describe('Hydrate button', () => {
   })
 
   it('does not show hydrate button for verb cards that already have verbData', async () => {
+    const user = userEvent.setup()
+
     // Update the verb card to have verbData
     await db.cards.update(verbCard.id, {
       verbData: {
@@ -232,7 +263,10 @@ describe('Hydrate button', () => {
       <CardList cards={cards} deckId={deck.id} onUpdate={vi.fn()} />
     )
 
-    // Should not show "Conj" button since verbData exists
-    expect(screen.queryByText('Conj')).not.toBeInTheDocument()
+    // Expand the card
+    await expandFirstCard(user)
+
+    // Should not show "Hydrate (LLM)" button since verbData exists
+    expect(screen.queryByText('Hydrate (LLM)')).not.toBeInTheDocument()
   })
 })

@@ -82,6 +82,22 @@ const TENSE_DESCRIPTIONS: Record<string, { name: string; description: string }> 
     name: 'Conditional Perfect',
     description: 'Hypothetical completed actions',
   },
+  'present-progressive': {
+    name: 'Present Progressive',
+    description: 'Actions happening right now (estoy hablando)',
+  },
+  'imperfect-progressive': {
+    name: 'Imperfect Progressive',
+    description: 'Ongoing past actions in progress (estaba hablando)',
+  },
+  'poder-present': {
+    name: 'Poder + Infinitive',
+    description: 'Ability or possibility (puedo hablar)',
+  },
+  'deber-present': {
+    name: 'Deber + Infinitive',
+    description: 'Obligation or probability (debo hablar)',
+  },
 }
 
 // Auxiliary forms of "haber" for compound tenses
@@ -91,6 +107,16 @@ const HABER = {
   future: ['habré', 'habrás', 'habrá', 'habremos', 'habréis', 'habrán'],
   conditional: ['habría', 'habrías', 'habría', 'habríamos', 'habríais', 'habrían'],
 }
+
+// Auxiliary forms of "estar" for progressive tenses
+const ESTAR = {
+  present: ['estoy', 'estás', 'está', 'estamos', 'estáis', 'están'],
+  imperfect: ['estaba', 'estabas', 'estaba', 'estábamos', 'estabais', 'estaban'],
+}
+
+// Auxiliary forms for modal verb constructs
+const PODER_PRESENT = ['puedo', 'puedes', 'puede', 'podemos', 'podéis', 'pueden']
+const DEBER_PRESENT = ['debo', 'debes', 'debe', 'debemos', 'debéis', 'deben']
 
 type VerbType = 'ar' | 'er' | 'ir'
 
@@ -112,6 +138,50 @@ function getParticiple(infinitive: string): string {
   const irregular = IRREGULAR_PARTICIPLES[infinitive]
   if (irregular) return irregular
   return type === 'ar' ? stem + 'ado' : stem + 'ido'
+}
+
+const IRREGULAR_GERUNDS: Record<string, string> = {
+  dormir: 'durmiendo',
+  morir: 'muriendo',
+  sentir: 'sintiendo',
+  preferir: 'prefiriendo',
+  pedir: 'pidiendo',
+  seguir: 'siguiendo',
+  servir: 'sirviendo',
+  elegir: 'eligiendo',
+  conseguir: 'consiguiendo',
+  poder: 'pudiendo',
+  venir: 'viniendo',
+  decir: 'diciendo',
+  ir: 'yendo',
+  oír: 'oyendo',
+  leer: 'leyendo',
+  caer: 'cayendo',
+  traer: 'trayendo',
+  construir: 'construyendo',
+  destruir: 'destruyendo',
+  huir: 'huyendo',
+  incluir: 'incluyendo',
+  contribuir: 'contribuyendo',
+  distribuir: 'distribuyendo',
+  sustituir: 'sustituyendo',
+  influir: 'influyendo',
+  concluir: 'concluyendo',
+  excluir: 'excluyendo',
+  creer: 'creyendo',
+  poseer: 'poseyendo',
+  proveer: 'proveyendo',
+}
+
+function getGerund(infinitive: string): string {
+  const irregular = IRREGULAR_GERUNDS[infinitive]
+  if (irregular) return irregular
+  const type = getVerbType(infinitive)
+  const stem = getStem(infinitive)
+  if (type === 'ar') return stem + 'ando'
+  // -er/-ir: if stem ends in a vowel, use -yendo instead of -iendo
+  if (/[aeiouáéíóú]$/.test(stem)) return stem + 'yendo'
+  return stem + 'iendo'
 }
 
 const IRREGULAR_PARTICIPLES: Record<string, string> = {
@@ -261,6 +331,7 @@ function conjugateRegular(infinitive: string): ConjugationTable {
   const type = getVerbType(infinitive)!
   const stem = getStem(infinitive)
   const participle = getParticiple(infinitive)
+  const gerund = getGerund(infinitive)
 
   const present = conjugateRegularPresent(stem, type)
   const preterite = conjugateRegularPreterite(stem, type)
@@ -286,6 +357,10 @@ function conjugateRegular(infinitive: string): ConjugationTable {
       makeCompoundTense('pluperfect', HABER.imperfect, participle),
       makeCompoundTense('future-perfect', HABER.future, participle),
       makeCompoundTense('conditional-perfect', HABER.conditional, participle),
+      makeTense('present-progressive', ESTAR.present.map(e => `${e} ${gerund}`)),
+      makeTense('imperfect-progressive', ESTAR.imperfect.map(e => `${e} ${gerund}`)),
+      makeTense('poder-present', PODER_PRESENT.map(p => `${p} ${infinitive}`)),
+      makeTense('deber-present', DEBER_PRESENT.map(d => `${d} ${infinitive}`)),
     ],
   }
 }
@@ -662,6 +737,8 @@ export function conjugateVerb(infinitive: string): ConjugationTable | null {
     ?? IRREGULAR_PARTICIPLES[infinitive]
     ?? (type === 'ar' ? stem + 'ado' : stem + 'ido')
 
+  const gerund = getGerund(infinitive)
+
   // Build each tense, using overrides where available
   const present = overrides?.present ?? conjugateRegularPresent(stem, type)
   const preterite = overrides?.preterite ?? conjugateRegularPreterite(stem, type)
@@ -698,6 +775,10 @@ export function conjugateVerb(infinitive: string): ConjugationTable | null {
       makeCompoundTense('pluperfect', HABER.imperfect, participle),
       makeCompoundTense('future-perfect', HABER.future, participle),
       makeCompoundTense('conditional-perfect', HABER.conditional, participle),
+      makeTense('present-progressive', ESTAR.present.map(e => `${e} ${gerund}`)),
+      makeTense('imperfect-progressive', ESTAR.imperfect.map(e => `${e} ${gerund}`)),
+      makeTense('poder-present', PODER_PRESENT.map(p => `${p} ${infinitive}`)),
+      makeTense('deber-present', DEBER_PRESENT.map(d => `${d} ${infinitive}`)),
     ],
   }
 }
