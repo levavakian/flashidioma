@@ -204,9 +204,11 @@ export default function TranslatePage() {
           <button
             onClick={() => {
               if (sourceLang !== 'auto') {
-                const tmp = sourceLang
-                handleSourceLang(targetLang)
-                handleTargetLang(tmp)
+                const newSource = targetLang
+                const newTarget = sourceLang
+                setSourceLang(newSource)
+                setTargetLang(newTarget)
+                persistPrefs({ translateSourceLang: newSource, translateTargetLang: newTarget })
               }
             }}
             className="text-gray-400 hover:text-gray-600 px-2 py-1"
