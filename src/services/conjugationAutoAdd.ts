@@ -192,6 +192,7 @@ export async function maybeAutoAddConjugationCard(
     direction: 'source-to-target',
     tags: [verbData.infinitive, pick.tenseName.toLowerCase()],
     source: 'auto-conjugation',
+    verbData,
   })
   await createCard({
     deckId: deck.id,
@@ -200,6 +201,7 @@ export async function maybeAutoAddConjugationCard(
     direction: 'target-to-source',
     tags: [verbData.infinitive, pick.tenseName.toLowerCase()],
     source: 'auto-conjugation',
+    verbData,
   })
 
   // Record the auto-add
