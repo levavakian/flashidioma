@@ -1,5 +1,6 @@
 import { db } from '../db'
 import { incrementDailyNewCardCount, createLearningFSRSCard } from './review'
+import { lookupConjugation } from './conjugationLookup'
 import type { Card, CardDirection, FSRSState } from '../types'
 
 function newFSRSState(): FSRSState {
@@ -64,8 +65,14 @@ export async function createCard(input: CreateCardInput): Promise<Card> {
 export async function createCardBothDirections(
   input: Omit<CreateCardInput, 'direction'>
 ): Promise<[Card, Card]> {
-  const card1 = await createCard({ ...input, direction: 'source-to-target' })
-  const card2 = await createCard({ ...input, direction: 'target-to-source' })
+  // Auto-lookup conjugation data from static DB if not provided
+  let verbData = input.verbData
+  if (!verbData) {
+    verbData = (await lookupConjugation(input.backText)) ?? undefined
+  }
+  const withVerb = verbData ? { ...input, verbData } : input
+  const card1 = await createCard({ ...withVerb, direction: 'source-to-target' })
+  const card2 = await createCard({ ...withVerb, direction: 'target-to-source' })
   return [card1, card2]
 }
 

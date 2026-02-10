@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createCard, createCardBothDirections } from '../../services/card'
+import { lookupConjugation } from '../../services/conjugationLookup'
 import { checkDuplicate } from '../../services/deduplication'
 import type { Card, CardDirection } from '../../types'
 
@@ -50,6 +51,7 @@ export default function AddCardForm({ deckId, onAdded, initialFront, initialBack
       .filter(Boolean)
 
     if (direction === 'both') {
+      // createCardBothDirections auto-lookups verbData
       await createCardBothDirections({
         deckId,
         frontText: front,
@@ -57,12 +59,16 @@ export default function AddCardForm({ deckId, onAdded, initialFront, initialBack
         tags: tagList,
       })
     } else {
+      // backText is the target language word for source-to-target
+      const targetWord = direction === 'source-to-target' ? back : front
+      const verbData = (await lookupConjugation(targetWord)) ?? undefined
       await createCard({
         deckId,
         frontText: front,
         backText: back,
         direction,
         tags: tagList,
+        ...(verbData ? { verbData } : {}),
       })
     }
 
@@ -90,12 +96,15 @@ export default function AddCardForm({ deckId, onAdded, initialFront, initialBack
         tags: tagList,
       })
     } else {
+      const targetWord = direction === 'source-to-target' ? back : front
+      const verbData = (await lookupConjugation(targetWord)) ?? undefined
       await createCard({
         deckId,
         frontText: front,
         backText: back,
         direction,
         tags: tagList,
+        ...(verbData ? { verbData } : {}),
       })
     }
 

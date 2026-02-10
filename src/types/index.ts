@@ -94,7 +94,9 @@ export interface Settings {
 }
 
 export interface UIPreferences {
-  // Placeholder for future UI preferences
+  translateSourceLang?: string
+  translateTargetLang?: string
+  translateDeckId?: string
 }
 
 export interface VerbData {

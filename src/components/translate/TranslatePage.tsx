@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { translateText, isOnline } from '../../services/translate'
 import { createCard, createCardBothDirections } from '../../services/card'
+import { lookupConjugation } from '../../services/conjugationLookup'
 import { addToSideDeck, getSideDeckCards, removeSideDeckCard } from '../../services/sideDeck'
 import { getAllDecks } from '../../services/deck'
+import { getSettings, updateSettings } from '../../db'
 import type { Deck, SideDeckCard } from '../../types'
 
 export default function TranslatePage() {
@@ -18,11 +20,23 @@ export default function TranslatePage() {
   const [addedMessage, setAddedMessage] = useState('')
   const [sideDeck, setSideDeck] = useState<SideDeckCard[]>([])
   const [showSideDeck, setShowSideDeck] = useState(false)
+  const prefsLoaded = useRef(false)
 
   useEffect(() => {
-    getAllDecks().then((d) => {
+    // Load persisted preferences and decks
+    Promise.all([getAllDecks(), getSettings()]).then(([d, settings]) => {
       setDecks(d)
-      if (d.length > 0 && !selectedDeckId) setSelectedDeckId(d[0].id)
+      const prefs = settings.uiPreferences
+      if (prefs.translateSourceLang) setSourceLang(prefs.translateSourceLang)
+      if (prefs.translateTargetLang) setTargetLang(prefs.translateTargetLang)
+      // Use persisted deck if it still exists, otherwise fall back to first deck
+      const savedDeckExists = prefs.translateDeckId && d.some(dk => dk.id === prefs.translateDeckId)
+      if (savedDeckExists) {
+        setSelectedDeckId(prefs.translateDeckId!)
+      } else if (d.length > 0) {
+        setSelectedDeckId(d[0].id)
+      }
+      prefsLoaded.current = true
     })
     getSideDeckCards().then(setSideDeck)
 
@@ -35,6 +49,28 @@ export default function TranslatePage() {
       window.removeEventListener('offline', onOffline)
     }
   }, [])
+
+  const persistPrefs = (updates: Record<string, string>) => {
+    if (!prefsLoaded.current) return
+    getSettings().then(s => {
+      updateSettings({ uiPreferences: { ...s.uiPreferences, ...updates } })
+    })
+  }
+
+  const handleSourceLang = (value: string) => {
+    setSourceLang(value)
+    persistPrefs({ translateSourceLang: value })
+  }
+
+  const handleTargetLang = (value: string) => {
+    setTargetLang(value)
+    persistPrefs({ translateTargetLang: value })
+  }
+
+  const handleDeckChange = (value: string) => {
+    setSelectedDeckId(value)
+    persistPrefs({ translateDeckId: value })
+  }
 
   const handleTranslate = async () => {
     const text = inputText.trim()
@@ -66,6 +102,7 @@ export default function TranslatePage() {
     if (!front || !back) return
 
     if (direction === 'both') {
+      // createCardBothDirections auto-lookups verbData from static DB
       await createCardBothDirections({
         deckId: selectedDeckId,
         frontText: front,
@@ -73,11 +110,15 @@ export default function TranslatePage() {
       })
       setAddedMessage('Added 2 cards (both directions)')
     } else {
+      // For single-direction, look up the target language word for conjugation
+      const spanishWord = direction === 'source-to-target' ? back : front
+      const verbData = (await lookupConjugation(spanishWord)) ?? undefined
       await createCard({
         deckId: selectedDeckId,
         frontText: direction === 'source-to-target' ? front : back,
         backText: direction === 'source-to-target' ? back : front,
         direction,
+        ...(verbData ? { verbData } : {}),
       })
       setAddedMessage('Added 1 card')
     }
@@ -110,11 +151,13 @@ export default function TranslatePage() {
       try {
         const result = await translateText(card.text, 'auto', card.targetLanguage)
         if (card.targetDeckId) {
+          const verbData = (await lookupConjugation(result.translatedText)) ?? undefined
           await createCard({
             deckId: card.targetDeckId,
             frontText: card.text,
             backText: result.translatedText,
             direction: 'source-to-target',
+            ...(verbData ? { verbData } : {}),
           })
         }
         await removeSideDeckCard(card.id)
@@ -151,7 +194,7 @@ export default function TranslatePage() {
         <div className="flex gap-2 items-center">
           <select
             value={sourceLang}
-            onChange={(e) => setSourceLang(e.target.value)}
+            onChange={(e) => handleSourceLang(e.target.value)}
             className="flex-1 border rounded px-2 py-2 text-sm"
           >
             <option value="en">English</option>
@@ -162,8 +205,8 @@ export default function TranslatePage() {
             onClick={() => {
               if (sourceLang !== 'auto') {
                 const tmp = sourceLang
-                setSourceLang(targetLang)
-                setTargetLang(tmp)
+                handleSourceLang(targetLang)
+                handleTargetLang(tmp)
               }
             }}
             className="text-gray-400 hover:text-gray-600 px-2 py-1"
@@ -173,7 +216,7 @@ export default function TranslatePage() {
           </button>
           <select
             value={targetLang}
-            onChange={(e) => setTargetLang(e.target.value)}
+            onChange={(e) => handleTargetLang(e.target.value)}
             className="flex-1 border rounded px-2 py-2 text-sm"
           >
             <option value="es">Spanish</option>
@@ -220,7 +263,7 @@ export default function TranslatePage() {
               <label className="block text-sm font-medium text-gray-700">Add to deck</label>
               <select
                 value={selectedDeckId}
-                onChange={(e) => setSelectedDeckId(e.target.value)}
+                onChange={(e) => handleDeckChange(e.target.value)}
                 className="w-full border rounded px-3 py-2 text-sm"
               >
                 {decks.length === 0 && <option value="">No decks available</option>}
@@ -267,7 +310,7 @@ export default function TranslatePage() {
               <div className="mt-2 flex gap-2">
                 <select
                   value={selectedDeckId}
-                  onChange={(e) => setSelectedDeckId(e.target.value)}
+                  onChange={(e) => handleDeckChange(e.target.value)}
                   className="border rounded px-3 py-2 text-sm"
                 >
                   {decks.map((d) => (
