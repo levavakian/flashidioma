@@ -1,6 +1,7 @@
 import { db } from '../db'
 import { createCard } from './card'
 import { checkDuplicate } from './deduplication'
+import { lookupConjugation } from './conjugationLookup'
 import type { ImportableDeck } from '../types'
 
 export type { ProcessedCard }
@@ -80,6 +81,9 @@ export async function importPrebuiltDeck(
       continue
     }
 
+    // For verbs, look up conjugation data from static DB
+    const verbData = card.pos === 'v' ? await lookupConjugation(card.word) : null
+
     // Create source-to-target card (English front → Spanish back)
     await createCard({
       deckId: targetDeckId,
@@ -89,6 +93,7 @@ export async function importPrebuiltDeck(
       tags: [card.pos],
       source: 'imported',
       sortOrder: i * 2,
+      ...(verbData ? { verbData } : {}),
     })
 
     // Create target-to-source card (Spanish front → English back)
@@ -100,6 +105,7 @@ export async function importPrebuiltDeck(
       tags: [card.pos],
       source: 'imported',
       sortOrder: i * 2 + 1,
+      ...(verbData ? { verbData } : {}),
     })
 
     imported++

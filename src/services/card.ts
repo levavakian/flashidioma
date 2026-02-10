@@ -27,6 +27,7 @@ export interface CreateCardInput {
   notes?: string
   source?: Card['source']
   sortOrder?: number
+  verbData?: Card['verbData']
 }
 
 export async function createCard(input: CreateCardInput): Promise<Card> {
@@ -46,6 +47,7 @@ export async function createCard(input: CreateCardInput): Promise<Card> {
     createdAt: new Date().toISOString(),
     source: input.source ?? 'manual',
     ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+    ...(input.verbData ? { verbData: input.verbData } : {}),
   }
 
   await db.cards.put(card)
