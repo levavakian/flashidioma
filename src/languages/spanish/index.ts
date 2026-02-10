@@ -103,6 +103,12 @@ const spanishConstructs: ConstructDefinition[] = [
     category: 'tense',
     description: 'Obligation or probability (debo hablar)',
   },
+  {
+    id: 'future-progressive',
+    name: 'Future Progressive',
+    category: 'tense',
+    description: 'Actions that will be in progress (estaré hablando)',
+  },
 ]
 
 const spanishPersons = [

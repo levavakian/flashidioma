@@ -21,7 +21,7 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
   const [editBack, setEditBack] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [hydratingId, setHydratingId] = useState<string | null>(null)
-  const [hydrateError, setHydrateError] = useState('')
+  const [hydrateErrors, setHydrateErrors] = useState<Map<string, string>>(new Map())
   const [page, setPage] = useState(0)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
   const [lookedUpConjugations, setLookedUpConjugations] = useState<Map<string, VerbData | null>>(new Map())
@@ -51,10 +51,32 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
+  /**
+   * Find verbData for a card, checking:
+   * 1. The card's own verbData
+   * 2. The paired card's verbData (same word pair, opposite direction)
+   * 3. Static DB lookup cache
+   */
+  const getConjugationData = useCallback((card: Card): VerbData | null => {
+    if (card.verbData) return card.verbData
+
+    // Check paired card (same front/back text, opposite direction)
+    const paired = cards.find(c =>
+      c.id !== card.id &&
+      c.frontText === card.frontText &&
+      c.backText === card.backText &&
+      c.direction !== card.direction
+    )
+    if (paired?.verbData) return paired.verbData
+
+    return lookedUpConjugations.get(card.id) ?? null
+  }, [cards, lookedUpConjugations])
+
   // Auto-load conjugation from static DB when a card is expanded
   const autoLoadConjugation = useCallback(async (card: Card) => {
-    if (card.verbData) return // Already has hydrated data
-    if (lookedUpConjugations.has(card.id)) return // Already looked up
+    // Skip if we already have data from any source
+    if (getConjugationData(card)) return
+    if (lookedUpConjugations.has(card.id)) return // Already looked up (even if null)
 
     const verb = card.direction === 'source-to-target' ? card.backText : card.frontText
     const result = await lookupConjugation(verb)
@@ -63,7 +85,7 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
       next.set(card.id, result)
       return next
     })
-  }, [lookedUpConjugations])
+  }, [getConjugationData, lookedUpConjugations])
 
   useEffect(() => {
     if (!expandedCardId) return
@@ -102,21 +124,47 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
     onUpdate()
   }
 
+  const setCardError = (cardId: string, error: string) => {
+    setHydrateErrors(prev => {
+      const next = new Map(prev)
+      next.set(cardId, error)
+      return next
+    })
+  }
+
+  const clearCardError = (cardId: string) => {
+    setHydrateErrors(prev => {
+      const next = new Map(prev)
+      next.delete(cardId)
+      return next
+    })
+  }
+
   const handleHydrate = async (card: Card) => {
-    setHydrateError('')
+    clearCardError(card.id)
     setHydratingId(card.id)
     try {
       // Use the Spanish word (target language) for conjugation
       const verb = card.direction === 'source-to-target' ? card.backText : card.frontText
       const verbData = await hydrateConjugation(verb)
       if (verbData === null) {
-        setHydrateError(`"${verb}" is not a verb.`)
+        setCardError(card.id, `"${verb}" is not a verb.`)
         return
       }
       await updateCard(card.id, { verbData })
+      // Also update the paired card if it exists
+      const paired = cards.find(c =>
+        c.id !== card.id &&
+        c.frontText === card.frontText &&
+        c.backText === card.backText &&
+        c.direction !== card.direction
+      )
+      if (paired) {
+        await updateCard(paired.id, { verbData })
+      }
       onUpdate()
     } catch (e) {
-      setHydrateError(e instanceof Error ? e.message : 'Hydration failed')
+      setCardError(card.id, e instanceof Error ? e.message : 'Hydration failed')
     } finally {
       setHydratingId(null)
     }
@@ -124,11 +172,6 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
 
   const toggleExpand = (cardId: string) => {
     setExpandedCardId(prev => prev === cardId ? null : cardId)
-  }
-
-  const getConjugationData = (card: Card): VerbData | null => {
-    if (card.verbData) return card.verbData
-    return lookedUpConjugations.get(card.id) ?? null
   }
 
   const stateLabel = (state: Card['fsrs']['state']) => {
@@ -195,10 +238,6 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
         </span>
       </div>
 
-      {hydrateError && (
-        <div className="bg-red-50 text-red-600 px-3 py-2 rounded mb-3 text-sm">{hydrateError}</div>
-      )}
-
       {filtered.length === 0 && (
         <p className="text-gray-500 text-sm">
           {cards.length === 0 ? 'No cards in this deck.' : 'No cards match your search.'}
@@ -260,6 +299,8 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
         {pageItems.map((card) => {
           const isExpanded = expandedCardId === card.id
           const conjData = isExpanded ? getConjugationData(card) : null
+          const hasVerbData = card.verbData != null
+          const cardError = hydrateErrors.get(card.id)
 
           return (
             <div key={card.id} className="bg-white rounded-lg border">
@@ -304,6 +345,11 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
 
               {isExpanded && (
                 <div className="border-t px-3 pb-3">
+                  {/* Per-card error */}
+                  {cardError && (
+                    <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm mt-2">{cardError}</div>
+                  )}
+
                   {/* Action buttons */}
                   <div className="flex gap-2 py-2">
                     <button
@@ -312,15 +358,13 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
                     >
                       Edit
                     </button>
-                    {!card.verbData && (
-                      <button
-                        onClick={() => handleHydrate(card)}
-                        disabled={hydratingId === card.id}
-                        className="text-sm text-purple-500 hover:text-purple-700 disabled:opacity-50"
-                      >
-                        {hydratingId === card.id ? 'Hydrating...' : 'Hydrate (LLM)'}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleHydrate(card)}
+                      disabled={hydratingId === card.id}
+                      className="text-sm text-purple-500 hover:text-purple-700 disabled:opacity-50"
+                    >
+                      {hydratingId === card.id ? 'Hydrating...' : hasVerbData ? 'Rehydrate (LLM)' : 'Hydrate (LLM)'}
+                    </button>
                     <button
                       onClick={() => handleDelete(card)}
                       className="text-sm text-red-500 hover:text-red-700 ml-auto"
@@ -333,7 +377,7 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
                   {conjData && (
                     <ConjugationView verbData={conjData} enabledConstructs={enabledConstructs} />
                   )}
-                  {!conjData && !card.verbData && lookedUpConjugations.has(card.id) && (
+                  {!conjData && !getConjugationData(card) && lookedUpConjugations.has(card.id) && (
                     <p className="text-xs text-gray-400 italic">No conjugation data found for this card.</p>
                   )}
                 </div>

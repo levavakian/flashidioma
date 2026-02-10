@@ -98,6 +98,10 @@ const TENSE_DESCRIPTIONS: Record<string, { name: string; description: string }> 
     name: 'Deber + Infinitive',
     description: 'Obligation or probability (debo hablar)',
   },
+  'future-progressive': {
+    name: 'Future Progressive',
+    description: 'Actions that will be in progress (estaré hablando)',
+  },
 }
 
 // Auxiliary forms of "haber" for compound tenses
@@ -112,6 +116,7 @@ const HABER = {
 const ESTAR = {
   present: ['estoy', 'estás', 'está', 'estamos', 'estáis', 'están'],
   imperfect: ['estaba', 'estabas', 'estaba', 'estábamos', 'estabais', 'estaban'],
+  future: ['estaré', 'estarás', 'estará', 'estaremos', 'estaréis', 'estarán'],
 }
 
 // Auxiliary forms for modal verb constructs
@@ -361,6 +366,7 @@ function conjugateRegular(infinitive: string): ConjugationTable {
       makeTense('imperfect-progressive', ESTAR.imperfect.map(e => `${e} ${gerund}`)),
       makeTense('poder-present', PODER_PRESENT.map(p => `${p} ${infinitive}`)),
       makeTense('deber-present', DEBER_PRESENT.map(d => `${d} ${infinitive}`)),
+      makeTense('future-progressive', ESTAR.future.map(e => `${e} ${gerund}`)),
     ],
   }
 }
@@ -779,6 +785,7 @@ export function conjugateVerb(infinitive: string): ConjugationTable | null {
       makeTense('imperfect-progressive', ESTAR.imperfect.map(e => `${e} ${gerund}`)),
       makeTense('poder-present', PODER_PRESENT.map(p => `${p} ${infinitive}`)),
       makeTense('deber-present', DEBER_PRESENT.map(d => `${d} ${infinitive}`)),
+      makeTense('future-progressive', ESTAR.future.map(e => `${e} ${gerund}`)),
     ],
   }
 }
