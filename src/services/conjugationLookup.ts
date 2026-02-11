@@ -97,3 +97,21 @@ export async function hasConjugation(infinitive: string): Promise<boolean> {
   const data = await loadConjugationData()
   return findVerbKey(data, infinitive) !== null
 }
+
+/**
+ * Get all verb infinitives in the conjugation database.
+ */
+export async function getAllVerbInfinitives(): Promise<string[]> {
+  const data = await loadConjugationData()
+  return Object.keys(data.verbs)
+}
+
+/**
+ * Look up conjugation data for a verb by its exact key (no accent normalization).
+ * Used by the browser page where we already have exact keys.
+ */
+export async function lookupConjugationExact(verbKey: string): Promise<VerbData | null> {
+  const data = await loadConjugationData()
+  if (!(verbKey in data.verbs)) return null
+  return buildVerbData(data, verbKey)
+}

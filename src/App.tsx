@@ -3,6 +3,7 @@ import DecksPage from './components/decks/DecksPage'
 import DeckDetailPage from './components/decks/DeckDetailPage'
 import ImportDecksPage from './components/decks/ImportDecksPage'
 import TranslatePage from './components/translate/TranslatePage'
+import ConjugationBrowserPage from './components/conjugations/ConjugationBrowserPage'
 import SettingsPage from './components/settings/SettingsPage'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
               <Route path="/deck/:deckId" element={<DeckDetailPage />} />
               <Route path="/import" element={<ImportDecksPage />} />
               <Route path="/translate" element={<TranslatePage />} />
+              <Route path="/conjugations" element={<ConjugationBrowserPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
           </div>
@@ -43,6 +45,15 @@ function App() {
           >
             <span className="text-lg">&#127760;</span>
             <span>Translate</span>
+          </NavLink>
+          <NavLink
+            to="/conjugations"
+            className={({ isActive }) =>
+              `flex flex-col items-center text-xs ${isActive ? 'text-blue-500' : 'text-gray-500'}`
+            }
+          >
+            <span className="text-lg">&#128214;</span>
+            <span>Verbs</span>
           </NavLink>
           <NavLink
             to="/settings"
