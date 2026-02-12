@@ -176,8 +176,14 @@ export async function maybeAutoAddConjugationCard(
   // For the static conjugation DB, miniTranslation is always empty.
   // In that case, construct a translation from the verb's English text
   // (from the reviewed card) + person/tense context.
-  // For imported cards, frontText is always the English translation.
-  const verbEnglish = card.frontText
+  //
+  // Determine which card text is English: if frontText matches the Spanish
+  // infinitive, then backText is English (target-to-source single-direction cards).
+  // Otherwise frontText is English (imported cards, both-direction pairs).
+  const infinitiveLower = removeAccents(verbData.infinitive.toLowerCase())
+  const frontLower = removeAccents(card.frontText.toLowerCase())
+  const verbEnglishRaw = frontLower === infinitiveLower ? card.backText : card.frontText
+  const verbEnglish = verbEnglishRaw.startsWith('to ') ? verbEnglishRaw : `to ${verbEnglishRaw}`
   const translation = pick.miniTranslation || `${verbEnglish} (${pick.person}, ${pick.tenseName.toLowerCase()})`
 
   // Create bidirectional card pair using the same layout as importPrebuiltDeck:
