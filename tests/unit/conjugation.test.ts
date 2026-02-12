@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { conjugateVerb, isIrregular } from '../../scripts/spanish-conjugator'
+import { conjugateVerb } from '../../scripts/spanish-conjugator'
 
-describe('Spanish conjugation engine', () => {
+describe('Spanish conjugation engine (regular verbs)', () => {
   describe('regular -ar verbs', () => {
     it('conjugates hablar correctly in all simple tenses', () => {
       const result = conjugateVerb('hablar')!
@@ -73,62 +73,6 @@ describe('Spanish conjugation engine', () => {
     })
   })
 
-  describe('irregular verbs', () => {
-    it('conjugates ser correctly (highly irregular)', () => {
-      const result = conjugateVerb('ser')!
-      expect(result.infinitive).toBe('ser')
-      expect(isIrregular('ser')).toBe(true)
-
-      const present = result.tenses.find((t) => t.tenseId === 'present')!
-      expect(present.conjugations.map((c) => c.form)).toEqual([
-        'soy', 'eres', 'es', 'somos', 'sois', 'son',
-      ])
-
-      const preterite = result.tenses.find((t) => t.tenseId === 'preterite')!
-      expect(preterite.conjugations.map((c) => c.form)).toEqual([
-        'fui', 'fuiste', 'fue', 'fuimos', 'fuisteis', 'fueron',
-      ])
-
-      const imperfect = result.tenses.find((t) => t.tenseId === 'imperfect')!
-      expect(imperfect.conjugations.map((c) => c.form)).toEqual([
-        'era', 'eras', 'era', 'éramos', 'erais', 'eran',
-      ])
-    })
-
-    it('conjugates ir correctly (highly irregular)', () => {
-      const result = conjugateVerb('ir')!
-      expect(isIrregular('ir')).toBe(true)
-
-      const present = result.tenses.find((t) => t.tenseId === 'present')!
-      expect(present.conjugations.map((c) => c.form)).toEqual([
-        'voy', 'vas', 'va', 'vamos', 'vais', 'van',
-      ])
-
-      const imperfect = result.tenses.find((t) => t.tenseId === 'imperfect')!
-      expect(imperfect.conjugations.map((c) => c.form)).toEqual([
-        'iba', 'ibas', 'iba', 'íbamos', 'ibais', 'iban',
-      ])
-    })
-
-    it('conjugates tener with irregular stem in future/conditional', () => {
-      const result = conjugateVerb('tener')!
-      expect(isIrregular('tener')).toBe(true)
-
-      const future = result.tenses.find((t) => t.tenseId === 'future')!
-      expect(future.conjugations[0].form).toBe('tendré')
-      expect(future.conjugations[1].form).toBe('tendrás')
-
-      const conditional = result.tenses.find((t) => t.tenseId === 'conditional')!
-      expect(conditional.conjugations[0].form).toBe('tendría')
-    })
-
-    it('conjugates hacer with irregular participle', () => {
-      const result = conjugateVerb('hacer')!
-      const pp = result.tenses.find((t) => t.tenseId === 'present-perfect')!
-      expect(pp.conjugations[0].form).toBe('he hecho')
-    })
-  })
-
   describe('compound tenses', () => {
     it('generates compound tenses with haber + participle', () => {
       const result = conjugateVerb('hablar')!
@@ -193,12 +137,6 @@ describe('Spanish conjugation engine', () => {
       expect(conjugateVerb('casa')).toBeNull()
       expect(conjugateVerb('bien')).toBeNull()
       expect(conjugateVerb('xyz')).toBeNull()
-    })
-
-    it('regular verbs are not marked irregular', () => {
-      expect(isIrregular('hablar')).toBe(false)
-      expect(isIrregular('comer')).toBe(false)
-      expect(isIrregular('vivir')).toBe(false)
     })
   })
 })

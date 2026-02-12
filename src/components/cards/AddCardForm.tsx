@@ -51,7 +51,7 @@ export default function AddCardForm({ deckId, onAdded, initialFront, initialBack
       .filter(Boolean)
 
     if (direction === 'both') {
-      // createCardBothDirections auto-lookups verbData
+      // createCardBothDirections auto-lookups verbData on both sides
       await createCardBothDirections({
         deckId,
         frontText: front,
@@ -59,8 +59,8 @@ export default function AddCardForm({ deckId, onAdded, initialFront, initialBack
         tags: tagList,
       })
     } else {
-      // Back field is always the target language (Spanish) word
-      const verbData = (await lookupConjugation(back)) ?? undefined
+      // Check both sides for verb conjugation data (accent-insensitive)
+      const verbData = (await lookupConjugation(back)) ?? (await lookupConjugation(front)) ?? undefined
       await createCard({
         deckId,
         frontText: front,
@@ -95,7 +95,8 @@ export default function AddCardForm({ deckId, onAdded, initialFront, initialBack
         tags: tagList,
       })
     } else {
-      const verbData = (await lookupConjugation(back)) ?? undefined
+      // Check both sides for verb conjugation data (accent-insensitive)
+      const verbData = (await lookupConjugation(back)) ?? (await lookupConjugation(front)) ?? undefined
       await createCard({
         deckId,
         frontText: front,
