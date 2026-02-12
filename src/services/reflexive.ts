@@ -30,6 +30,12 @@ const HABER_FORMS = ['he', 'has', 'ha', 'hemos', 'habéis', 'han',
   'haya', 'hayas', 'hayamos', 'hayáis', 'hayan',
   'hubiera', 'hubieras', 'hubiéramos', 'hubierais', 'hubieran']
 
+/** Set of reflexive pronoun words for quick lookup */
+const REFLEXIVE_PRONOUN_WORDS = new Set(['me', 'te', 'se', 'nos', 'os'])
+
+/** Pronoun suffixes for imperative, ordered longest-first to avoid partial matches */
+const PRONOUN_SUFFIXES = ['nos', 'me', 'te', 'se', 'os']
+
 /** Check if a verb infinitive is reflexive (ends in -se) */
 export function isReflexiveVerb(infinitive: string): boolean {
   return infinitive.endsWith('se') && infinitive.length > 2
@@ -47,8 +53,76 @@ export function getReflexivePronoun(person: string): string {
   return REFLEXIVE_PRONOUNS[normalized] ?? 'se'
 }
 
+/** Check if a conjugated form already has a reflexive pronoun */
+function formAlreadyHasPronoun(form: string, tenseId: string): boolean {
+  if (tenseId === 'imperative') {
+    return PRONOUN_SUFFIXES.some(p => form.endsWith(p))
+  }
+  const firstWord = form.split(' ')[0].toLowerCase()
+  return REFLEXIVE_PRONOUN_WORDS.has(firstWord)
+}
+
+/**
+ * Add reflexive pronouns to a conjugated form.
+ * Does not check if the verb is reflexive — caller decides when to use this.
+ * Safe to call on forms that already have pronouns (will not double-add).
+ */
+export function addReflexivePronouns(
+  form: string,
+  person: string,
+  tenseId: string
+): string {
+  if (formAlreadyHasPronoun(form, tenseId)) return form
+
+  const pronoun = getReflexivePronoun(person)
+
+  // Affirmative imperative: pronoun attached to end
+  if (tenseId === 'imperative') {
+    return `${form}${pronoun}`
+  }
+
+  // Compound tense: pronoun before auxiliary
+  const words = form.split(' ')
+  if (words.length >= 2 && HABER_FORMS.includes(words[0].toLowerCase())) {
+    return `${pronoun} ${form}`
+  }
+
+  // Simple tense: pronoun before verb
+  return `${pronoun} ${form}`
+}
+
+/**
+ * Strip reflexive pronouns from a conjugated form.
+ * For simple/compound tenses, removes the leading pronoun word.
+ * For imperative, strips the trailing pronoun suffix and removes
+ * any accent that was added for the attachment.
+ */
+export function stripReflexivePronoun(form: string, tenseId: string): string {
+  if (tenseId === 'imperative') {
+    for (const suffix of PRONOUN_SUFFIXES) {
+      if (form.endsWith(suffix)) {
+        let stripped = form.slice(0, -suffix.length)
+        // Remove accent that was added when pronoun was attached
+        // e.g. "quéjate" → "quéja" → "queja"
+        stripped = stripped.normalize('NFD').replace(/\u0301/g, '').normalize('NFC')
+        return stripped
+      }
+    }
+    return form
+  }
+
+  // Simple/compound: pronoun is the first word
+  const words = form.split(' ')
+  if (words.length >= 2 && REFLEXIVE_PRONOUN_WORDS.has(words[0].toLowerCase())) {
+    return words.slice(1).join(' ')
+  }
+
+  return form
+}
+
 /**
  * Format a conjugated form with the correct reflexive pronoun placement.
+ * Only applies to verbs whose infinitive ends in "-se".
  *
  * @param form - The conjugated verb form (e.g. "levanto", "he levantado")
  * @param person - The grammatical person (e.g. "yo", "tú")
@@ -63,32 +137,5 @@ export function formatReflexiveForm(
   tenseId: string
 ): string {
   if (!isReflexiveVerb(infinitive)) return form
-
-  const pronoun = getReflexivePronoun(person)
-
-  // Affirmative imperative: pronoun is attached to the end (e.g. "levántate")
-  // The static conjugation data for reflexive verbs in imperative may already
-  // have the pronoun attached. Check if the form already ends with a pronoun.
-  if (tenseId === 'imperative') {
-    const pronounSuffixes = ['me', 'te', 'se', 'nos', 'os']
-    const alreadyHasPronoun = pronounSuffixes.some(p => form.endsWith(p))
-    if (alreadyHasPronoun) return form
-    // Otherwise attach it — this is a simplified approach
-    return `${form}${pronoun}`
-  }
-
-  // Check if it's a compound tense (form starts with a haber auxiliary)
-  const words = form.split(' ')
-  if (words.length >= 2) {
-    const firstWord = words[0].toLowerCase()
-    if (HABER_FORMS.includes(firstWord)) {
-      // Compound tense: pronoun goes before the auxiliary
-      // "he levantado" → "me he levantado"
-      return `${pronoun} ${form}`
-    }
-  }
-
-  // Simple tense: pronoun goes before the verb
-  // "levanto" → "me levanto"
-  return `${pronoun} ${form}`
+  return addReflexivePronouns(form, person, tenseId)
 }
