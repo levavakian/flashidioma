@@ -47,7 +47,8 @@ beforeEach(async () => {
   })
 })
 
-function mockLLMSentenceResponse(sourceText: string, targetText: string) {
+/** Mock LLM to return an array of sentences (batch format) */
+function mockLLMBatchResponse(sentences: { sourceText: string; targetText: string }[]) {
   server.use(
     http.post('https://api.anthropic.com/v1/messages', () => {
       return HttpResponse.json({
@@ -57,7 +58,7 @@ function mockLLMSentenceResponse(sourceText: string, targetText: string) {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ sourceText, targetText }),
+            text: JSON.stringify(sentences),
           },
         ],
         model: 'claude-sonnet-4-20250514',
@@ -67,13 +68,19 @@ function mockLLMSentenceResponse(sourceText: string, targetText: string) {
   )
 }
 
+// Default 5 sentences for 3 S→T + 2 T→S
+const FIVE_SENTENCES = [
+  { sourceText: 'I eat bread every morning.', targetText: 'Yo como pan cada mañana.' },
+  { sourceText: 'She eats fruit.', targetText: 'Ella come fruta.' },
+  { sourceText: 'We eat dinner late.', targetText: 'Cenamos tarde.' },
+  { sourceText: 'Él come pescado.', targetText: 'He eats fish.' },
+  { sourceText: 'Ellos comen arroz.', targetText: 'They eat rice.' },
+]
+
 describe('PracticeTab with MSW', () => {
   it('clicking generate produces a sentence from mock LLM', async () => {
     const user = userEvent.setup()
-    mockLLMSentenceResponse(
-      'I eat bread every morning.',
-      'Yo como pan cada mañana.'
-    )
+    mockLLMBatchResponse(FIVE_SENTENCES)
 
     render(<PracticeTab deck={deck} />)
 
@@ -85,34 +92,33 @@ describe('PracticeTab with MSW', () => {
     // Click Generate
     await user.click(screen.getByRole('button', { name: 'Generate' }))
 
-    // Wait for sentence to appear
+    // Wait for first sentence to appear (S→T front = sourceText)
     await waitFor(() => {
       expect(screen.getByText('I eat bread every morning.')).toBeInTheDocument()
     })
-    expect(screen.getByText('Yo como pan cada mañana.')).toBeInTheDocument()
 
-    // Verify it's stored in the DB
+    // Shows index "1 / 5"
+    expect(screen.getByText(/1/)).toBeInTheDocument()
+    expect(screen.getByText(/5/)).toBeInTheDocument()
+
+    // Verify sentences are stored in the DB
     const sentences = await db.practiceSentences.toArray()
-    expect(sentences).toHaveLength(1)
-    expect(sentences[0].sourceText).toBe('I eat bread every morning.')
-    expect(sentences[0].targetText).toBe('Yo como pan cada mañana.')
-    expect(sentences[0].deckId).toBe(deck.id)
+    expect(sentences).toHaveLength(5)
+    expect(sentences.some(s => s.sourceText === 'I eat bread every morning.')).toBe(true)
   })
 
   it('sentences persist after re-render (navigating away and back)', async () => {
     const user = userEvent.setup()
-    mockLLMSentenceResponse(
-      'She eats fruit.',
-      'Ella come fruta.'
-    )
+    mockLLMBatchResponse(FIVE_SENTENCES)
 
     const { unmount } = render(<PracticeTab deck={deck} />)
 
-    // Generate a sentence
+    // Generate sentences
     await user.click(screen.getByRole('button', { name: 'Generate' }))
 
+    // Wait for the card UI to appear with the index indicator
     await waitFor(() => {
-      expect(screen.getByText('She eats fruit.')).toBeInTheDocument()
+      expect(screen.getByText(/\/ 5/)).toBeInTheDocument()
     })
 
     // Unmount and re-render (simulates navigating away and back)
@@ -120,31 +126,36 @@ describe('PracticeTab with MSW', () => {
 
     render(<PracticeTab deck={deck} />)
 
-    // The sentence should still be visible (loaded from DB)
+    // The sentences should still be loaded (card UI visible with Show Answer)
     await waitFor(() => {
-      expect(screen.getByText('She eats fruit.')).toBeInTheDocument()
+      expect(screen.getByText('Show Answer')).toBeInTheDocument()
     })
-    expect(screen.getByText('Ella come fruta.')).toBeInTheDocument()
+    // Should show all 5 persisted sentences
+    expect(screen.getByText(/\/ 5/)).toBeInTheDocument()
   })
 
   it('clicking Clear & Regenerate replaces existing sentences', async () => {
     const user = userEvent.setup()
 
-    // First generation returns one sentence
+    const firstBatch = FIVE_SENTENCES
+    const secondBatch = [
+      { sourceText: 'New sentence one.', targetText: 'Nueva oración uno.' },
+      { sourceText: 'New sentence two.', targetText: 'Nueva oración dos.' },
+      { sourceText: 'New sentence three.', targetText: 'Nueva oración tres.' },
+      { sourceText: 'Nueva cuatro.', targetText: 'New four.' },
+      { sourceText: 'Nueva cinco.', targetText: 'New five.' },
+    ]
+
     let callCount = 0
     server.use(
       http.post('https://api.anthropic.com/v1/messages', () => {
         callCount++
-        const response =
-          callCount === 1
-            ? { sourceText: 'First sentence.', targetText: 'Primera oración.' }
-            : { sourceText: 'New sentence.', targetText: 'Nueva oración.' }
-
+        const batch = callCount === 1 ? firstBatch : secondBatch
         return HttpResponse.json({
           id: `msg_${callCount}`,
           type: 'message',
           role: 'assistant',
-          content: [{ type: 'text', text: JSON.stringify(response) }],
+          content: [{ type: 'text', text: JSON.stringify(batch) }],
           model: 'claude-sonnet-4-20250514',
           stop_reason: 'end_turn',
         })
@@ -153,30 +164,31 @@ describe('PracticeTab with MSW', () => {
 
     render(<PracticeTab deck={deck} />)
 
-    // Generate first sentence
+    // Generate first batch
     await user.click(screen.getByRole('button', { name: 'Generate' }))
 
     await waitFor(() => {
-      expect(screen.getByText('First sentence.')).toBeInTheDocument()
+      expect(screen.getByText('I eat bread every morning.')).toBeInTheDocument()
     })
 
     // Now click "Clear & Regenerate"
     await user.click(screen.getByRole('button', { name: 'Clear & Regenerate' }))
 
     await waitFor(() => {
-      expect(screen.getByText('New sentence.')).toBeInTheDocument()
+      expect(screen.getByText('New sentence one.')).toBeInTheDocument()
     })
 
     // Old sentence should be gone
-    expect(screen.queryByText('First sentence.')).not.toBeInTheDocument()
+    expect(screen.queryByText('I eat bread every morning.')).not.toBeInTheDocument()
 
-    // DB should only have the new sentence
+    // DB should only have the new sentences
     const sentences = await db.practiceSentences
       .where('deckId')
       .equals(deck.id)
       .toArray()
-    expect(sentences).toHaveLength(1)
-    expect(sentences[0].sourceText).toBe('New sentence.')
+    expect(sentences).toHaveLength(5)
+    expect(sentences.some(s => s.sourceText === 'New sentence one.')).toBe(true)
+    expect(sentences.every(s => s.sourceText !== 'I eat bread every morning.')).toBe(true)
   })
 
   it('shows error when LLM call fails', async () => {

@@ -37,17 +37,25 @@ describe('PracticeTab', () => {
       selectedVerb: 'comer',
       selectedAdjective: null,
       selectedConstruct: 'present',
+      sourceCardIds: [],
+      direction: 'source-to-target',
       createdAt: new Date().toISOString(),
     }
     await db.practiceSentences.put(sentence)
 
     render(<PracticeTab deck={deck} />)
 
-    // Wait for the sentence to load and display
+    // Wait for the sentence to load — front shows sourceText for S→T
     await waitFor(() => {
       expect(screen.getByText('I eat apples every day.')).toBeInTheDocument()
     })
-    expect(screen.getByText('Yo como manzanas todos los días.')).toBeInTheDocument()
+
+    // Click "Show Answer" to reveal the back
+    await user.click(screen.getByText('Show Answer'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Yo como manzanas todos los días.')).toBeInTheDocument()
+    })
 
     // Click "Add as Card"
     await user.click(screen.getByText('Add as Card'))

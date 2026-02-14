@@ -31,7 +31,10 @@ export default function PracticeTab({ deck }: Props) {
       .where('deckId')
       .equals(deck.id)
       .toArray()
-      .then(setSentences)
+      .then(results => {
+        results.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        setSentences(results)
+      })
   }, [deck.id])
 
   const handleGenerate = async () => {
