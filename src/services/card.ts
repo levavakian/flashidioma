@@ -1,7 +1,7 @@
 import { db } from '../db'
 import { incrementDailyNewCardCount, createLearningFSRSCard } from './review'
 import { lookupConjugation } from './conjugationLookup'
-import type { Card, CardDirection, FSRSState } from '../types'
+import type { Card, CardDirection, CardExample, FSRSState } from '../types'
 
 function newFSRSState(): FSRSState {
   return {
@@ -125,4 +125,63 @@ export async function searchCards(
   }
 
   return cards
+}
+
+export async function addExampleToCard(cardId: string, example: CardExample): Promise<void> {
+  const card = await db.cards.get(cardId)
+  if (!card) return
+  const examples = card.examples ?? []
+  examples.push(example)
+  await db.cards.update(cardId, { examples })
+}
+
+export async function removeExampleFromCard(cardId: string, exampleId: string): Promise<void> {
+  const card = await db.cards.get(cardId)
+  if (!card || !card.examples) return
+  const examples = card.examples.filter(e => e.id !== exampleId)
+  await db.cards.update(cardId, { examples })
+}
+
+/** Find companion card (same text pair, opposite direction) */
+function findCompanionCard(cards: Card[], card: Card): Card | undefined {
+  return cards.find(c =>
+    c.id !== card.id &&
+    c.frontText === card.frontText &&
+    c.backText === card.backText &&
+    c.direction !== card.direction
+  )
+}
+
+export async function addExampleToCardAndCompanions(
+  deckId: string,
+  cardId: string,
+  example: CardExample
+): Promise<void> {
+  const allCards = await getCardsByDeck(deckId)
+  const card = allCards.find(c => c.id === cardId)
+  if (!card) return
+
+  await addExampleToCard(cardId, example)
+
+  const companion = findCompanionCard(allCards, card)
+  if (companion) {
+    await addExampleToCard(companion.id, example)
+  }
+}
+
+export async function removeExampleFromCardAndCompanions(
+  deckId: string,
+  cardId: string,
+  exampleId: string
+): Promise<void> {
+  const allCards = await getCardsByDeck(deckId)
+  const card = allCards.find(c => c.id === cardId)
+  if (!card) return
+
+  await removeExampleFromCard(cardId, exampleId)
+
+  const companion = findCompanionCard(allCards, card)
+  if (companion) {
+    await removeExampleFromCard(companion.id, exampleId)
+  }
 }

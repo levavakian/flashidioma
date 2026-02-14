@@ -211,3 +211,61 @@ export async function generatePracticeSentence(
 
   return parsed
 }
+
+export interface BatchSentenceRequest {
+  cards: { source: string; target: string }[]
+  direction: 'source-to-target' | 'target-to-source'
+}
+
+const BATCH_SENTENCE_PROMPT = `You are a Spanish language teacher. You will be given groups of vocabulary word pairs and a direction for each group. For each group, generate a natural sentence that incorporates as many of the given words as possible.
+
+For "source-to-target" groups: generate an English sentence and its Spanish translation. The user will see the English and try to produce the Spanish.
+For "target-to-source" groups: generate a Spanish sentence and its English translation. The user will see the Spanish and try to produce the English.
+
+You will also be given a list of enabled grammar constructs (tenses/moods). If a group's vocabulary includes verb conjugations, use those verb forms naturally. For connecting pieces or when no verbs are present, prefer using the enabled constructs.
+
+Return ONLY valid JSON (no markdown, no explanation) as an array of objects:
+[
+  {"sourceText": "English sentence", "targetText": "Spanish sentence"},
+  ...
+]
+
+The array must have exactly one entry per group, in the same order. Each sentence should be natural and at an intermediate level.`
+
+export async function generatePracticeSentences(
+  requests: BatchSentenceRequest[],
+  enabledConstructs: string[]
+): Promise<{ sourceText: string; targetText: string }[]> {
+  const groups = requests.map((req, i) => {
+    const wordPairs = req.cards.map(c => `${c.source} = ${c.target}`).join(', ')
+    return `Group ${i + 1} (${req.direction === 'source-to-target' ? 'S→T: show English, answer Spanish' : 'T→S: show Spanish, answer English'}): [${wordPairs}]`
+  })
+
+  const constructsInfo = enabledConstructs.length > 0
+    ? `\nEnabled constructs: ${enabledConstructs.join(', ')}`
+    : ''
+
+  const prompt = `Generate ${requests.length} sentence(s) for these vocabulary groups:\n\n${groups.join('\n')}${constructsInfo}`
+
+  const response = await callLLM([
+    { role: 'system', content: BATCH_SENTENCE_PROMPT },
+    { role: 'user', content: prompt },
+  ])
+
+  let parsed: { sourceText: string; targetText: string }[]
+  try {
+    let jsonText = response.text.trim()
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
+    }
+    parsed = JSON.parse(jsonText)
+  } catch {
+    throw new Error('Failed to parse batch sentences from LLM response')
+  }
+
+  if (!Array.isArray(parsed) || parsed.length !== requests.length) {
+    throw new Error(`Expected ${requests.length} sentences, got ${Array.isArray(parsed) ? parsed.length : 'non-array'}`)
+  }
+
+  return parsed
+}

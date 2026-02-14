@@ -14,6 +14,7 @@ export interface Card {
   tags: string[]
   notes: string
   verbData?: VerbData
+  examples?: CardExample[]
   fsrs: FSRSState
   createdAt: string // ISO date
   source: 'manual' | 'imported' | 'practice' | 'auto-conjugation'
@@ -74,6 +75,8 @@ export interface PracticeSentence {
   selectedVerb: string | null
   selectedAdjective: string | null
   selectedConstruct: string | null
+  sourceCardIds: string[]
+  direction: CardDirection
   createdAt: string // ISO date
 }
 
@@ -97,6 +100,14 @@ export interface UIPreferences {
   translateSourceLang?: string
   translateTargetLang?: string
   translateDeckId?: string
+}
+
+export interface CardExample {
+  id: string
+  sourceText: string  // sentence in source language
+  targetText: string  // sentence in target language
+  direction: CardDirection
+  createdAt: string // ISO date
 }
 
 export interface VerbData {

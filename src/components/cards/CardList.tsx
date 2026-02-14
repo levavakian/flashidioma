@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { updateCard, deleteCard } from '../../services/card'
+import { updateCard, deleteCard, removeExampleFromCardAndCompanions } from '../../services/card'
 import { hydrateConjugation } from '../../services/llm'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import ConjugationView from './ConjugationView'
@@ -379,6 +379,40 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
                   )}
                   {!conjData && !getConjugationData(card) && lookedUpConjugations.has(card.id) && (
                     <p className="text-xs text-gray-400 italic">No conjugation data found for this card.</p>
+                  )}
+
+                  {/* Examples section */}
+                  {card.examples && card.examples.length > 0 && (
+                    <div className="mt-2 border-t pt-2">
+                      <p className="text-xs font-medium text-gray-500 mb-1">Examples ({card.examples.length})</p>
+                      <div className="space-y-1">
+                        {card.examples.map((ex) => (
+                          <div key={ex.id} className="flex items-start gap-2 text-sm">
+                            <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full mt-0.5 ${
+                              ex.direction === 'source-to-target'
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'bg-purple-50 text-purple-600'
+                            }`}>
+                              {ex.direction === 'source-to-target' ? 'S→T' : 'T→S'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-gray-800">{ex.sourceText}</p>
+                              <p className="text-gray-500">{ex.targetText}</p>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                await removeExampleFromCardAndCompanions(card.deckId, card.id, ex.id)
+                                onUpdate()
+                              }}
+                              className="shrink-0 text-xs text-red-400 hover:text-red-600 mt-0.5"
+                              title="Delete example"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

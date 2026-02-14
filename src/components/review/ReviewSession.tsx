@@ -340,6 +340,28 @@ export default function ReviewSession({ deck, onComplete }: Props) {
               />
             )}
 
+            {currentCard.examples && currentCard.examples.length > 0 && (
+              <div className="mt-2 mb-2 text-left">
+                <p className="text-xs font-medium text-gray-500 mb-1">Examples ({currentCard.examples.length})</p>
+                <div className="space-y-1">
+                  {currentCard.examples.map((ex) => (
+                    <div key={ex.id} className="text-sm">
+                      <span className={`inline-block text-xs px-1.5 py-0.5 rounded-full mr-1 ${
+                        ex.direction === 'source-to-target'
+                          ? 'bg-blue-50 text-blue-600'
+                          : 'bg-purple-50 text-purple-600'
+                      }`}>
+                        {ex.direction === 'source-to-target' ? 'S→T' : 'T→S'}
+                      </span>
+                      <span className="text-gray-800">{ex.sourceText}</span>
+                      <span className="text-gray-400 mx-1">→</span>
+                      <span className="text-gray-500">{ex.targetText}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {!displayVerbData && !hydratingReview && (
               <button
                 onClick={handleReviewHydrate}
