@@ -235,11 +235,23 @@ export default function ReviewSession({ deck, onComplete }: Props) {
       // Non-critical — don't interrupt review flow
     }
 
-    if (currentIndex + 1 < queue.length) {
+    // After each grade, check for newly-due cards and append to queue
+    const now = new Date()
+    const dueNow = await getDueCards(deck.id, now)
+    const remainingIds = new Set(queue.slice(currentIndex + 1).map(c => c.id))
+    const newlyDue = dueNow.filter(c => !remainingIds.has(c.id) && c.id !== currentCard.id)
+
+    let updatedQueue = queue
+    if (newlyDue.length > 0) {
+      updatedQueue = [...queue, ...newlyDue]
+      setQueue(updatedQueue)
+    }
+
+    if (currentIndex + 1 < updatedQueue.length) {
       setCurrentIndex((i) => i + 1)
       setRevealed(false)
     } else {
-      // Queue exhausted — check for "Again" cards that may now be due
+      // Queue fully exhausted — check for upcoming cards within 24h
       await checkForMoreCards()
     }
   }
