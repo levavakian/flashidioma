@@ -12,6 +12,7 @@ import { createCard } from './card'
 import { lookupConjugation } from './conjugationLookup'
 import { removeAccents } from './deduplication'
 import { formatReflexiveForm } from './reflexive'
+import { translateText, isOnline } from './translate'
 import type { Card, Deck, VerbData, ConjugationAutoAdd, ConstructChecklist } from '../types'
 
 /** Get today's date as YYYY-MM-DD */
@@ -171,20 +172,32 @@ export async function maybeAutoAddConjugationCard(
   // Pick a random eligible form
   const pick = eligible[Math.floor(Math.random() * eligible.length)]
 
-  // Build the translation text.
-  // miniTranslation is populated by LLM hydration (e.g. "you eat").
-  // For the static conjugation DB, miniTranslation is always empty.
-  // In that case, construct a translation from the verb's English text
-  // (from the reviewed card) + person/tense context.
+  // Build the English face: "translated form [infinitive (person tense)]"
+  // e.g. "we meet [quedarse (nosotros/as present)]"
   //
-  // Determine which card text is English: if frontText matches the Spanish
-  // infinitive, then backText is English (target-to-source single-direction cards).
-  // Otherwise frontText is English (imported cards, both-direction pairs).
-  const infinitiveLower = removeAccents(verbData.infinitive.toLowerCase())
-  const frontLower = removeAccents(card.frontText.toLowerCase())
-  const verbEnglishRaw = frontLower === infinitiveLower ? card.backText : card.frontText
-  const verbEnglish = verbEnglishRaw.startsWith('to ') ? verbEnglishRaw : `to ${verbEnglishRaw}`
-  const translation = pick.miniTranslation || `${verbEnglish} (${pick.person}, ${pick.tenseName.toLowerCase()})`
+  // For the translated part, prefer miniTranslation (from LLM hydration),
+  // then try Google Translate on the conjugated form, then fall back to
+  // the source card's English text.
+  const bracket = `[${verbData.infinitive} (${pick.person} ${pick.tenseName.toLowerCase()})]`
+  let englishPart = pick.miniTranslation
+  if (!englishPart) {
+    // Try translating the conjugated form via Google Translate
+    if (isOnline()) {
+      try {
+        const result = await translateText(pick.form, 'es', 'en')
+        englishPart = result.translatedText.toLowerCase()
+      } catch {
+        // Translation failed — fall back below
+      }
+    }
+  }
+  if (!englishPart) {
+    // Offline or translation failed — use source card's English text
+    const infinitiveLower = removeAccents(verbData.infinitive.toLowerCase())
+    const frontLower = removeAccents(card.frontText.toLowerCase())
+    englishPart = frontLower === infinitiveLower ? card.backText : card.frontText
+  }
+  const translation = `${englishPart} ${bracket}`
 
   // Create bidirectional card pair using the same layout as importPrebuiltDeck:
   // frontText=English, backText=Spanish for both directions.
