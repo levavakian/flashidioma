@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { reviewCard, getReviewQueueFullDay, getDueCards, getNextDueWithin24h, getSchedulingPreview, formatInterval } from '../../services/review'
+import { reviewCard, getReviewQueueFullDay, getDueCards, getDayBoundary, getSchedulingPreview, formatInterval } from '../../services/review'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { hydrateConjugation } from '../../services/llm'
 import { updateCard } from '../../services/card'
@@ -51,10 +51,12 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const [hydratingReview, setHydratingReview] = useState(false)
   const [hydrateMessage, setHydrateMessage] = useState('')
   const [toast, setToast] = useState<string | null>(null)
-  const [waitingUntil, setWaitingUntil] = useState<Date | null>(null)
 
   const gradingRef = useRef(false)
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const deckRef = useRef(deck)
+  deckRef.current = deck
+  const sessionInitRef = useRef(false)
 
   const currentCard = queue[currentIndex]
 
@@ -86,8 +88,6 @@ export default function ReviewSession({ deck, onComplete }: Props) {
     }
 
     // Try looking up any card in the static conjugation DB
-    // (no verb-tag gate — this handles imported cards without tags and
-    // cards where the Spanish word may be in either text field)
     tryConjugationLookup(currentCard).then((data) => {
       setLookedUpVerbData(data)
     })
@@ -159,67 +159,32 @@ export default function ReviewSession({ deck, onComplete }: Props) {
     return () => window.removeEventListener('keydown', handler)
   })
 
+  // Load queue once on mount — uses ref to avoid re-running when deck prop changes
   const loadQueue = useCallback(async () => {
     setLoading(true)
-    const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(deck)
+    const d = deckRef.current
+    const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(d)
     setTotalDue(dueCards.length + upcomingCards.length)
     setTotalNew(newCards.length)
 
-    // Start with due cards + new cards; upcoming cards will be added as they become due
-    const combined = [...dueCards, ...newCards]
+    // Load ALL cards for the day upfront: due now + upcoming + new
+    const combined = [...dueCards, ...upcomingCards, ...newCards]
     setQueue(combined)
     setCurrentIndex(0)
     setRevealed(false)
     setReviewed(0)
     setLoading(false)
-  }, [deck])
+    sessionInitRef.current = true
+  }, [])
 
   useEffect(() => {
-    loadQueue()
+    if (!sessionInitRef.current) loadQueue()
   }, [loadQueue])
-
-  // Check for cards that became due (from "Again" grading or upcoming 24h window)
-  const checkForMoreCards = useCallback(async () => {
-    const now = new Date()
-    const dueNow = await getDueCards(deck.id, now)
-    if (dueNow.length > 0) {
-      // More cards due — continue session
-      setQueue(dueNow)
-      setCurrentIndex(0)
-      setRevealed(false)
-      return
-    }
-
-    // Check if any cards will be due within the next 24 hours
-    const nextDue = await getNextDueWithin24h(deck.id, now)
-    if (nextDue) {
-      setWaitingUntil(nextDue)
-      return
-    }
-
-    // Truly done — no more cards within 24h window
-    onComplete()
-    await loadQueue()
-  }, [deck.id, onComplete, loadQueue])
-
-  // Timer: poll for due cards while waiting for learning/relearning cards
-  useEffect(() => {
-    if (!waitingUntil) return
-    const interval = setInterval(async () => {
-      const now = new Date()
-      if (now >= waitingUntil) {
-        clearInterval(interval)
-        setWaitingUntil(null)
-        await checkForMoreCards()
-      }
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [waitingUntil, checkForMoreCards])
 
   const handleGrade = async (grade: number) => {
     if (!currentCard) return
 
-    await reviewCard(currentCard.id, grade)
+    const updated = await reviewCard(currentCard.id, grade)
     setReviewed((r) => r + 1)
 
     // Try auto-adding a conjugation card (fires and handles its own errors)
@@ -235,47 +200,36 @@ export default function ReviewSession({ deck, onComplete }: Props) {
       // Non-critical — don't interrupt review flow
     }
 
-    // After each grade, check for newly-due cards and append to queue
+    // Build next queue: remaining cards + requeued card (if due before day boundary)
+    const remaining = queue.slice(currentIndex + 1)
     const now = new Date()
+
+    // If card will be due again before the day boundary, put it back at end of queue immediately
+    const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
+    const requeue = new Date(updated.fsrs.dueDate) <= cutoff
+      ? [updated] : []
+
+    // Also check DB for any newly-due cards not in our queue (e.g. auto-added conjugation cards)
+    const remainingIds = new Set(remaining.map(c => c.id))
+    remainingIds.add(currentCard.id)
+    requeue.forEach(c => remainingIds.add(c.id))
     const dueNow = await getDueCards(deck.id, now)
-    const remainingIds = new Set(queue.slice(currentIndex + 1).map(c => c.id))
-    const newlyDue = dueNow.filter(c => !remainingIds.has(c.id) && c.id !== currentCard.id)
+    const newlyDue = dueNow.filter(c => !remainingIds.has(c.id))
 
-    let updatedQueue = queue
-    if (newlyDue.length > 0) {
-      updatedQueue = [...queue, ...newlyDue]
-      setQueue(updatedQueue)
-    }
+    const nextQueue = [...remaining, ...newlyDue, ...requeue]
 
-    if (currentIndex + 1 < updatedQueue.length) {
-      setCurrentIndex((i) => i + 1)
+    if (nextQueue.length > 0) {
+      setQueue(nextQueue)
+      setCurrentIndex(0)
       setRevealed(false)
     } else {
-      // Queue fully exhausted — check for upcoming cards within 24h
-      await checkForMoreCards()
+      // Queue truly empty — session done
+      onComplete()
     }
   }
 
   if (loading) {
     return <p className="text-gray-500 py-8 text-center">Loading review queue...</p>
-  }
-
-  if (waitingUntil) {
-    const waitMs = Math.max(0, waitingUntil.getTime() - Date.now())
-    const waitSec = Math.ceil(waitMs / 1000)
-    const waitMin = Math.floor(waitSec / 60)
-    const waitSecRem = waitSec % 60
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500 text-lg mb-2">Waiting for next card...</p>
-        <p className="text-2xl font-mono text-blue-500">
-          {waitMin > 0 ? `${waitMin}m ${waitSecRem}s` : `${waitSec}s`}
-        </p>
-        <p className="text-gray-400 text-sm mt-2">
-          Cards graded "Again" will reappear shortly
-        </p>
-      </div>
-    )
   }
 
   if (queue.length === 0) {
@@ -290,7 +244,7 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   }
 
   const remaining = queue.length - currentIndex
-  const progress = queue.length > 0 ? (reviewed / queue.length) * 100 : 0
+  const progress = (reviewed + remaining) > 0 ? (reviewed / (reviewed + remaining)) * 100 : 0
   const displayFront =
     currentCard.direction === 'source-to-target'
       ? currentCard.frontText

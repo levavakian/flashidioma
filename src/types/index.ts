@@ -49,6 +49,7 @@ export interface Deck {
   maxConjugationCardsPerDay: number // Daily limit for auto-added conjugation cards (default 5)
   conjugationCardsAddedToday: number // How many conjugation cards added today
   lastConjugationCardDate: string | null // ISO date for daily reset
+  dayStartHour?: number // Hour (0-23) when review day starts (default 9)
 }
 
 /** Tracks which conjugation forms have been auto-added per verb per deck */

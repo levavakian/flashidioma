@@ -12,12 +12,14 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
   const [newCardBatchSize, setNewCardBatchSize] = useState(deck.newCardBatchSize)
   const [autoAddConjugations, setAutoAddConjugations] = useState(deck.autoAddConjugations ?? true)
   const [maxConjugationCardsPerDay, setMaxConjugationCardsPerDay] = useState(deck.maxConjugationCardsPerDay ?? 5)
+  const [dayStartHour, setDayStartHour] = useState(deck.dayStartHour ?? 9)
 
   useEffect(() => {
     setNewCardsPerDay(deck.newCardsPerDay)
     setNewCardBatchSize(deck.newCardBatchSize)
     setAutoAddConjugations(deck.autoAddConjugations ?? true)
     setMaxConjugationCardsPerDay(deck.maxConjugationCardsPerDay ?? 5)
+    setDayStartHour(deck.dayStartHour ?? 9)
   }, [deck])
 
   const handleSave = async (updates: Partial<Deck>) => {
@@ -185,19 +187,48 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
 
       <div className="bg-white rounded-lg shadow border p-4">
         <h3 className="font-semibold text-lg mb-2">Time Controls</h3>
-        <p className="text-xs text-gray-400 mb-3">
-          Shift all card schedules forward by one day. Makes tomorrow's due cards available for review today and resets daily counters.
-        </p>
-        <button
-          onClick={async () => {
-            if (!confirm('Skip forward one day? This will shift all card due dates back by 24 hours and reset daily counters.')) return
-            await skipForwardOneDay(deck.id)
-            onUpdate()
-          }}
-          className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-600"
-        >
-          Skip Forward One Day
-        </button>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Day starts at
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                max={23}
+                value={dayStartHour}
+                onChange={(e) => {
+                  const val = Math.max(0, Math.min(23, parseInt(e.target.value) || 0))
+                  setDayStartHour(val)
+                  handleSave({ dayStartHour: val })
+                }}
+                className="w-16 border rounded px-2 py-1 text-sm text-center"
+              />
+              <span className="text-sm text-gray-500">:00</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Review sessions include all cards due before this hour tomorrow. Cards graded during a session that are due again before this boundary are requeued immediately.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-gray-400 mb-2">
+              Shift all card schedules forward by one day. Makes tomorrow's due cards available for review today and resets daily counters.
+            </p>
+            <button
+              onClick={async () => {
+                if (!confirm('Skip forward one day? This will shift all card due dates back by 24 hours and reset daily counters.')) return
+                await skipForwardOneDay(deck.id)
+                onUpdate()
+              }}
+              className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-600"
+            >
+              Skip Forward One Day
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

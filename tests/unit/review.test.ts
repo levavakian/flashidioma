@@ -9,6 +9,7 @@ import {
   getNewCardBatch,
   getDueCardsWithin24h,
   getNextDueWithin24h,
+  getDayBoundary,
 } from '../../src/services/review'
 import type { Deck } from '../../src/types'
 
@@ -324,5 +325,50 @@ describe('24h review window', () => {
 
     const nextDue = await getNextDueWithin24h(deck.id, now)
     expect(nextDue).toBeNull()
+  })
+})
+
+describe('getDayBoundary', () => {
+  it('returns tomorrow at dayStartHour when now is past start hour', () => {
+    const now = new Date('2025-06-01T10:00:00') // 10am
+    const boundary = getDayBoundary(now, 9)
+    expect(boundary.getHours()).toBe(9)
+    expect(boundary.getMinutes()).toBe(0)
+    expect(boundary.getDate()).toBe(2) // June 2 (tomorrow)
+  })
+
+  it('returns today at dayStartHour when now is before start hour', () => {
+    const now = new Date('2025-06-01T07:00:00') // 7am
+    const boundary = getDayBoundary(now, 9)
+    expect(boundary.getHours()).toBe(9)
+    expect(boundary.getMinutes()).toBe(0)
+    expect(boundary.getDate()).toBe(1) // June 1 (today)
+  })
+
+  it('returns tomorrow when now is late at night', () => {
+    const now = new Date('2025-06-01T23:00:00') // 11pm
+    const boundary = getDayBoundary(now, 9)
+    expect(boundary.getHours()).toBe(9)
+    expect(boundary.getDate()).toBe(2) // June 2
+  })
+
+  it('returns tomorrow when now is exactly at start hour', () => {
+    const now = new Date('2025-06-01T09:00:00') // exactly 9am
+    const boundary = getDayBoundary(now, 9)
+    expect(boundary.getDate()).toBe(2) // tomorrow
+  })
+
+  it('works with midnight (hour 0)', () => {
+    const now = new Date('2025-06-01T23:30:00') // 11:30pm
+    const boundary = getDayBoundary(now, 0)
+    expect(boundary.getHours()).toBe(0)
+    expect(boundary.getDate()).toBe(2) // June 2
+  })
+
+  it('defaults to hour 9', () => {
+    const now = new Date('2025-06-01T10:00:00')
+    const boundary = getDayBoundary(now)
+    expect(boundary.getHours()).toBe(9)
+    expect(boundary.getDate()).toBe(2)
   })
 })

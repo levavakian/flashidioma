@@ -135,10 +135,10 @@ describe('ReviewSession', () => {
     })
   })
 
-  it('shows upcoming 24h cards in stats', async () => {
+  it('shows upcoming 24h cards in stats and queue', async () => {
     // Card due now
     const dueCard = makeCard({ frontText: 'due now', backText: 'ahora' })
-    // Card due in 2 hours (upcoming)
+    // Card due in 2 hours (upcoming within 24h)
     const upcomingCard = makeCard({
       frontText: 'upcoming',
       backText: 'próximo',
@@ -164,7 +164,7 @@ describe('ReviewSession', () => {
     })
   })
 
-  it('waits for upcoming cards instead of completing when immediate queue exhausted', async () => {
+  it('upcoming cards are in the queue (no waiting screen)', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
 
@@ -172,7 +172,7 @@ describe('ReviewSession', () => {
     const dueCard = makeCard({ frontText: 'review me', backText: 'revísame' })
     // Card due in 1 hour (upcoming, within 24h window)
     const upcomingCard = makeCard({
-      frontText: 'later',
+      frontText: 'later card',
       backText: 'después',
       fsrs: {
         stability: 5.0,
@@ -194,14 +194,145 @@ describe('ReviewSession', () => {
       expect(screen.getByText('review me')).toBeInTheDocument()
     })
 
-    // Grade the due card
+    // Grade the first card — upcoming card should appear next, no waiting
     await user.click(screen.getByText('Show Answer'))
     await user.click(screen.getByText('Easy'))
 
-    // Should show waiting state, not call onComplete
     await waitFor(() => {
-      expect(screen.getByText(/Waiting for next card/)).toBeInTheDocument()
+      expect(screen.getByText('later card')).toBeInTheDocument()
     })
     expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it('any grade that keeps card due within day boundary requeues it', async () => {
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+
+    // Card in learning state — "Hard" will schedule within minutes (well within day boundary)
+    const card = makeCard({
+      frontText: 'hard requeue',
+      backText: 'recola difícil',
+      fsrs: {
+        stability: 0.4,
+        difficulty: 5.0,
+        dueDate: new Date(Date.now() - 60000).toISOString(),
+        lastReview: new Date(Date.now() - 60000).toISOString(),
+        reviewCount: 2,
+        lapses: 1,
+        state: 'learning',
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 2,
+      },
+    })
+    await db.cards.put(card)
+
+    render(<ReviewSession deck={deck} onComplete={onComplete} />)
+    await waitFor(() => {
+      expect(screen.getByText('hard requeue')).toBeInTheDocument()
+    })
+
+    // Grade "Hard" — learning card stays due within minutes, well within day boundary
+    await user.click(screen.getByText('Show Answer'))
+    await user.click(screen.getByText('Hard'))
+
+    // Card should reappear (due within day boundary, so requeued)
+    await waitFor(() => {
+      expect(screen.getByText('hard requeue')).toBeInTheDocument()
+      expect(screen.getByText('Show Answer')).toBeInTheDocument()
+    })
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it('cards graded "Again" are requeued immediately at end of queue', async () => {
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+
+    const card = makeCard({ frontText: 'tough word', backText: 'palabra difícil' })
+    await db.cards.put(card)
+
+    render(<ReviewSession deck={deck} onComplete={onComplete} />)
+    await waitFor(() => {
+      expect(screen.getByText('tough word')).toBeInTheDocument()
+    })
+
+    // Grade "Again" — card should reappear immediately (no waiting screen)
+    await user.click(screen.getByText('Show Answer'))
+    await user.click(screen.getByText('Again'))
+
+    // Card should be shown again immediately
+    await waitFor(() => {
+      expect(screen.getByText('tough word')).toBeInTheDocument()
+      expect(screen.getByText('Show Answer')).toBeInTheDocument()
+    })
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it('grading all cards "Again" keeps them cycling, not ending session', async () => {
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+
+    const card1 = makeCard({ frontText: 'word one', backText: 'uno' })
+    const card2 = makeCard({ frontText: 'word two', backText: 'dos' })
+    await db.cards.bulkPut([card1, card2])
+
+    render(<ReviewSession deck={deck} onComplete={onComplete} />)
+
+    // Wait for first card
+    await waitFor(() => {
+      const has1 = screen.queryByText('word one')
+      const has2 = screen.queryByText('word two')
+      expect(has1 || has2).toBeTruthy()
+    })
+
+    // Grade first card "Again"
+    await user.click(screen.getByText('Show Answer'))
+    await user.click(screen.getByText('Again'))
+
+    // Should show second card (or first card again)
+    await waitFor(() => {
+      expect(screen.getByText('Show Answer')).toBeInTheDocument()
+    })
+
+    // Grade second card "Again"
+    await user.click(screen.getByText('Show Answer'))
+    await user.click(screen.getByText('Again'))
+
+    // Session should still be active — cards cycling
+    await waitFor(() => {
+      expect(screen.getByText('Show Answer')).toBeInTheDocument()
+    })
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it('session completes only when all cards are scheduled beyond 24h', async () => {
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+
+    const card = makeCard({ frontText: 'graduate me', backText: 'gradúame' })
+    await db.cards.put(card)
+
+    render(<ReviewSession deck={deck} onComplete={onComplete} />)
+    await waitFor(() => {
+      expect(screen.getByText('graduate me')).toBeInTheDocument()
+    })
+
+    // Grade "Again" first — card stays in session
+    await user.click(screen.getByText('Show Answer'))
+    await user.click(screen.getByText('Again'))
+
+    await waitFor(() => {
+      expect(screen.getByText('graduate me')).toBeInTheDocument()
+      expect(screen.getByText('Show Answer')).toBeInTheDocument()
+    })
+    expect(onComplete).not.toHaveBeenCalled()
+
+    // Now grade "Easy" — card should graduate, session should complete
+    await user.click(screen.getByText('Show Answer'))
+    await user.click(screen.getByText('Easy'))
+
+    await waitFor(() => {
+      expect(onComplete).toHaveBeenCalled()
+    })
   })
 })

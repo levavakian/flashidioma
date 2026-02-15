@@ -254,12 +254,27 @@ export async function getNextDueWithin24h(
   return new Date(earliest)
 }
 
-/** Full-day review queue: due now + upcoming within 24h + new cards */
+/**
+ * Get the end-of-day boundary for the current review day.
+ * The review day starts at dayStartHour (default 9am).
+ * If now is past today's start hour, the boundary is tomorrow at that hour.
+ * If now is before today's start hour, the boundary is today at that hour.
+ */
+export function getDayBoundary(now: Date, dayStartHour: number = 9): Date {
+  const boundary = new Date(now)
+  boundary.setHours(dayStartHour, 0, 0, 0)
+  if (now >= boundary) {
+    boundary.setDate(boundary.getDate() + 1)
+  }
+  return boundary
+}
+
+/** Full-day review queue: due now + upcoming before day boundary + new cards */
 export async function getReviewQueueFullDay(
   deck: Deck,
   now: Date = new Date()
 ): Promise<{ dueCards: Card[]; upcomingCards: Card[]; newCards: Card[] }> {
-  const cutoff = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
   const cards = await db.cards.where('deckId').equals(deck.id).toArray()
 
   const dueCards = cards.filter((card) => {
