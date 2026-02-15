@@ -224,6 +224,7 @@ export default function ReviewSession({ deck, onComplete }: Props) {
       setRevealed(false)
     } else {
       // Queue truly empty — session done
+      setQueue([])
       onComplete()
     }
   }
