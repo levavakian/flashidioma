@@ -24,6 +24,7 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
   const [hydrateErrors, setHydrateErrors] = useState<Map<string, string>>(new Map())
   const [page, setPage] = useState(0)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [expandedExamplesCardId, setExpandedExamplesCardId] = useState<string | null>(null)
   const [lookedUpConjugations, setLookedUpConjugations] = useState<Map<string, VerbData | null>>(new Map())
 
   const filtered = useMemo(() => {
@@ -345,6 +346,12 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
 
               {isExpanded && (
                 <div className="border-t px-3 pb-3">
+                  {/* Full untruncated text */}
+                  <div className="mt-2 mb-1">
+                    <p className="font-medium break-words">{card.frontText}</p>
+                    <p className="text-gray-600 break-words">{card.backText}</p>
+                  </div>
+
                   {/* Per-card error */}
                   {cardError && (
                     <div className="bg-red-50 text-red-600 px-3 py-2 rounded text-sm mt-2">{cardError}</div>
@@ -381,37 +388,47 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
                     <p className="text-xs text-gray-400 italic">No conjugation data found for this card.</p>
                   )}
 
-                  {/* Examples section */}
+                  {/* Examples accordion */}
                   {card.examples && card.examples.length > 0 && (
-                    <div className="mt-2 border-t pt-2">
-                      <p className="text-xs font-medium text-gray-500 mb-1">Examples ({card.examples.length})</p>
-                      <div className="space-y-1">
-                        {card.examples.map((ex) => (
-                          <div key={ex.id} className="flex items-start gap-2 text-sm">
-                            <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full mt-0.5 ${
-                              ex.direction === 'source-to-target'
-                                ? 'bg-blue-50 text-blue-600'
-                                : 'bg-purple-50 text-purple-600'
-                            }`}>
-                              {ex.direction === 'source-to-target' ? 'S→T' : 'T→S'}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-gray-800">{ex.sourceText}</p>
-                              <p className="text-gray-500">{ex.targetText}</p>
+                    <div className="mt-2 border rounded">
+                      <button
+                        onClick={() => setExpandedExamplesCardId(prev => prev === card.id ? null : card.id)}
+                        className="w-full text-left px-3 py-2 flex items-center justify-between hover:bg-gray-50"
+                      >
+                        <span className="text-xs font-medium text-gray-500">Examples ({card.examples.length})</span>
+                        <span className="text-gray-400 text-xs">
+                          {expandedExamplesCardId === card.id ? '\u25BC' : '\u25B6'}
+                        </span>
+                      </button>
+                      {expandedExamplesCardId === card.id && (
+                        <div className="border-t px-3 py-2 space-y-1">
+                          {card.examples.map((ex) => (
+                            <div key={ex.id} className="flex items-start gap-2 text-sm">
+                              <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full mt-0.5 ${
+                                ex.direction === 'source-to-target'
+                                  ? 'bg-blue-50 text-blue-600'
+                                  : 'bg-purple-50 text-purple-600'
+                              }`}>
+                                {ex.direction === 'source-to-target' ? 'S\u2192T' : 'T\u2192S'}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-gray-800">{ex.sourceText}</p>
+                                <p className="text-gray-500">{ex.targetText}</p>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  await removeExampleFromCardAndCompanions(card.deckId, card.id, ex.id)
+                                  onUpdate()
+                                }}
+                                className="shrink-0 text-xs text-red-400 hover:text-red-600 mt-0.5"
+                                title="Delete example"
+                              >
+                                ×
+                              </button>
                             </div>
-                            <button
-                              onClick={async () => {
-                                await removeExampleFromCardAndCompanions(card.deckId, card.id, ex.id)
-                                onUpdate()
-                              }}
-                              className="shrink-0 text-xs text-red-400 hover:text-red-600 mt-0.5"
-                              title="Delete example"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

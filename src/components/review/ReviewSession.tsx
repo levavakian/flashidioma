@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { reviewCard, getReviewQueue, getDueCards, getNextLearningDue, getSchedulingPreview, formatInterval } from '../../services/review'
+import { reviewCard, getReviewQueueFullDay, getDueCards, getNextDueWithin24h, getSchedulingPreview, formatInterval } from '../../services/review'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { hydrateConjugation } from '../../services/llm'
 import { updateCard } from '../../services/card'
@@ -161,11 +161,11 @@ export default function ReviewSession({ deck, onComplete }: Props) {
 
   const loadQueue = useCallback(async () => {
     setLoading(true)
-    const { dueCards, newCards } = await getReviewQueue(deck)
-    setTotalDue(dueCards.length)
+    const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(deck)
+    setTotalDue(dueCards.length + upcomingCards.length)
     setTotalNew(newCards.length)
 
-    // Interleave: show some new cards among due cards
+    // Start with due cards + new cards; upcoming cards will be added as they become due
     const combined = [...dueCards, ...newCards]
     setQueue(combined)
     setCurrentIndex(0)
@@ -178,29 +178,26 @@ export default function ReviewSession({ deck, onComplete }: Props) {
     loadQueue()
   }, [loadQueue])
 
-  // Check for learning/relearning cards that became due (from "Again" grading)
+  // Check for cards that became due (from "Again" grading or upcoming 24h window)
   const checkForMoreCards = useCallback(async () => {
     const now = new Date()
     const dueNow = await getDueCards(deck.id, now)
     if (dueNow.length > 0) {
-      // More cards due (likely from "Again" grading) — continue session
+      // More cards due — continue session
       setQueue(dueNow)
       setCurrentIndex(0)
       setRevealed(false)
       return
     }
 
-    // Check if learning/relearning cards will be due soon
-    const nextDue = await getNextLearningDue(deck.id)
+    // Check if any cards will be due within the next 24 hours
+    const nextDue = await getNextDueWithin24h(deck.id, now)
     if (nextDue) {
-      const waitMs = nextDue.getTime() - now.getTime()
-      if (waitMs <= 10 * 60 * 1000) { // Within 10 minutes — wait for them
-        setWaitingUntil(nextDue)
-        return
-      }
+      setWaitingUntil(nextDue)
+      return
     }
 
-    // Truly done — no more cards coming
+    // Truly done — no more cards within 24h window
     onComplete()
     await loadQueue()
   }, [deck.id, onComplete, loadQueue])

@@ -7,6 +7,8 @@ import {
   getDueCards,
   getNewCards,
   getNewCardBatch,
+  getDueCardsWithin24h,
+  getNextDueWithin24h,
 } from '../../src/services/review'
 import type { Deck } from '../../src/types'
 
@@ -236,5 +238,91 @@ describe('New card batch introduction', () => {
     await reviewCard(card.id, 3)
     const afterReview = await getNewCards(deck.id)
     expect(afterReview).toHaveLength(0)
+  })
+})
+
+describe('24h review window', () => {
+  it('getDueCardsWithin24h returns cards due within 24 hours', async () => {
+    const now = new Date('2025-06-01T12:00:00Z')
+
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'test',
+      backText: 'prueba',
+      direction: 'source-to-target',
+    })
+
+    // Review with "Again" to make it due soon (within minutes)
+    await reviewCard(card.id, 1, now)
+
+    // Should appear in 24h window
+    const within24h = await getDueCardsWithin24h(deck.id, now)
+    expect(within24h.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('getDueCardsWithin24h excludes new cards', async () => {
+    await createCard({
+      deckId: deck.id,
+      frontText: 'newcard',
+      backText: 'nuevocarta',
+      direction: 'source-to-target',
+    })
+
+    const within24h = await getDueCardsWithin24h(deck.id)
+    expect(within24h).toHaveLength(0)
+  })
+
+  it('getDueCardsWithin24h excludes cards due beyond 24h', async () => {
+    const now = new Date('2025-06-01T12:00:00Z')
+
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'test',
+      backText: 'prueba',
+      direction: 'source-to-target',
+    })
+
+    // Review with "Easy" to push due date far into the future
+    await reviewCard(card.id, 4, now)
+
+    // Card should be due days from now, not within 24h
+    const within24h = await getDueCardsWithin24h(deck.id, now)
+    expect(within24h).toHaveLength(0)
+  })
+
+  it('getNextDueWithin24h returns earliest upcoming due date', async () => {
+    const now = new Date('2025-06-01T12:00:00Z')
+
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'test',
+      backText: 'prueba',
+      direction: 'source-to-target',
+    })
+
+    // Review with "Again" — card will be due in a few minutes
+    await reviewCard(card.id, 1, now)
+
+    const nextDue = await getNextDueWithin24h(deck.id, now)
+    expect(nextDue).not.toBeNull()
+    expect(nextDue!.getTime()).toBeGreaterThan(now.getTime())
+    expect(nextDue!.getTime()).toBeLessThanOrEqual(now.getTime() + 24 * 60 * 60 * 1000)
+  })
+
+  it('getNextDueWithin24h returns null when no cards within window', async () => {
+    const now = new Date('2025-06-01T12:00:00Z')
+
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'test',
+      backText: 'prueba',
+      direction: 'source-to-target',
+    })
+
+    // Review with "Easy" — card due far in the future
+    await reviewCard(card.id, 4, now)
+
+    const nextDue = await getNextDueWithin24h(deck.id, now)
+    expect(nextDue).toBeNull()
   })
 })

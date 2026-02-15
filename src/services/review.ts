@@ -224,6 +224,59 @@ export async function getReviewQueue(
   return { dueCards, newCards }
 }
 
+/** Get all non-new cards due within the next 24 hours */
+export async function getDueCardsWithin24h(
+  deckId: string,
+  now: Date = new Date()
+): Promise<Card[]> {
+  const cutoff = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const cards = await db.cards.where('deckId').equals(deckId).toArray()
+  return cards.filter((card) => {
+    if (card.fsrs.state === 'new') return false
+    return new Date(card.fsrs.dueDate) <= cutoff
+  })
+}
+
+/** Get the earliest due date within the next 24 hours for non-new cards not yet due */
+export async function getNextDueWithin24h(
+  deckId: string,
+  now: Date = new Date()
+): Promise<Date | null> {
+  const cutoff = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const cards = await db.cards.where('deckId').equals(deckId).toArray()
+  const upcoming = cards.filter((card) => {
+    if (card.fsrs.state === 'new') return false
+    const due = new Date(card.fsrs.dueDate)
+    return due > now && due <= cutoff
+  })
+  if (upcoming.length === 0) return null
+  const earliest = Math.min(...upcoming.map(c => new Date(c.fsrs.dueDate).getTime()))
+  return new Date(earliest)
+}
+
+/** Full-day review queue: due now + upcoming within 24h + new cards */
+export async function getReviewQueueFullDay(
+  deck: Deck,
+  now: Date = new Date()
+): Promise<{ dueCards: Card[]; upcomingCards: Card[]; newCards: Card[] }> {
+  const cutoff = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const cards = await db.cards.where('deckId').equals(deck.id).toArray()
+
+  const dueCards = cards.filter((card) => {
+    if (card.fsrs.state === 'new') return false
+    return new Date(card.fsrs.dueDate) <= now
+  })
+
+  const upcomingCards = cards.filter((card) => {
+    if (card.fsrs.state === 'new') return false
+    const due = new Date(card.fsrs.dueDate)
+    return due > now && due <= cutoff
+  })
+
+  const newCards = await getNewCardBatch(deck, now)
+  return { dueCards, upcomingCards, newCards }
+}
+
 /**
  * Get the earliest due date among learning/relearning cards in a deck.
  * Returns null if no learning/relearning cards exist.

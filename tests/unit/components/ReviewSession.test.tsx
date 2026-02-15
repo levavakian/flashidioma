@@ -134,4 +134,74 @@ describe('ReviewSession', () => {
       expect(onComplete).toHaveBeenCalled()
     })
   })
+
+  it('shows upcoming 24h cards in stats', async () => {
+    // Card due now
+    const dueCard = makeCard({ frontText: 'due now', backText: 'ahora' })
+    // Card due in 2 hours (upcoming)
+    const upcomingCard = makeCard({
+      frontText: 'upcoming',
+      backText: 'próximo',
+      fsrs: {
+        stability: 5.0,
+        difficulty: 5.0,
+        dueDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        lastReview: new Date(Date.now() - 86400000).toISOString(),
+        reviewCount: 1,
+        lapses: 0,
+        state: 'review',
+        elapsedDays: 1,
+        scheduledDays: 1,
+        reps: 1,
+      },
+    })
+    await db.cards.bulkPut([dueCard, upcomingCard])
+
+    render(<ReviewSession deck={deck} onComplete={vi.fn()} />)
+    await waitFor(() => {
+      // Total due should show 2 (1 due now + 1 upcoming)
+      expect(screen.getByText(/2 due/)).toBeInTheDocument()
+    })
+  })
+
+  it('waits for upcoming cards instead of completing when immediate queue exhausted', async () => {
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+
+    // Card due now
+    const dueCard = makeCard({ frontText: 'review me', backText: 'revísame' })
+    // Card due in 1 hour (upcoming, within 24h window)
+    const upcomingCard = makeCard({
+      frontText: 'later',
+      backText: 'después',
+      fsrs: {
+        stability: 5.0,
+        difficulty: 5.0,
+        dueDate: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        lastReview: new Date(Date.now() - 86400000).toISOString(),
+        reviewCount: 1,
+        lapses: 0,
+        state: 'review',
+        elapsedDays: 1,
+        scheduledDays: 1,
+        reps: 1,
+      },
+    })
+    await db.cards.bulkPut([dueCard, upcomingCard])
+
+    render(<ReviewSession deck={deck} onComplete={onComplete} />)
+    await waitFor(() => {
+      expect(screen.getByText('review me')).toBeInTheDocument()
+    })
+
+    // Grade the due card
+    await user.click(screen.getByText('Show Answer'))
+    await user.click(screen.getByText('Easy'))
+
+    // Should show waiting state, not call onComplete
+    await waitFor(() => {
+      expect(screen.getByText(/Waiting for next card/)).toBeInTheDocument()
+    })
+    expect(onComplete).not.toHaveBeenCalled()
+  })
 })
