@@ -172,31 +172,46 @@ export async function maybeAutoAddConjugationCard(
   // Pick a random eligible form
   const pick = eligible[Math.floor(Math.random() * eligible.length)]
 
-  // Build the English face: "translated form [infinitive (person tense)]"
-  // e.g. "we meet [quedarse (nosotros/as present)]"
+  // Build the English face: "translated form [to verb (person tense)]"
+  // e.g. "we meet [to meet (nosotros/as present)]"
   //
   // For the translated part, prefer miniTranslation (from LLM hydration),
   // then try Google Translate on the conjugated form, then fall back to
   // the source card's English text.
-  const bracket = `[${verbData.infinitive} (${pick.person} ${pick.tenseName.toLowerCase()})]`
+  // The bracket always uses the English infinitive + person + tense.
   let englishPart = pick.miniTranslation
-  if (!englishPart) {
-    // Try translating the conjugated form via Google Translate
+  let englishInfinitive = ''
+  if (!englishPart || !englishInfinitive) {
+    // Try translating via Google Translate
     if (isOnline()) {
       try {
-        const result = await translateText(pick.form, 'es', 'en')
-        englishPart = result.translatedText.toLowerCase()
+        if (!englishPart) {
+          const result = await translateText(pick.form, 'es', 'en')
+          englishPart = result.translatedText.toLowerCase()
+        }
+        if (!englishInfinitive) {
+          const infResult = await translateText(verbData.infinitive, 'es', 'en')
+          englishInfinitive = infResult.translatedText.toLowerCase()
+          if (!englishInfinitive.startsWith('to ')) {
+            englishInfinitive = `to ${englishInfinitive}`
+          }
+        }
       } catch {
         // Translation failed — fall back below
       }
     }
   }
-  if (!englishPart) {
+  if (!englishPart || !englishInfinitive) {
     // Offline or translation failed — use source card's English text
     const infinitiveLower = removeAccents(verbData.infinitive.toLowerCase())
     const frontLower = removeAccents(card.frontText.toLowerCase())
-    englishPart = frontLower === infinitiveLower ? card.backText : card.frontText
+    const cardEnglish = frontLower === infinitiveLower ? card.backText : card.frontText
+    if (!englishPart) englishPart = cardEnglish
+    if (!englishInfinitive) {
+      englishInfinitive = cardEnglish.startsWith('to ') ? cardEnglish : `to ${cardEnglish}`
+    }
   }
+  const bracket = `[${englishInfinitive} (${pick.person} ${pick.tenseName.toLowerCase()})]`
   const translation = `${englishPart} ${bracket}`
 
   // Create bidirectional card pair using the same layout as importPrebuiltDeck:
