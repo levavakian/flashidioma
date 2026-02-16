@@ -223,6 +223,18 @@ export default function ReviewSession({ deck, onComplete }: Props) {
       setCurrentIndex(0)
       setRevealed(false)
     } else {
+      // Do a full reload to catch new card batches, upcoming cards, etc.
+      const freshDeck = await getDeck(deck.id)
+      if (freshDeck) {
+        const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(freshDeck)
+        const fullReload = [...dueCards, ...upcomingCards, ...newCards]
+        if (fullReload.length > 0) {
+          setQueue(fullReload)
+          setCurrentIndex(0)
+          setRevealed(false)
+          return
+        }
+      }
       // Queue truly empty — session done
       setQueue([])
       onComplete()
