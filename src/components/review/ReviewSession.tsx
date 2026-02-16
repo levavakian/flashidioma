@@ -129,7 +129,7 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const schedulingPreview = useMemo(() => {
     if (!currentCard || !revealed) return null
     const now = new Date()
-    const dueDates = getSchedulingPreview(currentCard, now)
+    const dueDates = getSchedulingPreview(currentCard, now, deck.requestRetention)
     return {
       1: formatInterval(now, dueDates[1]),
       2: formatInterval(now, dueDates[2]),
@@ -184,7 +184,7 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const handleGrade = async (grade: number) => {
     if (!currentCard) return
 
-    const updated = await reviewCard(currentCard.id, grade)
+    const updated = await reviewCard(currentCard.id, grade, new Date(), deck.requestRetention)
     setReviewed((r) => r + 1)
 
     // Try auto-adding a conjugation card (fires and handles its own errors)

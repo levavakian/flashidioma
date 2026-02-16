@@ -13,6 +13,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
   const [autoAddConjugations, setAutoAddConjugations] = useState(deck.autoAddConjugations ?? true)
   const [maxConjugationCardsPerDay, setMaxConjugationCardsPerDay] = useState(deck.maxConjugationCardsPerDay ?? 5)
   const [dayStartHour, setDayStartHour] = useState(deck.dayStartHour ?? 9)
+  const [requestRetention, setRequestRetention] = useState(deck.requestRetention ?? 0.9)
 
   useEffect(() => {
     setNewCardsPerDay(deck.newCardsPerDay)
@@ -20,6 +21,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
     setAutoAddConjugations(deck.autoAddConjugations ?? true)
     setMaxConjugationCardsPerDay(deck.maxConjugationCardsPerDay ?? 5)
     setDayStartHour(deck.dayStartHour ?? 9)
+    setRequestRetention(deck.requestRetention ?? 0.9)
   }, [deck])
 
   const handleSave = async (updates: Partial<Deck>) => {
@@ -104,6 +106,30 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
             </div>
             <p className="text-xs text-gray-400 mt-1">
               How many new cards to introduce at a time before requiring review
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Target retention: {Math.round(requestRetention * 100)}%
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={80}
+                max={97}
+                value={Math.round(requestRetention * 100)}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) / 100
+                  setRequestRetention(val)
+                  handleSave({ requestRetention: val })
+                }}
+                className="flex-1"
+              />
+              <span className="w-16 text-sm text-center">{Math.round(requestRetention * 100)}%</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Higher retention = shorter intervals and more reviews. Lower = longer intervals, fewer reviews. Default is 90%.
             </p>
           </div>
         </div>

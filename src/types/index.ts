@@ -32,6 +32,7 @@ export interface FSRSState {
   elapsedDays: number
   scheduledDays: number
   reps: number
+  learningSteps: number // tracks current learning step index for ts-fsrs
 }
 
 export interface Deck {
@@ -50,6 +51,7 @@ export interface Deck {
   conjugationCardsAddedToday: number // How many conjugation cards added today
   lastConjugationCardDate: string | null // ISO date for daily reset
   dayStartHour?: number // Hour (0-23) when review day starts (default 9)
+  requestRetention?: number // FSRS target retention rate (default 0.9, higher = shorter intervals)
 }
 
 /** Tracks which conjugation forms have been auto-added per verb per deck */

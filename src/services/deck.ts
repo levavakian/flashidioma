@@ -37,6 +37,7 @@ export async function createDeck(
     maxConjugationCardsPerDay: 5,
     conjugationCardsAddedToday: 0,
     lastConjugationCardDate: null,
+    requestRetention: 0.9,
   }
 
   await db.decks.put(deck)

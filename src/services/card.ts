@@ -15,6 +15,7 @@ function newFSRSState(): FSRSState {
     elapsedDays: 0,
     scheduledDays: 0,
     reps: 0,
+    learningSteps: 0,
   }
 }
 

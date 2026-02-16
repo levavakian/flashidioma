@@ -9,7 +9,17 @@ import {
 import { db } from '../db'
 import type { Card, Deck, FSRSState, ReviewHistory } from '../types'
 
-const scheduler = fsrs()
+const DEFAULT_RETENTION = 0.9
+const schedulerCache = new Map<number, ReturnType<typeof fsrs>>()
+
+function getScheduler(requestRetention: number = DEFAULT_RETENTION): ReturnType<typeof fsrs> {
+  let cached = schedulerCache.get(requestRetention)
+  if (!cached) {
+    cached = fsrs({ request_retention: requestRetention })
+    schedulerCache.set(requestRetention, cached)
+  }
+  return cached
+}
 
 function cardToFSRS(card: Card): FSRSCard {
   return {
@@ -22,7 +32,7 @@ function cardToFSRS(card: Card): FSRSCard {
     lapses: card.fsrs.lapses,
     state: stateToFSRS(card.fsrs.state),
     last_review: card.fsrs.lastReview ? new Date(card.fsrs.lastReview) : undefined,
-    learning_steps: 0,
+    learning_steps: card.fsrs.learningSteps ?? 0,
   }
 }
 
@@ -56,6 +66,7 @@ function fsrsCardToState(fsrsCard: FSRSCard): FSRSState {
     elapsedDays: fsrsCard.elapsed_days,
     scheduledDays: fsrsCard.scheduled_days,
     reps: fsrsCard.reps,
+    learningSteps: fsrsCard.learning_steps,
   }
 }
 
@@ -113,7 +124,8 @@ export async function incrementDailyNewCardCount(deckId: string, count: number =
 export async function reviewCard(
   cardId: string,
   grade: number,
-  now: Date = new Date()
+  now: Date = new Date(),
+  requestRetention: number = DEFAULT_RETENTION
 ): Promise<Card> {
   const card = await db.cards.get(cardId)
   if (!card) throw new Error(`Card not found: ${cardId}`)
@@ -123,7 +135,7 @@ export async function reviewCard(
   const fsrsCard = cardToFSRS(card)
   const rating = gradeToRating(grade)
 
-  const result = scheduler.repeat(fsrsCard, now)
+  const result = getScheduler(requestRetention).repeat(fsrsCard, now)
   const chosen = result[rating]
 
   const newFsrsState = fsrsCardToState(chosen.card)
@@ -319,9 +331,9 @@ export function createNewFSRSCard(): FSRSState {
  * immediately available. This avoids NaN scheduling issues from manually
  * constructing a learning state with zero stability/difficulty.
  */
-export function createLearningFSRSCard(now: Date = new Date()): FSRSState {
+export function createLearningFSRSCard(now: Date = new Date(), requestRetention: number = DEFAULT_RETENTION): FSRSState {
   const empty = createEmptyCard()
-  const result = scheduler.repeat(empty, now)
+  const result = getScheduler(requestRetention).repeat(empty, now)
   const afterReview = result[Rating.Again].card
   const state = fsrsCardToState(afterReview)
   // Override due date to now so the card appears immediately in the review queue
@@ -336,10 +348,11 @@ export function createLearningFSRSCard(now: Date = new Date()): FSRSState {
  */
 export function getSchedulingPreview(
   card: Card,
-  now: Date = new Date()
+  now: Date = new Date(),
+  requestRetention: number = DEFAULT_RETENTION
 ): Record<number, Date> {
   const fsrsCard = cardToFSRS(card)
-  const result = scheduler.repeat(fsrsCard, now)
+  const result = getScheduler(requestRetention).repeat(fsrsCard, now)
   return {
     1: result[Rating.Again].card.due,
     2: result[Rating.Hard].card.due,
