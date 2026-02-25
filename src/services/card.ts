@@ -30,13 +30,10 @@ export interface CreateCardInput {
   source?: Card['source']
   sortOrder?: number
   verbData?: Card['verbData']
+  startAsLearning?: boolean // If true, card starts as "learning" (immediately reviewable) instead of "new"
 }
 
 export async function createCard(input: CreateCardInput): Promise<Card> {
-  // Auto-conjugation cards start as "learning" so they're immediately
-  // available for review without consuming a "new card" slot
-  const isAutoConj = input.source === 'auto-conjugation'
-
   const card: Card = {
     id: crypto.randomUUID(),
     deckId: input.deckId,
@@ -45,7 +42,7 @@ export async function createCard(input: CreateCardInput): Promise<Card> {
     direction: input.direction,
     tags: input.tags ?? [],
     notes: input.notes ?? '',
-    fsrs: isAutoConj ? createLearningFSRSCard() : newFSRSState(),
+    fsrs: input.startAsLearning ? createLearningFSRSCard() : newFSRSState(),
     createdAt: new Date().toISOString(),
     source: input.source ?? 'manual',
     ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
@@ -55,7 +52,8 @@ export async function createCard(input: CreateCardInput): Promise<Card> {
   await db.cards.put(card)
 
   // Manual and practice cards count against the daily new card limit
-  // Auto-conjugation cards do NOT count (they start as "learning")
+  // Auto-conjugation cards do NOT count (they're either "learning" or will go
+  // through the normal new-card batching flow)
   if (card.source === 'manual' || card.source === 'practice') {
     await incrementDailyNewCardCount(card.deckId)
   }

@@ -12,6 +12,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
   const [newCardBatchSize, setNewCardBatchSize] = useState(deck.newCardBatchSize)
   const [autoAddConjugations, setAutoAddConjugations] = useState(deck.autoAddConjugations ?? true)
   const [maxConjugationCardsPerDay, setMaxConjugationCardsPerDay] = useState(deck.maxConjugationCardsPerDay ?? 5)
+  const [conjugationCardsStartLearning, setConjugationCardsStartLearning] = useState(deck.conjugationCardsStartLearning ?? false)
   const [dayStartHour, setDayStartHour] = useState(deck.dayStartHour ?? 9)
   const [requestRetention, setRequestRetention] = useState(deck.requestRetention ?? 0.9)
 
@@ -20,6 +21,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
     setNewCardBatchSize(deck.newCardBatchSize)
     setAutoAddConjugations(deck.autoAddConjugations ?? true)
     setMaxConjugationCardsPerDay(deck.maxConjugationCardsPerDay ?? 5)
+    setConjugationCardsStartLearning(deck.conjugationCardsStartLearning ?? false)
     setDayStartHour(deck.dayStartHour ?? 9)
     setRequestRetention(deck.requestRetention ?? 0.9)
   }, [deck])
@@ -159,40 +161,62 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
           </p>
 
           {autoAddConjugations && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Max conjugation cards per day
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={1}
-                  max={20}
-                  value={maxConjugationCardsPerDay}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value)
-                    setMaxConjugationCardsPerDay(val)
-                    handleSave({ maxConjugationCardsPerDay: val })
-                  }}
-                  className="flex-1"
-                />
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={maxConjugationCardsPerDay}
-                  onChange={(e) => {
-                    const val = Math.max(1, Math.min(20, parseInt(e.target.value) || 1))
-                    setMaxConjugationCardsPerDay(val)
-                    handleSave({ maxConjugationCardsPerDay: val })
-                  }}
-                  className="w-16 border rounded px-2 py-1 text-sm text-center"
-                />
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Max conjugation cards per day
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={1}
+                    max={20}
+                    value={maxConjugationCardsPerDay}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value)
+                      setMaxConjugationCardsPerDay(val)
+                      handleSave({ maxConjugationCardsPerDay: val })
+                    }}
+                    className="flex-1"
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={maxConjugationCardsPerDay}
+                    onChange={(e) => {
+                      const val = Math.max(1, Math.min(20, parseInt(e.target.value) || 1))
+                      setMaxConjugationCardsPerDay(val)
+                      handleSave({ maxConjugationCardsPerDay: val })
+                    }}
+                    className="w-16 border rounded px-2 py-1 text-sm text-center"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Daily limit for auto-added conjugation cards across all verbs (currently {conjCardsToday} today)
+                </p>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Daily limit for auto-added conjugation cards across all verbs (currently {conjCardsToday} today)
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={conjugationCardsStartLearning}
+                  onChange={(e) => {
+                    setConjugationCardsStartLearning(e.target.checked)
+                    handleSave({ conjugationCardsStartLearning: e.target.checked })
+                  }}
+                  className="rounded"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Start conjugation cards as immediately reviewable
+                </span>
+              </label>
+              <p className="text-xs text-gray-400">
+                {conjugationCardsStartLearning
+                  ? 'Auto-added conjugation cards will appear in the review queue immediately.'
+                  : 'Auto-added conjugation cards will be added as new cards and introduced through the normal new-card batching flow.'}
               </p>
-            </div>
+            </>
           )}
         </div>
       </div>

@@ -48,6 +48,7 @@ export interface Deck {
   lastNewCardDate: string | null // ISO date (date portion only, e.g. "2026-02-08")
   autoAddConjugations: boolean // Whether to auto-add conjugation cards on Good/Easy review
   maxConjugationCardsPerDay: number // Daily limit for auto-added conjugation cards (default 5)
+  conjugationCardsStartLearning?: boolean // If true, auto-conjugation cards start as "learning" (immediately reviewable); if false (default), they start as "new" and go through normal new-card batching
   conjugationCardsAddedToday: number // How many conjugation cards added today
   lastConjugationCardDate: string | null // ISO date for daily reset
   dayStartHour?: number // Hour (0-23) when review day starts (default 9)
