@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { reviewCard, getReviewQueueFullDay, getDueCards, getDayBoundary, getSchedulingPreview, formatInterval } from '../../services/review'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { hydrateConjugation } from '../../services/llm'
-import { updateCard } from '../../services/card'
+import { updateCard, deleteCard } from '../../services/card'
 import { maybeAutoAddConjugationCard } from '../../services/conjugationAutoAdd'
 import { getDeck } from '../../services/deck'
 import ConjugationView from '../cards/ConjugationView'
@@ -11,6 +11,7 @@ import type { Deck, Card, VerbData } from '../../types'
 interface Props {
   deck: Deck
   onComplete: () => void
+  onUpdate?: () => void
 }
 
 /** Get the target-language word (Spanish) from a card regardless of direction */
@@ -39,7 +40,7 @@ async function tryConjugationLookup(card: Card): Promise<VerbData | null> {
   return null
 }
 
-export default function ReviewSession({ deck, onComplete }: Props) {
+export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
   const [queue, setQueue] = useState<Card[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
@@ -51,6 +52,10 @@ export default function ReviewSession({ deck, onComplete }: Props) {
   const [hydratingReview, setHydratingReview] = useState(false)
   const [hydrateMessage, setHydrateMessage] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+  const [editingCard, setEditingCard] = useState<Card | null>(null)
+  const [editFront, setEditFront] = useState('')
+  const [editBack, setEditBack] = useState('')
+  const [editNotes, setEditNotes] = useState('')
 
   const gradingRef = useRef(false)
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -122,6 +127,47 @@ export default function ReviewSession({ deck, onComplete }: Props) {
       setHydrateMessage(e instanceof Error ? e.message : 'Lookup failed')
     } finally {
       setHydratingReview(false)
+    }
+  }
+
+  const handleEditCard = (card: Card) => {
+    setEditingCard(card)
+    setEditFront(card.frontText)
+    setEditBack(card.backText)
+    setEditNotes(card.notes)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingCard) return
+    const updates = {
+      frontText: editFront.trim(),
+      backText: editBack.trim(),
+      notes: editNotes.trim(),
+    }
+    await updateCard(editingCard.id, updates)
+    // Update the card in the queue so the display reflects edits
+    setQueue(prev => prev.map(c =>
+      c.id === editingCard.id ? { ...c, ...updates } : c
+    ))
+    setEditingCard(null)
+    onUpdate?.()
+  }
+
+  const handleDeleteCard = async () => {
+    if (!currentCard) return
+    if (!confirm(`Delete card "${currentCard.frontText}"?`)) return
+    await deleteCard(currentCard.id)
+    onUpdate?.()
+
+    // Remove deleted card from queue and advance
+    const nextQueue = [...queue.slice(0, currentIndex), ...queue.slice(currentIndex + 1)]
+    if (nextQueue.length === 0) {
+      setQueue([])
+      onComplete()
+    } else {
+      setQueue(nextQueue)
+      setCurrentIndex(Math.min(currentIndex, nextQueue.length - 1))
+      setRevealed(false)
     }
   }
 
@@ -291,6 +337,58 @@ export default function ReviewSession({ deck, onComplete }: Props) {
         </div>
       )}
 
+      {/* Edit card modal */}
+      {editingCard && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-md">
+            <h3 className="font-semibold text-lg mb-3">Edit Card</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Front</label>
+                <input
+                  type="text"
+                  value={editFront}
+                  onChange={(e) => setEditFront(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Back</label>
+                <input
+                  type="text"
+                  value={editBack}
+                  onChange={(e) => setEditBack(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                  rows={2}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex-1 bg-blue-500 text-white py-2 rounded font-medium"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditingCard(null)}
+                  className="flex-1 bg-gray-100 text-gray-700 py-2 rounded font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow border p-6 text-center min-h-[200px] flex flex-col justify-center">
         <p className="text-2xl font-medium mb-4">{displayFront}</p>
 
@@ -354,6 +452,21 @@ export default function ReviewSession({ deck, onComplete }: Props) {
             {hydrateMessage && (
               <p className="text-sm text-orange-500 mb-2">{hydrateMessage}</p>
             )}
+
+            <div className="flex justify-center gap-4 mt-2 mb-2">
+              <button
+                onClick={() => handleEditCard(currentCard)}
+                className="text-sm text-blue-500 hover:text-blue-700"
+              >
+                Edit
+              </button>
+              <button
+                onClick={handleDeleteCard}
+                className="text-sm text-red-500 hover:text-red-700"
+              >
+                Delete
+              </button>
+            </div>
 
             <div className="grid grid-cols-4 gap-2 mt-4">
               <button

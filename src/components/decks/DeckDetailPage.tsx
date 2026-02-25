@@ -107,7 +107,7 @@ export default function DeckDetailPage() {
       )}
 
       {tab === 'review' && (
-        <ReviewSession deck={deck} onComplete={loadDeck} />
+        <ReviewSession deck={deck} onComplete={loadDeck} onUpdate={loadDeck} />
       )}
 
       {tab === 'add' && (

@@ -271,6 +271,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Add card manually (front text, back text, direction selection, tags)
 - [x] Edit and delete existing cards
 - [x] Review session UI (show card front → reveal back → grade with FSRS buttons)
+- [x] Edit and delete cards from the review screen (shown after revealing the answer)
 - [x] Due card queue display (count of due cards, new cards remaining in batch)
 - **Tests:**
   - [x] Component: deck list renders decks, create/rename/delete update the list
