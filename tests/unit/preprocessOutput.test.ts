@@ -94,6 +94,36 @@ describe('Preprocessing script output', () => {
       expect(tener[3][0]).toBe('tendré')
     })
 
+    it('haber has correct conjugations', () => {
+      const haber = conjugationData.verbs['haber' as keyof typeof conjugationData.verbs] as string[][]
+      expect(haber).toBeDefined()
+      expect(haber[0]).toEqual(['he', 'has', 'ha', 'hemos', 'habéis', 'han'])
+      expect(haber[3][0]).toBe('habré')
+      expect(haber[6][0]).toBe('hubiera')
+    })
+
+    it('fallback-only irregular verbs are still conjugated correctly', () => {
+      const asir = conjugationData.verbs['asir' as keyof typeof conjugationData.verbs] as string[][]
+      expect(asir).toBeDefined()
+      expect(asir[0]).toEqual(['asgo', 'ases', 'ase', 'asimos', 'asís', 'asen'])
+
+      const soltar = conjugationData.verbs['soltar' as keyof typeof conjugationData.verbs] as string[][]
+      expect(soltar).toBeDefined()
+      expect(soltar[0]).toEqual(['suelto', 'sueltas', 'suelta', 'soltamos', 'soltáis', 'sueltan'])
+
+      const sostener = conjugationData.verbs['sostener' as keyof typeof conjugationData.verbs] as string[][]
+      expect(sostener).toBeDefined()
+      expect(sostener[0]).toEqual([
+        'sostengo',
+        'sostienes',
+        'sostiene',
+        'sostenemos',
+        'sostenéis',
+        'sostienen',
+      ])
+      expect(sostener[3][0]).toBe('sostendré')
+    })
+
     it('hablar has compound tenses', () => {
       const hablar = conjugationData.verbs['hablar' as keyof typeof conjugationData.verbs] as string[][]
       expect(hablar).toBeDefined()

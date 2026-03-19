@@ -1,7 +1,9 @@
+import { Conjugator as LibraryConjugator, type Result as LibraryResult } from '@jirimracek/conjugate-esp'
+
 /**
- * Rule-based Spanish verb conjugation engine.
- * Generates conjugation tables for regular -ar/-er/-ir verbs
- * and includes hardcoded data for common irregular verbs.
+ * Spanish verb conjugation engine.
+ * Uses a model-based conjugator for broad irregular coverage and
+ * falls back to legacy regular rules only if the library cannot resolve a verb.
  */
 
 export interface ConjugationTable {
@@ -102,6 +104,56 @@ const TENSE_DESCRIPTIONS: Record<string, { name: string; description: string }> 
     name: 'Future Progressive',
     description: 'Actions that will be in progress (estaré hablando)',
   },
+}
+
+const libraryConjugator = new LibraryConjugator()
+
+const REFLEXIVE_PRONOUNS = ['me', 'te', 'se', 'nos', 'os', 'se']
+
+function normalizeLibraryForm(form: string): string {
+  return form === '-' ? '' : form
+}
+
+function normalizeLibraryForms(forms: string[]): string[] {
+  return forms.map(normalizeLibraryForm)
+}
+
+function isReflexiveInfinitive(infinitive: string): boolean {
+  return infinitive.endsWith('se') && infinitive.length > 2
+}
+
+function getPrimaryLibraryResult(infinitive: string): LibraryResult | null {
+  const result = libraryConjugator.conjugateSync(infinitive)
+  if (typeof result === 'string') return null
+  return result.find((entry) => !entry.info.defective) ?? result[0] ?? null
+}
+
+function getSyntheticBaseForms(primary: LibraryResult, infinitive: string): {
+  baseInfinitive: string
+  gerund: string
+} {
+  if (!isReflexiveInfinitive(infinitive)) {
+    return {
+      baseInfinitive: infinitive,
+      gerund: primary.conjugation.Impersonal.Gerundio,
+    }
+  }
+
+  const baseInfinitive = infinitive.slice(0, -2)
+  const baseResult = getPrimaryLibraryResult(baseInfinitive)
+
+  return {
+    baseInfinitive,
+    gerund: baseResult?.conjugation.Impersonal.Gerundio ?? primary.conjugation.Impersonal.Gerundio,
+  }
+}
+
+function makeSyntheticForms(leadForms: string[], tail: string, infinitive: string): string[] {
+  if (!isReflexiveInfinitive(infinitive)) {
+    return leadForms.map((lead) => `${lead} ${tail}`)
+  }
+
+  return leadForms.map((lead, index) => `${REFLEXIVE_PRONOUNS[index]} ${lead} ${tail}`)
 }
 
 // Auxiliary forms of "haber" for compound tenses
@@ -332,6 +384,50 @@ function makeCompoundTense(
   return makeTense(tenseId, forms)
 }
 
+function conjugateWithLibrary(infinitive: string): ConjugationTable | null {
+  const primary = getPrimaryLibraryResult(infinitive)
+  if (!primary) return null
+
+  const { conjugation } = primary
+  const { baseInfinitive, gerund } = getSyntheticBaseForms(primary, infinitive)
+
+  return {
+    infinitive,
+    tenses: [
+      makeTense('present', normalizeLibraryForms(conjugation.Indicativo.Presente)),
+      makeTense('preterite', normalizeLibraryForms(conjugation.Indicativo.PreteritoIndefinido)),
+      makeTense('imperfect', normalizeLibraryForms(conjugation.Indicativo.PreteritoImperfecto)),
+      makeTense('future', normalizeLibraryForms(conjugation.Indicativo.FuturoImperfecto)),
+      makeTense('conditional', normalizeLibraryForms(conjugation.Indicativo.CondicionalSimple)),
+      makeTense('present-subjunctive', normalizeLibraryForms(conjugation.Subjuntivo.Presente)),
+      makeTense(
+        'imperfect-subjunctive',
+        normalizeLibraryForms(conjugation.Subjuntivo.PreteritoImperfectoRa)
+      ),
+      makeTense(
+        'imperative',
+        normalizeLibraryForms(conjugation.Imperativo.Afirmativo.slice(1)),
+        IMPERATIVE_PERSONS
+      ),
+      makeTense('present-perfect', normalizeLibraryForms(conjugation.Indicativo.PreteritoPerfecto)),
+      makeTense(
+        'pluperfect',
+        normalizeLibraryForms(conjugation.Indicativo.PreteritoPluscuamperfecto)
+      ),
+      makeTense('future-perfect', normalizeLibraryForms(conjugation.Indicativo.FuturoPerfecto)),
+      makeTense(
+        'conditional-perfect',
+        normalizeLibraryForms(conjugation.Indicativo.CondicionalCompuesto)
+      ),
+      makeTense('present-progressive', makeSyntheticForms(ESTAR.present, gerund, infinitive)),
+      makeTense('imperfect-progressive', makeSyntheticForms(ESTAR.imperfect, gerund, infinitive)),
+      makeTense('poder-present', makeSyntheticForms(PODER_PRESENT, baseInfinitive, infinitive)),
+      makeTense('deber-present', makeSyntheticForms(DEBER_PRESENT, baseInfinitive, infinitive)),
+      makeTense('future-progressive', makeSyntheticForms(ESTAR.future, gerund, infinitive)),
+    ],
+  }
+}
+
 function conjugateRegular(infinitive: string): ConjugationTable {
   const type = getVerbType(infinitive)!
   const stem = getStem(infinitive)
@@ -371,16 +467,17 @@ function conjugateRegular(infinitive: string): ConjugationTable {
   }
 }
 
-// Note: Irregular verb data is now sourced from the Jehle Spanish Verbs database
-// at build time (see preprocess-spanish.ts). This conjugator only handles
-// regular -ar/-er/-ir verbs as a fallback.
+// Note: The Jehle Spanish Verbs database is still the primary build-time source
+// (see preprocess-spanish.ts). This generator fills gaps for verbs Jehle does not
+// cover, using a model-based conjugator first and the legacy regular rules last.
 
 /**
- * Conjugate a Spanish verb using regular conjugation rules.
- * Irregular verbs are handled by the Jehle database at build time;
- * this function is only used as a fallback for regular verbs.
+ * Conjugate a Spanish verb for preprocessing fallback use.
  */
 export function conjugateVerb(infinitive: string): ConjugationTable | null {
+  const libraryTable = conjugateWithLibrary(infinitive)
+  if (libraryTable) return libraryTable
+
   const type = getVerbType(infinitive)
   if (!type) return null
 
