@@ -85,6 +85,39 @@ describe('Offline translate mode', () => {
   })
 })
 
+describe('Translation failure handling', () => {
+  it('auto-saves to side deck and shows retry message when translation fails', async () => {
+    server.use(
+      http.get('https://translate.googleapis.com/translate_a/single', () => {
+        return HttpResponse.error()
+      })
+    )
+
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Translate' })).toBeInTheDocument()
+    })
+
+    const textarea = screen.getByPlaceholderText('Enter text to translate...')
+    await user.type(textarea, 'perro')
+    await user.click(screen.getByRole('button', { name: 'Translate' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/added to queue for later retry/i)).toBeInTheDocument()
+    })
+
+    // Input should be cleared since the word was queued
+    expect(screen.getByPlaceholderText('Enter text to translate...')).toHaveValue('')
+
+    // Word should be in the side deck
+    const sideDeckCards = await db.sideDeckCards.toArray()
+    expect(sideDeckCards).toHaveLength(1)
+    expect(sideDeckCards[0].text).toBe('perro')
+  })
+})
+
 describe('Side deck', () => {
   it('shows side deck cards and batch translates them when online', async () => {
     // Pre-populate a side deck card
