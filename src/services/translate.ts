@@ -6,11 +6,13 @@ export interface TranslationResult {
 /**
  * Translate text using Google Translate's unofficial web endpoint.
  * No API key required but may be rate-limited.
+ * Pass timeoutMs to abort the request if it takes too long.
  */
 export async function translateText(
   text: string,
   sourceLang: string = 'auto',
-  targetLang: string = 'en'
+  targetLang: string = 'en',
+  timeoutMs?: number
 ): Promise<TranslationResult> {
   const params = new URLSearchParams({
     client: 'gtx',
@@ -22,26 +24,33 @@ export async function translateText(
 
   const url = `https://translate.googleapis.com/translate_a/single?${params}`
 
-  const response = await fetch(url)
+  const controller = new AbortController()
+  const timer = timeoutMs !== undefined ? setTimeout(() => controller.abort(), timeoutMs) : undefined
 
-  if (!response.ok) {
-    throw new Error(`Translation failed: ${response.status} ${response.statusText}`)
+  try {
+    const response = await fetch(url, { signal: controller.signal })
+
+    if (!response.ok) {
+      throw new Error(`Translation failed: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    // Response format: [[["translated text","original text",null,null,N],...],null,"detected_lang"]
+    if (!Array.isArray(data) || !Array.isArray(data[0])) {
+      throw new Error('Unexpected translation response format')
+    }
+
+    const translatedText = data[0]
+      .map((segment: unknown[]) => (segment && segment[0]) || '')
+      .join('')
+
+    const detectedSourceLanguage = data[2] as string | undefined
+
+    return { translatedText, detectedSourceLanguage }
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
   }
-
-  const data = await response.json()
-
-  // Response format: [[["translated text","original text",null,null,N],...],null,"detected_lang"]
-  if (!Array.isArray(data) || !Array.isArray(data[0])) {
-    throw new Error('Unexpected translation response format')
-  }
-
-  const translatedText = data[0]
-    .map((segment: unknown[]) => (segment && segment[0]) || '')
-    .join('')
-
-  const detectedSourceLanguage = data[2] as string | undefined
-
-  return { translatedText, detectedSourceLanguage }
 }
 
 /**

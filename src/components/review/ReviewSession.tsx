@@ -51,7 +51,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
   const [lookedUpVerbData, setLookedUpVerbData] = useState<VerbData | null>(null)
   const [hydratingReview, setHydratingReview] = useState(false)
   const [hydrateMessage, setHydrateMessage] = useState('')
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; error: boolean } | null>(null)
   const [editingCard, setEditingCard] = useState<Card | null>(null)
   const [editFront, setEditFront] = useState('')
   const [editBack, setEditBack] = useState('')
@@ -65,8 +65,8 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
 
   const currentCard = queue[currentIndex]
 
-  const showToast = (message: string) => {
-    setToast(message)
+  const showToast = (message: string, error = false) => {
+    setToast({ message, error })
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
     toastTimeoutRef.current = setTimeout(() => setToast(null), 3000)
   }
@@ -239,7 +239,11 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
       if (freshDeck) {
         const result = await maybeAutoAddConjugationCard(currentCard, grade, freshDeck)
         if (result.added && result.form) {
-          showToast(`Added: ${result.form}`)
+          if (result.translationFailed) {
+            showToast(`Added: ${result.form} (no connection for translation)`, true)
+          } else {
+            showToast(`Added: ${result.form}`)
+          }
         }
       }
     } catch {
@@ -332,8 +336,8 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
 
       {/* Toast notification */}
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm animate-fade-in">
-          {toast}
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 text-white px-4 py-2 rounded-lg shadow-lg text-sm animate-fade-in ${toast.error ? 'bg-red-600' : 'bg-green-600'}`}>
+          {toast.message}
         </div>
       )}
 

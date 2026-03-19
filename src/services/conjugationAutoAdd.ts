@@ -122,6 +122,7 @@ export interface AutoAddResult {
   form?: string
   translation?: string
   reason?: string
+  translationFailed?: boolean
 }
 
 /**
@@ -181,23 +182,24 @@ export async function maybeAutoAddConjugationCard(
   // The bracket always uses the English infinitive + person + tense.
   let englishPart = pick.miniTranslation
   let englishInfinitive = ''
+  let translationFailed = false
   if (!englishPart || !englishInfinitive) {
-    // Try translating via Google Translate
+    // Try translating via Google Translate (5s timeout to avoid hanging on broken connections)
     if (isOnline()) {
       try {
         if (!englishPart) {
-          const result = await translateText(pick.form, 'es', 'en')
+          const result = await translateText(pick.form, 'es', 'en', 5000)
           englishPart = result.translatedText.toLowerCase()
         }
         if (!englishInfinitive) {
-          const infResult = await translateText(verbData.infinitive, 'es', 'en')
+          const infResult = await translateText(verbData.infinitive, 'es', 'en', 5000)
           englishInfinitive = infResult.translatedText.toLowerCase()
           if (!englishInfinitive.startsWith('to ')) {
             englishInfinitive = `to ${englishInfinitive}`
           }
         }
       } catch {
-        // Translation failed — fall back below
+        translationFailed = true
       }
     }
   }
@@ -264,5 +266,6 @@ export async function maybeAutoAddConjugationCard(
     added: true,
     form: pick.form,
     translation,
+    translationFailed,
   }
 }

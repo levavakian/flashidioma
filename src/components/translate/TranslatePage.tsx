@@ -133,7 +133,11 @@ export default function TranslatePage() {
       const result = await translateText(text, sourceLang, targetLang)
       setTranslatedText(result.translatedText)
     } catch {
-      setError('Translation failed. You can enter the translation manually below.')
+      await addToSideDeck(text, targetLang, selectedDeckId || null)
+      const updated = await getSideDeckCards()
+      setSideDeck(updated)
+      setInputText('')
+      setAddedMessage('Translation did not succeed — added to queue for later retry')
     } finally {
       setLoading(false)
     }
