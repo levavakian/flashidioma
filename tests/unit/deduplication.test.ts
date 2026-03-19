@@ -61,7 +61,19 @@ describe('checkDuplicate', () => {
     expect(dups).toHaveLength(0)
   })
 
-  it('checks frontText for target-to-source cards', async () => {
+  it('checks backText for canonical target-to-source cards', async () => {
+    await createCard({
+      deckId,
+      frontText: 'cat',
+      backText: 'gato',
+      direction: 'target-to-source',
+    })
+
+    const dups = await checkDuplicate(deckId, 'gato')
+    expect(dups).toHaveLength(1)
+  })
+
+  it('keeps detecting legacy reversed target-to-source cards', async () => {
     await createCard({
       deckId,
       frontText: 'gato',
@@ -69,7 +81,6 @@ describe('checkDuplicate', () => {
       direction: 'target-to-source',
     })
 
-    // The target text in a target-to-source card is frontText
     const dups = await checkDuplicate(deckId, 'gato')
     expect(dups).toHaveLength(1)
   })

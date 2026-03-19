@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { updateDeck, skipForwardOneDay } from '../../services/deck'
+import EditableNumberInput from '../common/EditableNumberInput'
 import type { Deck } from '../../types'
 
 interface Props {
@@ -58,15 +59,13 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                 }}
                 className="flex-1"
               />
-              <input
-                type="number"
+              <EditableNumberInput
                 min={0}
                 max={100}
                 value={newCardsPerDay}
-                onChange={(e) => {
-                  const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
-                  setNewCardsPerDay(val)
-                  handleSave({ newCardsPerDay: val })
+                onCommit={(value) => {
+                  setNewCardsPerDay(value)
+                  handleSave({ newCardsPerDay: value })
                 }}
                 className="w-16 border rounded px-2 py-1 text-sm text-center"
               />
@@ -93,15 +92,13 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                 }}
                 className="flex-1"
               />
-              <input
-                type="number"
+              <EditableNumberInput
                 min={1}
                 max={50}
                 value={newCardBatchSize}
-                onChange={(e) => {
-                  const val = Math.max(1, Math.min(50, parseInt(e.target.value) || 1))
-                  setNewCardBatchSize(val)
-                  handleSave({ newCardBatchSize: val })
+                onCommit={(value) => {
+                  setNewCardBatchSize(value)
+                  handleSave({ newCardBatchSize: value })
                 }}
                 className="w-16 border rounded px-2 py-1 text-sm text-center"
               />
@@ -179,15 +176,13 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                     }}
                     className="flex-1"
                   />
-                  <input
-                    type="number"
+                  <EditableNumberInput
                     min={1}
                     max={20}
                     value={maxConjugationCardsPerDay}
-                    onChange={(e) => {
-                      const val = Math.max(1, Math.min(20, parseInt(e.target.value) || 1))
-                      setMaxConjugationCardsPerDay(val)
-                      handleSave({ maxConjugationCardsPerDay: val })
+                    onCommit={(value) => {
+                      setMaxConjugationCardsPerDay(value)
+                      handleSave({ maxConjugationCardsPerDay: value })
                     }}
                     className="w-16 border rounded px-2 py-1 text-sm text-center"
                   />
@@ -244,15 +239,13 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
               Day starts at
             </label>
             <div className="flex items-center gap-2">
-              <input
-                type="number"
+              <EditableNumberInput
                 min={0}
                 max={23}
                 value={dayStartHour}
-                onChange={(e) => {
-                  const val = Math.max(0, Math.min(23, parseInt(e.target.value) || 0))
-                  setDayStartHour(val)
-                  handleSave({ dayStartHour: val })
+                onCommit={(value) => {
+                  setDayStartHour(value)
+                  handleSave({ dayStartHour: value })
                 }}
                 className="w-16 border rounded px-2 py-1 text-sm text-center"
               />

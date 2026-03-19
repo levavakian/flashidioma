@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getImportableDecks, importPrebuiltDeck, getPrebuiltDeckCards } from '../../services/importDeck'
 import type { ProcessedCard } from '../../services/importDeck'
 import { getAllDecks, createDeck } from '../../services/deck'
+import EditableNumberInput from '../common/EditableNumberInput'
 import type { Deck, ImportableDeck } from '../../types'
 
 const PREVIEW_PAGE_SIZE = 50
@@ -174,10 +175,9 @@ export default function ImportDecksPage() {
         <label className="block text-sm font-medium text-gray-700 mt-3 mb-1">
           Number of words to import (by frequency)
         </label>
-        <input
-          type="number"
+        <EditableNumberInput
           value={limit}
-          onChange={(e) => setLimit(parseInt(e.target.value) || 0)}
+          onCommit={setLimit}
           min={0}
           className="w-full border rounded px-3 py-2"
           placeholder="Leave 0 for all"

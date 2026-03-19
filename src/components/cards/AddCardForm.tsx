@@ -32,13 +32,10 @@ export default function AddCardForm({ deckId, onAdded, initialFront, initialBack
       return
     }
 
-    // Check for duplicates (target language text)
-    // For source-to-target, the target text is backText
-    // For target-to-source, the target text is frontText
-    // For both, check backText (which is the target in the source-to-target card)
+    // The form always collects source text on the front and target text on the back.
+    // Direction only changes review order, not which field is the target language.
     if (!dupDismissed) {
-      const targetText = direction === 'target-to-source' ? front : back
-      const dups = await checkDuplicate(deckId, targetText)
+      const dups = await checkDuplicate(deckId, back)
       if (dups.length > 0) {
         setDuplicates(dups)
         return

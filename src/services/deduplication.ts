@@ -13,6 +13,9 @@ export function removeAccents(text: string): string {
  * Check if a target language text already exists in the deck.
  * Comparison is accent-insensitive.
  * Deduplication checks the target language text across all existing cards.
+ * New cards are stored canonically with the deck target text in backText.
+ * Keep a legacy fallback for older reversed translate cards that stored
+ * the target text in frontText on target-to-source cards.
  * Returns matching cards if duplicates are found.
  */
 export async function checkDuplicate(
@@ -23,12 +26,11 @@ export async function checkDuplicate(
   const cards = await db.cards.where('deckId').equals(deckId).toArray()
 
   return cards.filter((card) => {
-    // The "target language text" depends on the card direction:
-    // source-to-target: backText is the target language
-    // target-to-source: frontText is the target language
-    const existingTargetText =
-      card.direction === 'source-to-target' ? card.backText : card.frontText
+    const candidateTargets = [card.backText]
+    if (card.direction === 'target-to-source') {
+      candidateTargets.push(card.frontText)
+    }
 
-    return removeAccents(existingTargetText) === normalizedTarget
+    return candidateTargets.some((candidate) => removeAccents(candidate) === normalizedTarget)
   })
 }
