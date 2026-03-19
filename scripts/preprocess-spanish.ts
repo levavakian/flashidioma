@@ -6,7 +6,8 @@
  *
  * Conjugation data sources (in priority order):
  * 1. Fred Jehle Spanish Verbs database (637 irregular/common verbs)
- * 2. Rule-based conjugator (regular -ar/-er/-ir verbs)
+ * 2. Model-based fallback conjugator
+ * 3. Legacy regular-rule fallback for unresolved verbs
  *
  * Usage: npx tsx scripts/preprocess-spanish.ts
  */
@@ -424,7 +425,7 @@ function main() {
   const compactVerbs: Record<string, string[][]> = {}
   let conjugated = 0
   let fromJehle = 0
-  let fromRules = 0
+  let fromFallback = 0
 
   for (const verb of verbs) {
     const jehle = jehleVerbs.get(verb.word)
@@ -434,18 +435,20 @@ function main() {
       fromJehle++
       conjugated++
     } else {
-      // Fallback: rule-based conjugator (regular verbs)
+      // Fallback: model-based conjugator with a legacy regular-rule escape hatch
       const table = conjugateVerb(verb.word)
       if (table) {
         compactVerbs[verb.word] = table.tenses.map((t) =>
           t.conjugations.map((c) => c.form)
         )
-        fromRules++
+        fromFallback++
         conjugated++
       }
     }
   }
-  console.log(`  Generated conjugation tables for ${conjugated} verbs (${fromJehle} from Jehle, ${fromRules} from rules)`)
+  console.log(
+    `  Generated conjugation tables for ${conjugated} verbs (${fromJehle} from Jehle, ${fromFallback} from fallback)`
+  )
 
   const deck: ProcessedDeck = {
     id: 'spanish-frequency',

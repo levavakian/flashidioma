@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { conjugateVerb } from '../../scripts/spanish-conjugator'
 
-describe('Spanish conjugation engine (regular verbs)', () => {
+describe('Spanish conjugation engine', () => {
   describe('regular -ar verbs', () => {
     it('conjugates hablar correctly in all simple tenses', () => {
       const result = conjugateVerb('hablar')!
@@ -70,6 +70,62 @@ describe('Spanish conjugation engine (regular verbs)', () => {
       expect(present.conjugations.map((c) => c.form)).toEqual([
         'vivo', 'vives', 'vive', 'vivimos', 'vivís', 'viven',
       ])
+    })
+  })
+
+  describe('irregular fallback coverage', () => {
+    it('conjugates haber correctly when it is missing from Jehle', () => {
+      const result = conjugateVerb('haber')!
+
+      const present = result.tenses.find((t) => t.tenseId === 'present')!
+      expect(present.conjugations.map((c) => c.form)).toEqual([
+        'he', 'has', 'ha', 'hemos', 'habéis', 'han',
+      ])
+
+      const future = result.tenses.find((t) => t.tenseId === 'future')!
+      expect(future.conjugations.map((c) => c.form)).toEqual([
+        'habré', 'habrás', 'habrá', 'habremos', 'habréis', 'habrán',
+      ])
+
+      const impSub = result.tenses.find((t) => t.tenseId === 'imperfect-subjunctive')!
+      expect(impSub.conjugations.map((c) => c.form)).toEqual([
+        'hubiera', 'hubieras', 'hubiera', 'hubiéramos', 'hubierais', 'hubieran',
+      ])
+    })
+
+    it('conjugates irregular verbs that previously fell through to regular rules', () => {
+      const asir = conjugateVerb('asir')!
+      expect(asir.tenses.find((t) => t.tenseId === 'present')!.conjugations.map((c) => c.form)).toEqual([
+        'asgo', 'ases', 'ase', 'asimos', 'asís', 'asen',
+      ])
+
+      const soltar = conjugateVerb('soltar')!
+      expect(soltar.tenses.find((t) => t.tenseId === 'present')!.conjugations.map((c) => c.form)).toEqual([
+        'suelto', 'sueltas', 'suelta', 'soltamos', 'soltáis', 'sueltan',
+      ])
+
+      const sostener = conjugateVerb('sostener')!
+      expect(sostener.tenses.find((t) => t.tenseId === 'present')!.conjugations.map((c) => c.form)).toEqual([
+        'sostengo', 'sostienes', 'sostiene', 'sostenemos', 'sostenéis', 'sostienen',
+      ])
+      expect(sostener.tenses.find((t) => t.tenseId === 'future')!.conjugations[0].form).toBe('sostendré')
+    })
+
+    it('conjugates reflexive verbs instead of dropping them', () => {
+      const result = conjugateVerb('aburrirse')!
+
+      const present = result.tenses.find((t) => t.tenseId === 'present')!
+      expect(present.conjugations.map((c) => c.form)).toEqual([
+        'me aburro',
+        'te aburres',
+        'se aburre',
+        'nos aburrimos',
+        'os aburrís',
+        'se aburren',
+      ])
+
+      const pp = result.tenses.find((t) => t.tenseId === 'present-perfect')!
+      expect(pp.conjugations[0].form).toBe('me he aburrido')
     })
   })
 

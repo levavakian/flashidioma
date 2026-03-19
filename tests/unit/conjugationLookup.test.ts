@@ -41,6 +41,26 @@ describe('Static conjugation DB lookup', () => {
     expect(forms).toEqual(['soy', 'eres', 'es', 'somos', 'sois', 'son'])
   })
 
+  it('returns correct data for fallback-only irregular verbs', async () => {
+    const haber = await lookupConjugation('haber')
+    expect(haber).not.toBeNull()
+    expect(haber!.tenses.find((t) => t.tenseId === 'present')!.conjugations.map((c) => c.form)).toEqual([
+      'he', 'has', 'ha', 'hemos', 'habéis', 'han',
+    ])
+
+    const asir = await lookupConjugation('asir')
+    expect(asir).not.toBeNull()
+    expect(asir!.tenses.find((t) => t.tenseId === 'present')!.conjugations.map((c) => c.form)).toEqual([
+      'asgo', 'ases', 'ase', 'asimos', 'asís', 'asen',
+    ])
+
+    const soltar = await lookupConjugation('soltar')
+    expect(soltar).not.toBeNull()
+    expect(soltar!.tenses.find((t) => t.tenseId === 'present')!.conjugations.map((c) => c.form)).toEqual([
+      'suelto', 'sueltas', 'suelta', 'soltamos', 'soltáis', 'sueltan',
+    ])
+  })
+
   it('returns all 17 tenses for a verb', async () => {
     const result = await lookupConjugation('hablar')
     expect(result!.tenses).toHaveLength(17)
