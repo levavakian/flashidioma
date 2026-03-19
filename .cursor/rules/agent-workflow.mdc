@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+description: Agent workflow, PR cleanup expectations, and durable Cursor memory guidance
+---
+# Agent Workflow
+
+- While experimenting or debugging, it is fine to move quickly.
+- Before creating or updating the PR for review, do a cleanup pass over the diff.
+- Cleanup pass rules:
+- Write extremely simple code; it should be skimmable and still understandable at a glance.
+- Minimize possible states by reducing argument count and narrowing state.
+- Use discriminated unions to reduce the number of states the code can be in.
+- Exhaustively handle objects with multiple different types and fail on unknown types.
+- Do not write defensive code for impossible states; trust the types.
+- Use asserts when loading data and when something is expected to exist.
+- Do not make things optional unless they are strictly optional.
+- Do not pass overrides unless they are strictly necessary.
+- Remove any changes that are not strictly required.
+- Bias toward fewer lines of code.
+- Prefer early returns.
+- Avoid complex, clever, or over-factored code.
+- This cleanup pass only needs to happen when the branch is about to go into a PR. It does not need to constrain exploratory or debugging code before then.
+- If the cleanup pass changes how code should be run or verified, update the experiment log with the final reproducible commands and results before updating the PR.
+
+# Agent-Owned Cursor Files
+
+- The agent may edit `.cursor/environment.json`, `.cursor/Dockerfile` if this repo later adds one, and files under `.cursor/skills/`.
+- Only make those edits for durable, reusable, high-leverage improvements.
+- Do not change agent-owned files for one-off task-specific convenience.
+- If the agent edits its own environment or skills, add an `Agent Requests` section to the PR explaining what changed and why.
+- If the agent has a general capability request or tooling request, add an `Agent Requests` section to the PR describing what is needed and why it is high leverage.
+
+# Shared Memory
+
+- Keep durable, long-term memory in `.cursor/memories.md`.
+- Use that file for high-leverage information that should survive across different agents or different runs.
+- Record rejected or deferred high-leverage capability requests there so future agents do not ask for the same thing every time.
+- Do not store transient debugging notes or one-off task context there.
