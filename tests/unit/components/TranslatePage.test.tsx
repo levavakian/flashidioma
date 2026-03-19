@@ -6,6 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import TranslatePage from '../../../src/components/translate/TranslatePage'
 import { db } from '../../../src/db'
+import { createCard } from '../../../src/services/card'
 
 // --- MSW server setup ---
 
@@ -139,5 +140,111 @@ describe('TranslatePage', () => {
     expect(tsCard.backText).toBe('hola')
     expect(stCard.deckId).toBe('test-deck')
     expect(tsCard.deckId).toBe('test-deck')
+  })
+
+  it('keeps the translation textarea mounted when cleared for manual editing', async () => {
+    const user = userEvent.setup()
+
+    server.use(
+      http.get('https://translate.googleapis.com/translate_a/single', () => {
+        return HttpResponse.json([
+          [['hola', 'hello', null, null, 10]],
+          null,
+          'en',
+        ])
+      })
+    )
+
+    renderTranslatePage()
+
+    const sourceTextarea = await screen.findByPlaceholderText('Enter text to translate...')
+    await user.type(sourceTextarea, 'hello')
+    await user.click(screen.getByRole('button', { name: 'Translate' }))
+
+    const translationTextarea = await screen.findByLabelText('Translation')
+    await user.clear(translationTextarea)
+
+    expect(screen.getByLabelText('Translation')).toBeInTheDocument()
+    expect(screen.getByLabelText('Translation')).toHaveValue('')
+  })
+
+  it('warns about duplicates before adding from translation and still allows adding anyway', async () => {
+    const user = userEvent.setup()
+
+    await createCard({
+      deckId: 'test-deck',
+      frontText: 'hello',
+      backText: 'hola',
+      direction: 'source-to-target',
+    })
+
+    server.use(
+      http.get('https://translate.googleapis.com/translate_a/single', () => {
+        return HttpResponse.json([
+          [['hola', 'hello', null, null, 10]],
+          null,
+          'en',
+        ])
+      })
+    )
+
+    renderTranslatePage()
+
+    const sourceTextarea = await screen.findByPlaceholderText('Enter text to translate...')
+    await user.type(sourceTextarea, 'hello')
+    await user.click(screen.getByRole('button', { name: 'Translate' }))
+
+    await user.click(await screen.findByRole('button', { name: 'Both' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Duplicate detected!')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Add Anyway' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Added 2 cards (both directions)')).toBeInTheDocument()
+    })
+
+    expect(await db.cards.count()).toBe(3)
+  })
+
+  it('stores the deck target language text in backText for reverse translations', async () => {
+    const user = userEvent.setup()
+
+    server.use(
+      http.get('https://translate.googleapis.com/translate_a/single', () => {
+        return HttpResponse.json([
+          [['hello', 'hola', null, null, 10]],
+          null,
+          'es',
+        ])
+      })
+    )
+
+    renderTranslatePage()
+
+    await user.selectOptions(screen.getAllByRole('combobox')[0], 'es')
+    await user.selectOptions(screen.getAllByRole('combobox')[1], 'en')
+
+    const sourceTextarea = await screen.findByPlaceholderText('Enter text to translate...')
+    await user.type(sourceTextarea, 'hola')
+    await user.click(screen.getByRole('button', { name: 'Translate' }))
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('hello')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /T.*S/ }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Added 1 card')).toBeInTheDocument()
+    })
+
+    const cards = await db.cards.toArray()
+    expect(cards).toHaveLength(1)
+    expect(cards[0].direction).toBe('target-to-source')
+    expect(cards[0].frontText).toBe('hello')
+    expect(cards[0].backText).toBe('hola')
   })
 })

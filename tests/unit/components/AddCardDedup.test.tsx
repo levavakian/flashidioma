@@ -72,4 +72,26 @@ describe('AddCardForm deduplication', () => {
     const cards = await db.cards.toArray()
     expect(cards).toHaveLength(2)
   })
+
+  it('checks the back field even when adding a target-to-source card', async () => {
+    const user = userEvent.setup()
+
+    await createCard({
+      deckId: 'test-deck',
+      frontText: 'cat',
+      backText: 'gato',
+      direction: 'target-to-source',
+    })
+
+    render(<AddCardForm deckId="test-deck" onAdded={vi.fn()} />)
+
+    await user.type(screen.getByPlaceholderText('e.g. hello'), 'kitten')
+    await user.type(screen.getByPlaceholderText('e.g. hola'), 'gato')
+    await user.selectOptions(screen.getByRole('combobox'), 'target-to-source')
+    await user.click(screen.getByText('Add Card'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Duplicate detected!')).toBeInTheDocument()
+    })
+  })
 })

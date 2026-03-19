@@ -4,6 +4,7 @@ import type { BatchSentenceRequest } from '../../services/llm'
 import { createCard, getCardsByDeck, addExampleToCardAndCompanions } from '../../services/card'
 import { db } from '../../db'
 import { spanishLanguageModule } from '../../languages/spanish'
+import EditableNumberInput from '../common/EditableNumberInput'
 import type { Deck, PracticeSentence, Card, CardExample } from '../../types'
 
 interface Props {
@@ -234,34 +235,31 @@ export default function PracticeTab({ deck }: Props) {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600 whitespace-nowrap">S→T:</label>
-            <input
-              type="number"
+            <EditableNumberInput
               min={0}
               max={20}
               value={stCount}
-              onChange={(e) => setStCount(Math.max(0, parseInt(e.target.value) || 0))}
+              onCommit={setStCount}
               className="w-14 border rounded px-2 py-1 text-sm text-center"
             />
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600 whitespace-nowrap">T→S:</label>
-            <input
-              type="number"
+            <EditableNumberInput
               min={0}
               max={20}
               value={tsCount}
-              onChange={(e) => setTsCount(Math.max(0, parseInt(e.target.value) || 0))}
+              onCommit={setTsCount}
               className="w-14 border rounded px-2 py-1 text-sm text-center"
             />
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600 whitespace-nowrap">Max cards:</label>
-            <input
-              type="number"
+            <EditableNumberInput
               min={1}
               max={10}
               value={maxDeckCards}
-              onChange={(e) => setMaxDeckCards(Math.max(1, parseInt(e.target.value) || 1))}
+              onCommit={setMaxDeckCards}
               className="w-14 border rounded px-2 py-1 text-sm text-center"
             />
           </div>

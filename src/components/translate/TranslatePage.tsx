@@ -2,10 +2,47 @@ import { useState, useEffect, useRef } from 'react'
 import { translateText, isOnline } from '../../services/translate'
 import { createCard, createCardBothDirections } from '../../services/card'
 import { lookupConjugation } from '../../services/conjugationLookup'
+import { checkDuplicate } from '../../services/deduplication'
 import { addToSideDeck, getSideDeckCards, removeSideDeckCard } from '../../services/sideDeck'
 import { getAllDecks } from '../../services/deck'
 import { getSettings, updateSettings } from '../../db'
-import type { Deck, SideDeckCard } from '../../types'
+import type { Card, Deck, SideDeckCard } from '../../types'
+
+type AddDirection = 'source-to-target' | 'target-to-source' | 'both'
+
+function getDeckTargetLanguageCode(deck: Deck): string | null {
+  switch (deck.targetLanguage.toLowerCase()) {
+    case 'spanish':
+      return 'es'
+    case 'english':
+      return 'en'
+    default:
+      return null
+  }
+}
+
+function getCanonicalCardTexts(
+  deck: Deck,
+  inputText: string,
+  translatedText: string,
+  sourceLang: string,
+  targetLang: string
+) {
+  const deckTargetLang = getDeckTargetLanguageCode(deck)
+  if (!deckTargetLang) {
+    return { frontText: inputText, backText: translatedText }
+  }
+
+  if (targetLang === deckTargetLang) {
+    return { frontText: inputText, backText: translatedText }
+  }
+
+  if (sourceLang === deckTargetLang || sourceLang === 'auto') {
+    return { frontText: translatedText, backText: inputText }
+  }
+
+  return { frontText: inputText, backText: translatedText }
+}
 
 export default function TranslatePage() {
   const [inputText, setInputText] = useState('')
@@ -20,7 +57,10 @@ export default function TranslatePage() {
   const [addedMessage, setAddedMessage] = useState('')
   const [sideDeck, setSideDeck] = useState<SideDeckCard[]>([])
   const [showSideDeck, setShowSideDeck] = useState(false)
+  const [duplicates, setDuplicates] = useState<Card[]>([])
+  const [pendingDirection, setPendingDirection] = useState<AddDirection | null>(null)
   const prefsLoaded = useRef(false)
+  const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? null
 
   useEffect(() => {
     // Load persisted preferences and decks
@@ -69,7 +109,14 @@ export default function TranslatePage() {
 
   const handleDeckChange = (value: string) => {
     setSelectedDeckId(value)
+    setDuplicates([])
+    setPendingDirection(null)
     persistPrefs({ translateDeckId: value })
+  }
+
+  const clearDuplicateWarning = () => {
+    setDuplicates([])
+    setPendingDirection(null)
   }
 
   const handleTranslate = async () => {
@@ -79,6 +126,7 @@ export default function TranslatePage() {
     setError('')
     setTranslatedText('')
     setAddedMessage('')
+    clearDuplicateWarning()
     setLoading(true)
 
     try {
@@ -91,9 +139,13 @@ export default function TranslatePage() {
     }
   }
 
-  const handleAddCard = async (direction: 'source-to-target' | 'target-to-source' | 'both') => {
+  const performAddCard = async (direction: AddDirection, skipDuplicateCheck: boolean) => {
     if (!selectedDeckId) {
       setError('Please select a deck first.')
+      return
+    }
+    if (!selectedDeck) {
+      setError('Selected deck not found.')
       return
     }
 
@@ -101,18 +153,33 @@ export default function TranslatePage() {
     const back = translatedText.trim()
     if (!front || !back) return
 
+    const { frontText: cardFront, backText: cardBack } = getCanonicalCardTexts(
+      selectedDeck,
+      front,
+      back,
+      sourceLang,
+      targetLang
+    )
+
+    if (!skipDuplicateCheck) {
+      const dups = await checkDuplicate(selectedDeckId, cardBack)
+      if (dups.length > 0) {
+        setDuplicates(dups)
+        setPendingDirection(direction)
+        return
+      }
+    }
+
     if (direction === 'both') {
       // createCardBothDirections auto-lookups verbData from static DB
       await createCardBothDirections({
         deckId: selectedDeckId,
-        frontText: front,
-        backText: back,
+        frontText: cardFront,
+        backText: cardBack,
       })
       setAddedMessage('Added 2 cards (both directions)')
     } else {
       // Look up conjugation data — try both texts since either could be the Spanish verb
-      const cardFront = direction === 'source-to-target' ? front : back
-      const cardBack = direction === 'source-to-target' ? back : front
       const verbData = (await lookupConjugation(cardBack)) ?? (await lookupConjugation(cardFront)) ?? undefined
       await createCard({
         deckId: selectedDeckId,
@@ -126,6 +193,16 @@ export default function TranslatePage() {
 
     setInputText('')
     setTranslatedText('')
+    clearDuplicateWarning()
+  }
+
+  const handleAddCard = async (direction: AddDirection) => {
+    await performAddCard(direction, false)
+  }
+
+  const handleAddDuplicateAnyway = async () => {
+    if (!pendingDirection) return
+    await performAddCard(pendingDirection, true)
   }
 
   const handleSaveToSideDeck = async () => {
@@ -229,7 +306,10 @@ export default function TranslatePage() {
 
         <textarea
           value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
+          onChange={(e) => {
+            setInputText(e.target.value)
+            clearDuplicateWarning()
+          }}
           placeholder="Enter text to translate..."
           className="w-full border rounded px-3 py-2 min-h-[80px]"
         />
@@ -253,83 +333,92 @@ export default function TranslatePage() {
           )}
         </div>
 
-        {translatedText && (
-          <div className="mt-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Translation</label>
-            <textarea
-              value={translatedText}
-              onChange={(e) => setTranslatedText(e.target.value)}
-              className="w-full border rounded px-3 py-2 min-h-[80px] bg-gray-50"
-            />
+        <div className="mt-3">
+          <label htmlFor="translation-text" className="block text-sm font-medium text-gray-700 mb-1">
+            Translation
+          </label>
+          <textarea
+            id="translation-text"
+            value={translatedText}
+            onChange={(e) => {
+              setTranslatedText(e.target.value)
+              clearDuplicateWarning()
+            }}
+            placeholder={
+              online
+                ? 'Translation will appear here, or you can edit/add one manually...'
+                : 'Enter the translation manually...'
+            }
+            className="w-full border rounded px-3 py-2 min-h-[80px]"
+          />
 
-            <div className="mt-2 space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Add to deck</label>
-              <select
-                value={selectedDeckId}
-                onChange={(e) => handleDeckChange(e.target.value)}
-                className="w-full border rounded px-3 py-2 text-sm"
-              >
-                {decks.length === 0 && <option value="">No decks available</option>}
-                {decks.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
+          {duplicates.length > 0 && (
+            <div className="mt-3 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded text-sm">
+              <p className="font-medium text-yellow-800">Duplicate detected!</p>
+              <p className="text-yellow-700 mt-1">Similar card(s) already exist:</p>
+              <ul className="mt-1 text-yellow-700">
+                {duplicates.map((duplicate) => (
+                  <li key={duplicate.id}>
+                    "{duplicate.frontText}" &rarr; "{duplicate.backText}"
+                  </li>
                 ))}
-              </select>
-              <div className="flex gap-2">
+              </ul>
+              <div className="flex gap-2 mt-2">
                 <button
-                  onClick={() => handleAddCard('source-to-target')}
-                  className="flex-1 bg-green-500 text-white py-2 rounded text-sm font-medium hover:bg-green-600"
+                  type="button"
+                  onClick={handleAddDuplicateAnyway}
+                  className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
                 >
-                  S &rarr; T
+                  Add Anyway
                 </button>
                 <button
-                  onClick={() => handleAddCard('target-to-source')}
-                  className="flex-1 bg-green-500 text-white py-2 rounded text-sm font-medium hover:bg-green-600"
+                  type="button"
+                  onClick={clearDuplicateWarning}
+                  className="text-yellow-700 px-3 py-1 rounded text-sm hover:bg-yellow-100"
                 >
-                  T &rarr; S
-                </button>
-                <button
-                  onClick={() => handleAddCard('both')}
-                  className="flex-1 bg-green-600 text-white py-2 rounded text-sm font-medium hover:bg-green-700"
-                >
-                  Both
+                  Cancel
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {!translatedText && !online && (
-          <div className="mt-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Manual translation (offline mode)
-            </label>
-            <textarea
-              value={translatedText}
-              onChange={(e) => setTranslatedText(e.target.value)}
-              placeholder="Enter the translation manually..."
-              className="w-full border rounded px-3 py-2 min-h-[80px]"
-            />
-            {translatedText && (
-              <div className="mt-2 flex gap-2">
-                <select
-                  value={selectedDeckId}
-                  onChange={(e) => handleDeckChange(e.target.value)}
-                  className="border rounded px-3 py-2 text-sm"
-                >
-                  {decks.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => handleAddCard('both')}
-                  className="bg-green-500 text-white px-4 py-2 rounded text-sm font-medium"
-                >
-                  Add Card
-                </button>
-              </div>
-            )}
+          <div className="mt-2 space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Add to deck</label>
+            <select
+              value={selectedDeckId}
+              onChange={(e) => handleDeckChange(e.target.value)}
+              className="w-full border rounded px-3 py-2 text-sm"
+            >
+              {decks.length === 0 && <option value="">No decks available</option>}
+              {decks.map((deck) => (
+                <option key={deck.id} value={deck.id}>{deck.name}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleAddCard('source-to-target')}
+                disabled={!selectedDeckId || !inputText.trim() || !translatedText.trim()}
+                className="flex-1 bg-green-500 text-white py-2 rounded text-sm font-medium hover:bg-green-600 disabled:opacity-50"
+              >
+                S &rarr; T
+              </button>
+              <button
+                onClick={() => handleAddCard('target-to-source')}
+                disabled={!selectedDeckId || !inputText.trim() || !translatedText.trim()}
+                className="flex-1 bg-green-500 text-white py-2 rounded text-sm font-medium hover:bg-green-600 disabled:opacity-50"
+              >
+                T &rarr; S
+              </button>
+              <button
+                onClick={() => handleAddCard('both')}
+                disabled={!selectedDeckId || !inputText.trim() || !translatedText.trim()}
+                className="flex-1 bg-green-600 text-white py-2 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+              >
+                Both
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Side Deck section */}
