@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getDeck } from '../../services/deck'
 import { getCardsByDeck } from '../../services/card'
-import { getDueCards, getNewCardBatch } from '../../services/review'
+import { getReviewQueueFullDay } from '../../services/review'
 import type { Deck, Card } from '../../types'
 import CardList from '../cards/CardList'
 import AddCardForm from '../cards/AddCardForm'
@@ -43,11 +43,9 @@ export default function DeckDetailPage() {
     const allCards = await getCardsByDeck(deckId)
     setCards(allCards)
 
-    const due = await getDueCards(deckId)
-    setDueCount(due.length)
-
-    const newBatch = await getNewCardBatch(d)
-    setNewCount(newBatch.length)
+    const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(d)
+    setDueCount(dueCards.length + upcomingCards.length)
+    setNewCount(newCards.length)
     setLoading(false)
   }
 

@@ -335,4 +335,33 @@ describe('ReviewSession', () => {
       expect(onComplete).toHaveBeenCalled()
     })
   })
+
+  it('reloads the queue when the deck prop changes', async () => {
+    const deckTwo: Deck = {
+      ...deck,
+      id: 'test-deck-2',
+      name: 'Second Deck',
+    }
+    await db.decks.put(deckTwo)
+
+    const firstDeckCard = makeCard({ frontText: 'deck one card', backText: 'uno' })
+    const secondDeckCard: Card = {
+      ...makeCard({ frontText: 'deck two card', backText: 'dos' }),
+      id: crypto.randomUUID(),
+      deckId: deckTwo.id,
+    }
+    await db.cards.bulkPut([firstDeckCard, secondDeckCard])
+
+    const { rerender } = render(<ReviewSession deck={deck} onComplete={vi.fn()} />)
+    await waitFor(() => {
+      expect(screen.getByText('deck one card')).toBeInTheDocument()
+    })
+
+    rerender(<ReviewSession deck={deckTwo} onComplete={vi.fn()} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('deck two card')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('deck one card')).not.toBeInTheDocument()
+  })
 })

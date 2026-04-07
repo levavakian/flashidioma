@@ -61,7 +61,6 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const deckRef = useRef(deck)
   deckRef.current = deck
-  const sessionInitRef = useRef(false)
 
   const currentCard = queue[currentIndex]
 
@@ -205,7 +204,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
     return () => window.removeEventListener('keydown', handler)
   })
 
-  // Load queue once on mount — uses ref to avoid re-running when deck prop changes
+  // Load the queue for the active deck.
   const loadQueue = useCallback(async () => {
     setLoading(true)
     const d = deckRef.current
@@ -220,12 +219,11 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
     setRevealed(false)
     setReviewed(0)
     setLoading(false)
-    sessionInitRef.current = true
   }, [])
 
   useEffect(() => {
-    if (!sessionInitRef.current) loadQueue()
-  }, [loadQueue])
+    void loadQueue()
+  }, [deck.id, loadQueue])
 
   const handleGrade = async (grade: number) => {
     if (!currentCard) return

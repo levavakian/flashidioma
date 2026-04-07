@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createDeck, getAllDecks, updateDeck, deleteDeck } from '../../services/deck'
+import { createDeck, getAllDecks, getDeck, updateDeck, deleteDeck } from '../../services/deck'
+import { getReviewQueueFullDay } from '../../services/review'
 import { db, dbReady } from '../../db'
 import type { Deck } from '../../types'
 
@@ -30,13 +31,16 @@ export default function DecksPage() {
       const now = new Date()
 
       const decksWithCounts = await Promise.all(
-        allDecks.map(async (deck) => {
+        allDecks.map(async (deckSummary) => {
+          const deck = (await getDeck(deckSummary.id)) ?? deckSummary
           const cards = await db.cards.where('deckId').equals(deck.id).toArray()
-          const dueCards = cards.filter(
-            (c) => c.fsrs.state !== 'new' && new Date(c.fsrs.dueDate) <= now
-          ).length
-          const newCards = cards.filter((c) => c.fsrs.state === 'new').length
-          return { ...deck, totalCards: cards.length, dueCards, newCards }
+          const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(deck, now)
+          return {
+            ...deck,
+            totalCards: cards.length,
+            dueCards: dueCards.length + upcomingCards.length,
+            newCards: newCards.length,
+          }
         })
       )
       setDecks(decksWithCounts)
