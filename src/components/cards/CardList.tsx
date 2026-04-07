@@ -52,6 +52,17 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
+  useEffect(() => {
+    if (totalPages === 0) {
+      if (page !== 0) setPage(0)
+      return
+    }
+
+    if (page >= totalPages) {
+      setPage(totalPages - 1)
+    }
+  }, [page, totalPages])
+
   /**
    * Find verbData for a card, checking:
    * 1. The card's own verbData

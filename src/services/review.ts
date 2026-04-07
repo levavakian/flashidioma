@@ -156,8 +156,14 @@ export async function reviewCard(
     await db.cards.put(updatedCard)
     await db.reviewHistory.put(reviewHistoryEntry)
 
-    // If the card was new and is now moving out of 'new' state, track it for daily limit
-    if (wasNew && newFsrsState.state !== 'new') {
+    // Imported cards count against the daily limit only when they are first introduced
+    // into review. Manual/practice cards were already counted when created, and
+    // auto-conjugation cards never count against the daily new-card limit.
+    if (
+      wasNew &&
+      newFsrsState.state !== 'new' &&
+      card.source === 'imported'
+    ) {
       await incrementDailyNewCardCount(card.deckId)
     }
   })

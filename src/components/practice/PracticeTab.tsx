@@ -155,7 +155,7 @@ export default function PracticeTab({ deck }: Props) {
       deckId: deck.id,
       frontText: sentence.sourceText,
       backText: sentence.targetText,
-      direction: 'source-to-target',
+      direction: sentence.direction,
       source: 'practice',
     })
     setAddedMessage(`Added card: "${sentence.sourceText}"`)

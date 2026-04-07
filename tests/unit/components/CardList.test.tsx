@@ -171,4 +171,35 @@ describe('CardList', () => {
     expect(stBadges.length).toBeGreaterThanOrEqual(2) // one in card row, one in example
     expect(screen.getByText('T\u2192S')).toBeInTheDocument()
   })
+
+  it('clamps pagination when the card list shrinks', async () => {
+    const user = userEvent.setup()
+    const cards = Array.from({ length: 51 }, (_, index) =>
+      makeCard({
+        id: `card-${index + 1}`,
+        frontText: `front ${index + 1}`,
+        backText: `back ${index + 1}`,
+        createdAt: new Date(2026, 0, index + 1).toISOString(),
+      })
+    )
+
+    const { rerender } = render(
+      <CardList cards={cards} deckId="test-deck" onUpdate={onUpdate} />
+    )
+
+    expect(screen.getByText('front 1')).toBeInTheDocument()
+    expect(screen.queryByText('front 51')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(screen.getByText('front 51')).toBeInTheDocument()
+    expect(screen.queryByText('front 1')).not.toBeInTheDocument()
+
+    rerender(<CardList cards={cards.slice(0, 50)} deckId="test-deck" onUpdate={onUpdate} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('front 1')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('front 51')).not.toBeInTheDocument()
+  })
 })

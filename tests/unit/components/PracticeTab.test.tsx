@@ -76,4 +76,49 @@ describe('PracticeTab', () => {
     expect(card.direction).toBe('source-to-target')
     expect(card.source).toBe('practice')
   })
+
+  it('preserves target-to-source direction when converting a practice sentence', async () => {
+    const user = userEvent.setup()
+
+    const sentence: PracticeSentence = {
+      id: 'sentence-2',
+      deckId: deck.id,
+      sourceText: 'I am very tired.',
+      targetText: 'Estoy muy cansado.',
+      selectedVerb: 'estar',
+      selectedAdjective: null,
+      selectedConstruct: 'present',
+      sourceCardIds: [],
+      direction: 'target-to-source',
+      createdAt: new Date().toISOString(),
+    }
+    await db.practiceSentences.put(sentence)
+
+    render(<PracticeTab deck={deck} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Estoy muy cansado.')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Show Answer'))
+
+    await waitFor(() => {
+      expect(screen.getByText('I am very tired.')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Add as Card'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Added card: "I am very tired."')).toBeInTheDocument()
+    })
+
+    const cards = await db.cards.toArray()
+    expect(cards).toHaveLength(1)
+
+    const card = cards[0]
+    expect(card.frontText).toBe('I am very tired.')
+    expect(card.backText).toBe('Estoy muy cansado.')
+    expect(card.direction).toBe('target-to-source')
+    expect(card.source).toBe('practice')
+  })
 })

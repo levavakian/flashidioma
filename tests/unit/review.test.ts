@@ -240,6 +240,59 @@ describe('New card batch introduction', () => {
     const afterReview = await getNewCards(deck.id)
     expect(afterReview).toHaveLength(0)
   })
+
+  it('counts a manually added card only once against the daily new-card total', async () => {
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'manual',
+      backText: 'manual',
+      direction: 'source-to-target',
+    })
+
+    let storedDeck = (await db.decks.get(deck.id))!
+    expect(storedDeck.newCardsIntroducedToday).toBe(1)
+
+    await reviewCard(card.id, 3)
+
+    storedDeck = (await db.decks.get(deck.id))!
+    expect(storedDeck.newCardsIntroducedToday).toBe(1)
+  })
+
+  it('counts imported cards when they are first reviewed out of new state', async () => {
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'imported',
+      backText: 'importado',
+      direction: 'source-to-target',
+      source: 'imported',
+    })
+
+    let storedDeck = (await db.decks.get(deck.id))!
+    expect(storedDeck.newCardsIntroducedToday).toBe(0)
+
+    await reviewCard(card.id, 3)
+
+    storedDeck = (await db.decks.get(deck.id))!
+    expect(storedDeck.newCardsIntroducedToday).toBe(1)
+  })
+
+  it('does not count auto-conjugation cards against the daily new-card total', async () => {
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'we eat',
+      backText: 'comemos',
+      direction: 'source-to-target',
+      source: 'auto-conjugation',
+    })
+
+    let storedDeck = (await db.decks.get(deck.id))!
+    expect(storedDeck.newCardsIntroducedToday).toBe(0)
+
+    await reviewCard(card.id, 3)
+
+    storedDeck = (await db.decks.get(deck.id))!
+    expect(storedDeck.newCardsIntroducedToday).toBe(0)
+  })
 })
 
 describe('24h review window', () => {
