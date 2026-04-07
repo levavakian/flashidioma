@@ -1,5 +1,5 @@
 import { db } from '../db'
-import { incrementDailyNewCardCount, createLearningFSRSCard } from './review'
+import { createLearningFSRSCard } from './review'
 import { lookupConjugation } from './conjugationLookup'
 import type { Card, CardDirection, CardExample, FSRSState } from '../types'
 
@@ -50,13 +50,6 @@ export async function createCard(input: CreateCardInput): Promise<Card> {
   }
 
   await db.cards.put(card)
-
-  // Manual and practice cards count against the daily new card limit
-  // Auto-conjugation cards do NOT count (they're either "learning" or will go
-  // through the normal new-card batching flow)
-  if (card.source === 'manual' || card.source === 'practice') {
-    await incrementDailyNewCardCount(card.deckId)
-  }
 
   return card
 }

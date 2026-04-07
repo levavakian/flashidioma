@@ -250,7 +250,7 @@ describe('New card batch introduction', () => {
     })
 
     let storedDeck = (await db.decks.get(deck.id))!
-    expect(storedDeck.newCardsIntroducedToday).toBe(1)
+    expect(storedDeck.newCardsIntroducedToday).toBe(0)
 
     await reviewCard(card.id, 3)
 
@@ -292,6 +292,38 @@ describe('New card batch introduction', () => {
 
     storedDeck = (await db.decks.get(deck.id))!
     expect(storedDeck.newCardsIntroducedToday).toBe(0)
+  })
+
+  it('still returns an unfinished new-card batch even when the daily counter is already full', async () => {
+    deck = await createDeck('Manual Cards')
+    deck = await db.decks.get(deck.id) as Deck
+    await db.decks.update(deck.id, {
+      newCardsPerDay: 2,
+      newCardBatchSize: 2,
+    })
+
+    const first = await createCard({
+      deckId: deck.id,
+      frontText: 'first',
+      backText: 'uno',
+      direction: 'source-to-target',
+    })
+    const second = await createCard({
+      deckId: deck.id,
+      frontText: 'second',
+      backText: 'dos',
+      direction: 'source-to-target',
+    })
+
+    await db.decks.update(deck.id, {
+      currentBatchCardIds: [first.id, second.id],
+    })
+
+    const storedDeck = (await db.decks.get(deck.id))!
+    expect(storedDeck.newCardsIntroducedToday).toBe(0)
+
+    const batch = await getNewCardBatch(storedDeck)
+    expect(batch.map((card) => card.frontText).sort()).toEqual(['first', 'second'])
   })
 })
 

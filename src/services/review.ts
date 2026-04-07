@@ -156,13 +156,12 @@ export async function reviewCard(
     await db.cards.put(updatedCard)
     await db.reviewHistory.put(reviewHistoryEntry)
 
-    // Imported cards count against the daily limit only when they are first introduced
-    // into review. Manual/practice cards were already counted when created, and
-    // auto-conjugation cards never count against the daily new-card limit.
+    // Manual, practice, and imported cards count against the daily limit when they
+    // are first introduced into review. Auto-conjugation cards never count.
     if (
       wasNew &&
       newFsrsState.state !== 'new' &&
-      card.source === 'imported'
+      card.source !== 'auto-conjugation'
     ) {
       await incrementDailyNewCardCount(card.deckId)
     }
@@ -202,9 +201,6 @@ function sortByFrequency(cards: Card[]): Card[] {
  * Manual/practice cards count against this daily limit.
  */
 export async function getNewCardBatch(deck: Deck, now: Date = new Date()): Promise<Card[]> {
-  const remaining = await getDailyNewCardRemaining(deck, now)
-  if (remaining <= 0) return []
-
   // Check if current batch is still pending
   if (deck.currentBatchCardIds.length > 0) {
     const batchCards = await Promise.all(
@@ -214,10 +210,13 @@ export async function getNewCardBatch(deck: Deck, now: Date = new Date()): Promi
     const stillNew = existingCards.filter((c) => c.fsrs.state === 'new')
 
     if (stillNew.length > 0) {
-      // Current batch still has unreviewed cards, return up to remaining limit
-      return sortByFrequency(stillNew).slice(0, remaining)
+      // Once a batch is introduced, keep showing it until the user finishes it.
+      return sortByFrequency(stillNew)
     }
   }
+
+  const remaining = await getDailyNewCardRemaining(deck, now)
+  if (remaining <= 0) return []
 
   // Current batch is complete (or empty), introduce next batch
   const newCards = sortByFrequency(await getNewCards(deck.id))

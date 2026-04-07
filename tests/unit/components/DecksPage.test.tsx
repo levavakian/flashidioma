@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import DecksPage from '../../../src/components/decks/DecksPage'
 import { db } from '../../../src/db'
+import { createDeck, updateDeck } from '../../../src/services/deck'
+import { createCard } from '../../../src/services/card'
 
 // Mock window.confirm
 vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -77,6 +79,62 @@ describe('DecksPage', () => {
     await waitFor(() => {
       expect(screen.getByText('1 cards')).toBeInTheDocument()
     })
+  })
+
+  it('shows reviewable counts that match the actual review queue', async () => {
+    const deck = await createDeck('Queue Counts')
+    await updateDeck(deck.id, { newCardsPerDay: 1, newCardBatchSize: 1 })
+
+    await createCard({
+      deckId: deck.id,
+      frontText: 'new hidden',
+      backText: 'nuevo oculto',
+      direction: 'source-to-target',
+      source: 'imported',
+    })
+
+    await createCard({
+      deckId: deck.id,
+      frontText: 'new visible',
+      backText: 'nuevo visible',
+      direction: 'source-to-target',
+      source: 'imported',
+    })
+
+    await db.cards.put({
+      id: 'upcoming-review-card',
+      deckId: deck.id,
+      frontText: 'later today',
+      backText: 'mas tarde',
+      direction: 'source-to-target',
+      tags: [],
+      notes: '',
+      fsrs: {
+        stability: 5,
+        difficulty: 5,
+        dueDate: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        lastReview: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        reviewCount: 1,
+        lapses: 0,
+        state: 'review',
+        elapsedDays: 1,
+        scheduledDays: 1,
+        reps: 1,
+        learningSteps: 0,
+      },
+      createdAt: new Date().toISOString(),
+      source: 'manual',
+    })
+
+    renderDecksPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Queue Counts')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('1 due')).toBeInTheDocument()
+    expect(screen.getByText('1 new')).toBeInTheDocument()
+    expect(screen.queryByText('2 new')).not.toBeInTheDocument()
   })
 
   it('renames a deck', async () => {
