@@ -297,9 +297,13 @@ describe('New card batch introduction', () => {
   it('still returns an unfinished new-card batch even when the daily counter is already full', async () => {
     deck = await createDeck('Manual Cards')
     deck = await db.decks.get(deck.id) as Deck
+    const today = new Date().toISOString().split('T')[0]
     await db.decks.update(deck.id, {
       newCardsPerDay: 2,
       newCardBatchSize: 2,
+      // Set the counter to the daily limit to simulate a full day
+      newCardsIntroducedToday: 2,
+      lastNewCardDate: today,
     })
 
     const first = await createCard({
@@ -320,10 +324,46 @@ describe('New card batch introduction', () => {
     })
 
     const storedDeck = (await db.decks.get(deck.id))!
-    expect(storedDeck.newCardsIntroducedToday).toBe(0)
+    expect(storedDeck.newCardsIntroducedToday).toBe(2)
 
+    // Even though the daily limit is reached, the current in-progress batch must still be returned
     const batch = await getNewCardBatch(storedDeck)
     expect(batch.map((card) => card.frontText).sort()).toEqual(['first', 'second'])
+  })
+
+  it('respects the daily new-card limit even when called with a stale deck object', async () => {
+    // Regression test: getNewCardBatch must always read fresh counters from the DB,
+    // not rely on the (potentially stale) deck object passed in.
+    deck = await createDeck('Stale Deck Test')
+    const today = new Date().toISOString().split('T')[0]
+    await db.decks.update(deck.id, {
+      newCardsPerDay: 3,
+      newCardBatchSize: 3,
+    })
+
+    // Capture the stale deck object (newCardsIntroducedToday = 0)
+    const staleDeck = (await db.decks.get(deck.id))!
+    expect(staleDeck.newCardsIntroducedToday).toBe(0)
+
+    // Create 6 new cards
+    for (let i = 0; i < 6; i++) {
+      await createCard({
+        deckId: deck.id,
+        frontText: `word${i}`,
+        backText: `palabra${i}`,
+        direction: 'source-to-target',
+      })
+    }
+
+    // Simulate that 3 cards have already been introduced today (written to DB but not in staleDeck)
+    await db.decks.update(deck.id, {
+      newCardsIntroducedToday: 3,
+      lastNewCardDate: today,
+    })
+
+    // When called with the stale deck, getNewCardBatch must read the DB and return 0 new cards
+    const batch = await getNewCardBatch(staleDeck)
+    expect(batch).toHaveLength(0)
   })
 })
 

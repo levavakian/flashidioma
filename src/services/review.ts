@@ -86,13 +86,16 @@ function todayString(now: Date = new Date()): string {
 }
 
 /** Get remaining daily new card slots for a deck, resetting if day changed */
-async function getDailyNewCardRemaining(deck: Deck, now: Date = new Date()): Promise<number> {
+async function getDailyNewCardRemaining(deckId: string, now: Date = new Date()): Promise<number> {
+  const deck = await db.decks.get(deckId)
+  if (!deck) return 0
+
   const today = todayString(now)
   const perDay = deck.newCardsPerDay ?? 20
 
   if (deck.lastNewCardDate !== today) {
     // New day: reset counter
-    await db.decks.update(deck.id, {
+    await db.decks.update(deckId, {
       newCardsIntroducedToday: 0,
       lastNewCardDate: today,
     })
@@ -199,12 +202,17 @@ function sortByFrequency(cards: Card[]): Card[] {
  * Get the next batch of new cards to introduce (Anki-like daily limit).
  * Uses newCardsPerDay to cap how many new cards are shown per day.
  * Manual/practice cards count against this daily limit.
+ * Always reads fresh deck state from the DB so counters are accurate.
  */
 export async function getNewCardBatch(deck: Deck, now: Date = new Date()): Promise<Card[]> {
+  // Re-read the deck from DB to get the latest counters and batch IDs.
+  const freshDeck = await db.decks.get(deck.id)
+  if (!freshDeck) return []
+
   // Check if current batch is still pending
-  if (deck.currentBatchCardIds.length > 0) {
+  if (freshDeck.currentBatchCardIds.length > 0) {
     const batchCards = await Promise.all(
-      deck.currentBatchCardIds.map((id) => db.cards.get(id))
+      freshDeck.currentBatchCardIds.map((id) => db.cards.get(id))
     )
     const existingCards = batchCards.filter((c): c is Card => c !== undefined)
     const stillNew = existingCards.filter((c) => c.fsrs.state === 'new')
@@ -215,14 +223,14 @@ export async function getNewCardBatch(deck: Deck, now: Date = new Date()): Promi
     }
   }
 
-  const remaining = await getDailyNewCardRemaining(deck, now)
+  const remaining = await getDailyNewCardRemaining(deck.id, now)
   if (remaining <= 0) return []
 
   // Current batch is complete (or empty), introduce next batch
   const newCards = sortByFrequency(await getNewCards(deck.id))
   if (newCards.length === 0) return []
 
-  const batchSize = Math.min(remaining, deck.newCardBatchSize ?? 5)
+  const batchSize = Math.min(remaining, freshDeck.newCardBatchSize ?? 5)
   const batch = newCards.slice(0, batchSize)
   const batchIds = batch.map((c) => c.id)
 
