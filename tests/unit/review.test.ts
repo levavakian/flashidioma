@@ -10,6 +10,8 @@ import {
   getDueCardsWithin24h,
   getNextDueWithin24h,
   getDayBoundary,
+  getSchedulingPreview,
+  getReviewQueueFullDay,
 } from '../../src/services/review'
 import type { Deck } from '../../src/types'
 
@@ -410,6 +412,116 @@ describe('24h review window', () => {
 
     const nextDue = await getNextDueWithin24h(deck.id, now)
     expect(nextDue).toBeNull()
+  })
+})
+
+describe('getSchedulingPreview vs reviewCard', () => {
+  it('getSchedulingPreview matches reviewCard stored dueDate for each grade', async () => {
+    const now = new Date('2026-04-08T14:00:00.000Z')
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'preview',
+      backText: 'vista',
+      direction: 'source-to-target',
+    })
+    for (const grade of [1, 2, 3, 4] as const) {
+      const fresh = await db.cards.get(card.id)
+      expect(fresh).toBeDefined()
+      const preview = getSchedulingPreview(fresh!, now)[grade].getTime()
+      const after = await reviewCard(card.id, grade, now)
+      const stored = new Date(after.fsrs.dueDate).getTime()
+      expect(stored).toBe(preview)
+      // reset card to new for next iteration
+      await db.cards.update(card.id, {
+        fsrs: {
+          stability: 0,
+          difficulty: 0,
+          dueDate: now.toISOString(),
+          lastReview: null,
+          reviewCount: 0,
+          lapses: 0,
+          state: 'new',
+          elapsedDays: 0,
+          scheduledDays: 0,
+          reps: 0,
+          learningSteps: 0,
+        },
+      })
+    }
+  })
+
+  it('mature card: preview Easy matches persisted Easy dueDate', async () => {
+    const now = new Date('2026-04-08T14:00:00.000Z')
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'mature',
+      backText: 'maduro',
+      direction: 'source-to-target',
+    })
+    await reviewCard(card.id, 4, now)
+    await reviewCard(card.id, 4, new Date(now.getTime() + 86400000))
+    const mature = await db.cards.get(card.id)
+    expect(mature).toBeDefined()
+    const previewEasy = getSchedulingPreview(mature!, now, deck.requestRetention ?? 0.9)[4].getTime()
+    const afterEasy = await reviewCard(card.id, 4, now, deck.requestRetention ?? 0.9)
+    expect(new Date(afterEasy.fsrs.dueDate).getTime()).toBe(previewEasy)
+  })
+
+  it('getReviewQueueFullDay includes upcoming before day boundary (not 21d-out cards)', async () => {
+    const now = new Date('2026-04-08T14:00:00.000Z')
+    await db.decks.update(deck.id, { dayStartHour: 9 })
+    const boundary = getDayBoundary(now, 9)
+    const dueSoon = await createCard({
+      deckId: deck.id,
+      frontText: 'soon',
+      backText: 'pronto',
+      direction: 'source-to-target',
+    })
+    // Halfway between now and end-of-review-day — always upcoming for this deck.dayStartHour in any TZ
+    const dueBetween = new Date(now.getTime() + (boundary.getTime() - now.getTime()) / 2)
+    expect(dueBetween > now && dueBetween <= boundary).toBe(true)
+    await db.cards.update(dueSoon.id, {
+      fsrs: {
+        stability: 5,
+        difficulty: 5,
+        dueDate: dueBetween.toISOString(),
+        lastReview: new Date(now.getTime() - 86400000).toISOString(),
+        reviewCount: 2,
+        lapses: 0,
+        state: 'review',
+        elapsedDays: 1,
+        scheduledDays: 1,
+        reps: 2,
+        learningSteps: 0,
+      },
+    })
+
+    const { upcomingCards } = await getReviewQueueFullDay(deck, now)
+    expect(upcomingCards.some(c => c.id === dueSoon.id)).toBe(true)
+
+    const far = await createCard({
+      deckId: deck.id,
+      frontText: 'far',
+      backText: 'lejos',
+      direction: 'source-to-target',
+    })
+    await db.cards.update(far.id, {
+      fsrs: {
+        stability: 20,
+        difficulty: 5,
+        dueDate: new Date(now.getTime() + 21 * 86400000).toISOString(),
+        lastReview: now.toISOString(),
+        reviewCount: 5,
+        lapses: 0,
+        state: 'review',
+        elapsedDays: 21,
+        scheduledDays: 21,
+        reps: 5,
+        learningSteps: 0,
+      },
+    })
+    const q2 = await getReviewQueueFullDay(deck, now)
+    expect(q2.upcomingCards.some(c => c.id === far.id)).toBe(false)
   })
 })
 
