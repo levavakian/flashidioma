@@ -496,6 +496,16 @@ Add a button that simulates a day passing, making tomorrow's due cards available
   - [ ] Unit: skip forward shifts all card due dates back by 24 hours
   - [ ] Unit: skip forward resets daily counters
 
+#### 14e: Align Review Queue Timing With Displayed Intervals
+The review UI currently shows FSRS-based intervals on the Again/Hard/Good/Easy buttons, but the session queue also includes cards that are not due yet if they fall before the deck's "day starts at" boundary. This can make the review flow feel earlier than the exact interval shown on the grading buttons.
+- [ ] Decide product behavior: only show strictly due cards in-session, or explicitly separate "due now" from "later today"
+- [ ] If keeping the full-day queue, update review counts and UI copy so upcoming cards are not presented as already due
+- [ ] Ensure cards graded during a session are only requeued immediately when that matches the intended product behavior
+- **Tests:**
+  - [ ] Unit: scheduling preview matches the persisted due date for each grade
+  - [ ] Unit: full-day queue distinguishes due-now cards from upcoming-before-boundary cards
+  - [ ] Component: review UI does not imply that upcoming cards are already due
+
 ### Known Issues
 <!-- Track bugs and issues here as they arise during development -->
 | # | Description | Status |
@@ -506,3 +516,4 @@ Add a button that simulates a day passing, making tomorrow's due cards available
 | 4 | Card list pagination could get stuck on an empty page after the list shrank | Fixed |
 | 5 | Review queue could stay on the previous deck after switching deck routes while the Review tab stayed mounted | Fixed |
 | 6 | Manual cards were double-counted against the daily new-card limit, and auto-conjugation cards were counted when first reviewed | Fixed |
+| 7 | Review sessions can surface cards due later in the current review-day window, which can make them appear earlier than the Again/Hard/Good/Easy interval labels imply | Fix planned (14e) |
