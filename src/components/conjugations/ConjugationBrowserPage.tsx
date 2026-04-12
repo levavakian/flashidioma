@@ -58,11 +58,19 @@ export default function ConjugationBrowserPage() {
   const filtered = useMemo(() => {
     if (!search) return verbs
     const q = normalizeForSearch(search)
-    return verbs.filter(
+    const matches = verbs.filter(
       (v) =>
         normalizeForSearch(v.infinitive).includes(q) ||
         v.translation.toLowerCase().includes(q)
     )
+    // Score: 0 = exact infinitive match, 1 = starts with query, 2 = contains elsewhere
+    const score = (v: VerbEntry): number => {
+      const inf = normalizeForSearch(v.infinitive)
+      if (inf === q) return 0
+      if (inf.startsWith(q)) return 1
+      return 2
+    }
+    return matches.sort((a, b) => score(a) - score(b))
   }, [verbs, search])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
