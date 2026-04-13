@@ -44,7 +44,7 @@ describe('Preprocessing script output', () => {
       expect(conjugationData.generatedAt).toBeTruthy()
       expect(conjugationData.verbCount).toBeGreaterThan(2000)
       expect(Array.isArray(conjugationData.tenses)).toBe(true)
-      expect(conjugationData.tenses).toHaveLength(17)
+      expect(conjugationData.tenses).toHaveLength(18)
       expect(typeof conjugationData.verbs).toBe('object')
     })
 
@@ -62,6 +62,10 @@ describe('Preprocessing script output', () => {
       expect(tenseIds).toContain('pluperfect')
       expect(tenseIds).toContain('future-perfect')
       expect(tenseIds).toContain('conditional-perfect')
+      expect(tenseIds).toContain('present-progressive')
+      expect(tenseIds).toContain('preterite-progressive')
+      expect(tenseIds).toContain('imperfect-progressive')
+      expect(tenseIds).toContain('future-progressive')
     })
 
     it('tense metadata includes persons', () => {
@@ -131,6 +135,18 @@ describe('Preprocessing script output', () => {
       expect(hablar[8][0]).toBe('he hablado')
       // Pluperfect (index 9)
       expect(hablar[9][0]).toBe('había hablado')
+    })
+
+    it('hablar has preterite progressive forms', () => {
+      const hablar = conjugationData.verbs['hablar' as keyof typeof conjugationData.verbs] as string[][]
+      expect(hablar[13]).toEqual([
+        'estuve hablando',
+        'estuviste hablando',
+        'estuvo hablando',
+        'estuvimos hablando',
+        'estuvisteis hablando',
+        'estuvieron hablando',
+      ])
     })
   })
 })

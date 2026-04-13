@@ -96,6 +96,25 @@ export async function callLLM(messages: LLMMessage[]): Promise<LLMResponse> {
   }
 }
 
+const CONJUGATION_TENSE_IDS = [
+  'present',
+  'preterite',
+  'imperfect',
+  'future',
+  'conditional',
+  'present-subjunctive',
+  'imperfect-subjunctive',
+  'imperative',
+  'present-perfect',
+  'pluperfect',
+  'future-perfect',
+  'conditional-perfect',
+  'present-progressive',
+  'preterite-progressive',
+  'imperfect-progressive',
+  'future-progressive',
+]
+
 const CONJUGATION_PROMPT = `You are a Spanish language expert. Given a Spanish word, determine if it is a verb. If it is NOT a verb, respond with ONLY this JSON:
 {"error": "not_a_verb", "message": "The word 'X' is not a Spanish verb."}
 
@@ -121,9 +140,10 @@ Return ONLY valid JSON with this structure (no markdown, no explanation):
   ]
 }
 
-Include these tenses: present, preterite, imperfect, future, conditional, present-subjunctive, imperfect-subjunctive, imperative, present-perfect, pluperfect, future-perfect, conditional-perfect.
+Include these tenses: ${CONJUGATION_TENSE_IDS.join(', ')}.
 
 For compound tenses, show the full form (e.g. "he comido", "había comido").
+For progressive tenses, show the full form with estar + gerund (e.g. "estuve hablando").
 For imperative, only include tú, usted, nosotros, vosotros, ustedes.`
 
 /**

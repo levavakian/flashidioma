@@ -54,7 +54,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB for Spanish deck data
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // Conjugation data exceeds 5MB with progressive tense coverage
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/translate\.google\./,

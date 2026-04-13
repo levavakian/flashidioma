@@ -109,6 +109,7 @@ test.describe('E2E: Construct Review', () => {
 
     // Verify construct checkboxes are visible — use exact match for "Present"
     await expect(page.getByText('Present', { exact: true })).toBeVisible()
+    await expect(page.getByText('Preterite Progressive', { exact: true })).toBeVisible()
 
     // At least one construct should be checkable
     const checkboxes = page.locator('input[type="checkbox"]')

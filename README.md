@@ -79,7 +79,7 @@ Uses the [Free Spaced Repetition Scheduler (FSRS)](https://github.com/open-space
 Cards for verbs have an expandable extra info section:
 
 - **Primary conjugations:** all standard tenses (present, preterite, imperfect, future, conditional, present subjunctive, imperfect subjunctive, imperative), each showing all persons (yo, tú, él/ella, nosotros, vosotros, ellos/ellas)
-- **Compound/secondary tenses:** e.g. present perfect (he facilitado), pluperfect (había facilitado), future perfect (habré facilitado), conditional perfect (habría facilitado), etc.
+- **Compound/secondary tenses:** e.g. present perfect (he facilitado), pluperfect (había facilitado), future perfect (habré facilitado), conditional perfect (habría facilitado), plus progressive forms such as present progressive (estoy facilitando), preterite progressive (estuve facilitando), imperfect progressive (estaba facilitando), and future progressive (estaré facilitando)
 - Each conjugation form has a **mini translation** (e.g. "I facilitate", "you facilitated")
 - Each tense section has a **description of when it is used** (e.g. preterite: "completed past actions with a definite endpoint"; imperfect: "ongoing, habitual, or background past actions")
 - The conjugation section is **collapsed by default** with expandable subsections per tense
@@ -506,3 +506,4 @@ Add a button that simulates a day passing, making tomorrow's due cards available
 | 4 | Card list pagination could get stuck on an empty page after the list shrank | Fixed |
 | 5 | Review queue could stay on the previous deck after switching deck routes while the Review tab stayed mounted | Fixed |
 | 6 | Manual cards were double-counted against the daily new-card limit, and auto-conjugation cards were counted when first reviewed | Fixed |
+| 7 | Spanish constructs omitted preterite progressive (`estuve + gerundio`) from the checklist and conjugation hydration schema | Fixed |

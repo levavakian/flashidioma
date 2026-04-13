@@ -85,10 +85,22 @@ const spanishConstructs: ConstructDefinition[] = [
     description: 'Actions happening right now (estoy hablando)',
   },
   {
+    id: 'preterite-progressive',
+    name: 'Preterite Progressive',
+    category: 'tense',
+    description: 'Actions that were underway during a bounded stretch of the past (estuve hablando)',
+  },
+  {
     id: 'imperfect-progressive',
     name: 'Imperfect Progressive',
     category: 'tense',
     description: 'Ongoing past actions in progress (estaba hablando)',
+  },
+  {
+    id: 'future-progressive',
+    name: 'Future Progressive',
+    category: 'tense',
+    description: 'Actions that will be in progress (estaré hablando)',
   },
   // Modal verb constructs
   {
@@ -102,12 +114,6 @@ const spanishConstructs: ConstructDefinition[] = [
     name: 'Deber + Infinitive',
     category: 'tense',
     description: 'Obligation or probability (debo hablar)',
-  },
-  {
-    id: 'future-progressive',
-    name: 'Future Progressive',
-    category: 'tense',
-    description: 'Actions that will be in progress (estaré hablando)',
   },
 ]
 

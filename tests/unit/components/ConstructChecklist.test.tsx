@@ -29,6 +29,12 @@ beforeEach(async () => {
       pluperfect: false,
       'future-perfect': false,
       'conditional-perfect': false,
+      'present-progressive': false,
+      'preterite-progressive': false,
+      'imperfect-progressive': false,
+      'future-progressive': false,
+      'poder-present': false,
+      'deber-present': false,
     },
     newCardBatchSize: 5,
     currentBatchCardIds: [],
@@ -82,5 +88,16 @@ describe('ConstructChecklist', () => {
     // Verify the DB was updated — Present should now be false
     const updatedDeck = await db.decks.get('test-deck')
     expect(updatedDeck!.constructChecklist.present).toBe(false)
+  })
+
+  it('renders the preterite progressive construct', () => {
+    const onUpdate = vi.fn()
+    render(<ConstructChecklist deck={deck} onUpdate={onUpdate} />)
+
+    expect(
+      screen.getByRole('checkbox', {
+        name: /^Preterite Progressive\s*-\s*Actions that were underway during a bounded stretch of the past/,
+      })
+    ).not.toBeChecked()
   })
 })
