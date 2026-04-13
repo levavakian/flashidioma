@@ -61,9 +61,9 @@ describe('Static conjugation DB lookup', () => {
     ])
   })
 
-  it('returns all 17 tenses for a verb', async () => {
+  it('returns all 18 tenses for a verb', async () => {
     const result = await lookupConjugation('hablar')
-    expect(result!.tenses).toHaveLength(17)
+    expect(result!.tenses).toHaveLength(18)
 
     const tenseIds = result!.tenses.map((t) => t.tenseId)
     expect(tenseIds).toContain('present')
@@ -79,6 +79,7 @@ describe('Static conjugation DB lookup', () => {
     expect(tenseIds).toContain('future-perfect')
     expect(tenseIds).toContain('conditional-perfect')
     expect(tenseIds).toContain('present-progressive')
+    expect(tenseIds).toContain('preterite-progressive')
     expect(tenseIds).toContain('imperfect-progressive')
     expect(tenseIds).toContain('future-progressive')
     expect(tenseIds).toContain('poder-present')
@@ -90,5 +91,19 @@ describe('Static conjugation DB lookup', () => {
     const pp = result!.tenses.find((t) => t.tenseId === 'present-perfect')!
     expect(pp.conjugations[0].form).toBe('he hablado')
     expect(pp.conjugations[5].form).toBe('han hablado')
+  })
+
+  it('includes preterite progressive forms in static data', async () => {
+    const result = await lookupConjugation('hablar')
+    const preteriteProgressive = result!.tenses.find((t) => t.tenseId === 'preterite-progressive')!
+
+    expect(preteriteProgressive.conjugations.map((c) => c.form)).toEqual([
+      'estuve hablando',
+      'estuviste hablando',
+      'estuvo hablando',
+      'estuvimos hablando',
+      'estuvisteis hablando',
+      'estuvieron hablando',
+    ])
   })
 })

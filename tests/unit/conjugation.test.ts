@@ -157,17 +157,17 @@ describe('Spanish conjugation engine', () => {
   })
 
   describe('tense metadata', () => {
-    it('includes all 17 tenses', () => {
+    it('includes all 18 tenses', () => {
       const result = conjugateVerb('hablar')!
-      expect(result.tenses).toHaveLength(17)
+      expect(result.tenses).toHaveLength(18)
 
       const tenseIds = result.tenses.map((t) => t.tenseId)
       expect(tenseIds).toEqual([
         'present', 'preterite', 'imperfect', 'future', 'conditional',
         'present-subjunctive', 'imperfect-subjunctive', 'imperative',
         'present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect',
-        'present-progressive', 'imperfect-progressive', 'poder-present', 'deber-present',
-        'future-progressive',
+        'present-progressive', 'preterite-progressive', 'imperfect-progressive', 'future-progressive',
+        'poder-present', 'deber-present',
       ])
     })
 
@@ -184,6 +184,20 @@ describe('Spanish conjugation engine', () => {
       expect(imperative.conjugations).toHaveLength(5)
       expect(imperative.conjugations.map((c) => c.person)).toEqual([
         'tú', 'usted', 'nosotros/as', 'vosotros/as', 'ustedes',
+      ])
+    })
+
+    it('includes preterite progressive forms', () => {
+      const result = conjugateVerb('hablar')!
+      const preteriteProgressive = result.tenses.find((t) => t.tenseId === 'preterite-progressive')!
+
+      expect(preteriteProgressive.conjugations.map((c) => c.form)).toEqual([
+        'estuve hablando',
+        'estuviste hablando',
+        'estuvo hablando',
+        'estuvimos hablando',
+        'estuvisteis hablando',
+        'estuvieron hablando',
       ])
     })
   })

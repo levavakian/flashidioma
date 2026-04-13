@@ -88,9 +88,17 @@ const TENSE_DESCRIPTIONS: Record<string, { name: string; description: string }> 
     name: 'Present Progressive',
     description: 'Actions happening right now (estoy hablando)',
   },
+  'preterite-progressive': {
+    name: 'Preterite Progressive',
+    description: 'Actions that were underway during a bounded stretch of the past (estuve hablando)',
+  },
   'imperfect-progressive': {
     name: 'Imperfect Progressive',
     description: 'Ongoing past actions in progress (estaba hablando)',
+  },
+  'future-progressive': {
+    name: 'Future Progressive',
+    description: 'Actions that will be in progress (estaré hablando)',
   },
   'poder-present': {
     name: 'Poder + Infinitive',
@@ -99,10 +107,6 @@ const TENSE_DESCRIPTIONS: Record<string, { name: string; description: string }> 
   'deber-present': {
     name: 'Deber + Infinitive',
     description: 'Obligation or probability (debo hablar)',
-  },
-  'future-progressive': {
-    name: 'Future Progressive',
-    description: 'Actions that will be in progress (estaré hablando)',
   },
 }
 
@@ -167,6 +171,7 @@ const HABER = {
 // Auxiliary forms of "estar" for progressive tenses
 const ESTAR = {
   present: ['estoy', 'estás', 'está', 'estamos', 'estáis', 'están'],
+  preterite: ['estuve', 'estuviste', 'estuvo', 'estuvimos', 'estuvisteis', 'estuvieron'],
   imperfect: ['estaba', 'estabas', 'estaba', 'estábamos', 'estabais', 'estaban'],
   future: ['estaré', 'estarás', 'estará', 'estaremos', 'estaréis', 'estarán'],
 }
@@ -420,10 +425,11 @@ function conjugateWithLibrary(infinitive: string): ConjugationTable | null {
         normalizeLibraryForms(conjugation.Indicativo.CondicionalCompuesto)
       ),
       makeTense('present-progressive', makeSyntheticForms(ESTAR.present, gerund, infinitive)),
+      makeTense('preterite-progressive', makeSyntheticForms(ESTAR.preterite, gerund, infinitive)),
       makeTense('imperfect-progressive', makeSyntheticForms(ESTAR.imperfect, gerund, infinitive)),
+      makeTense('future-progressive', makeSyntheticForms(ESTAR.future, gerund, infinitive)),
       makeTense('poder-present', makeSyntheticForms(PODER_PRESENT, baseInfinitive, infinitive)),
       makeTense('deber-present', makeSyntheticForms(DEBER_PRESENT, baseInfinitive, infinitive)),
-      makeTense('future-progressive', makeSyntheticForms(ESTAR.future, gerund, infinitive)),
     ],
   }
 }
@@ -459,10 +465,11 @@ function conjugateRegular(infinitive: string): ConjugationTable {
       makeCompoundTense('future-perfect', HABER.future, participle),
       makeCompoundTense('conditional-perfect', HABER.conditional, participle),
       makeTense('present-progressive', ESTAR.present.map(e => `${e} ${gerund}`)),
+      makeTense('preterite-progressive', ESTAR.preterite.map(e => `${e} ${gerund}`)),
       makeTense('imperfect-progressive', ESTAR.imperfect.map(e => `${e} ${gerund}`)),
+      makeTense('future-progressive', ESTAR.future.map(e => `${e} ${gerund}`)),
       makeTense('poder-present', PODER_PRESENT.map(p => `${p} ${infinitive}`)),
       makeTense('deber-present', DEBER_PRESENT.map(d => `${d} ${infinitive}`)),
-      makeTense('future-progressive', ESTAR.future.map(e => `${e} ${gerund}`)),
     ],
   }
 }

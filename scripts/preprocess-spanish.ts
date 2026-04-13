@@ -15,7 +15,7 @@
 import { execSync } from 'child_process'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { conjugateVerb, type ConjugationTable } from './spanish-conjugator'
+import { conjugateVerb } from './spanish-conjugator'
 
 const REPO = 'https://github.com/doozan/spanish_data.git'
 const TAG = '2026-02-01'
@@ -294,6 +294,7 @@ function parseJehleCSV(): Map<string, JehleVerbData> {
 
 // Auxiliary forms for progressive/modal tenses (used for Jehle verbs)
 const AUX_ESTAR_PRESENT = ['estoy', 'estás', 'está', 'estamos', 'estáis', 'están']
+const AUX_ESTAR_PRETERITE = ['estuve', 'estuviste', 'estuvo', 'estuvimos', 'estuvisteis', 'estuvieron']
 const AUX_ESTAR_IMPERFECT = ['estaba', 'estabas', 'estaba', 'estábamos', 'estabais', 'estaban']
 const AUX_ESTAR_FUTURE = ['estaré', 'estarás', 'estará', 'estaremos', 'estaréis', 'estarán']
 const AUX_PODER_PRESENT = ['puedo', 'puedes', 'puede', 'podemos', 'podéis', 'pueden']
@@ -304,8 +305,8 @@ const TENSE_ORDER = [
   'present', 'preterite', 'imperfect', 'future', 'conditional',
   'present-subjunctive', 'imperfect-subjunctive', 'imperative',
   'present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect',
-  'present-progressive', 'imperfect-progressive',
-  'poder-present', 'deber-present', 'future-progressive',
+  'present-progressive', 'preterite-progressive', 'imperfect-progressive', 'future-progressive',
+  'poder-present', 'deber-present',
 ]
 
 function buildJehleConjugation(jehle: JehleVerbData): string[][] {
@@ -323,6 +324,9 @@ function buildJehleConjugation(jehle: JehleVerbData): string[][] {
       switch (tenseId) {
         case 'present-progressive':
           tenses.push(AUX_ESTAR_PRESENT.map(e => `${e} ${gerund}`))
+          break
+        case 'preterite-progressive':
+          tenses.push(AUX_ESTAR_PRETERITE.map(e => `${e} ${gerund}`))
           break
         case 'imperfect-progressive':
           tenses.push(AUX_ESTAR_IMPERFECT.map(e => `${e} ${gerund}`))

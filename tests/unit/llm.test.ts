@@ -244,6 +244,45 @@ describe('hydrateConjugation', () => {
     expect(result.tenses[0].conjugations[0].form).toBe('xyzverbo')
   })
 
+  it('requests progressive tenses when hydrating via the OpenAI path', async () => {
+    await updateSettings({
+      llmProvider: 'openai',
+      llmApiKey: 'test-openai-key',
+      llmModel: 'gpt-4o',
+    })
+
+    let requestBody: Record<string, unknown> | null = null
+
+    server.use(
+      http.post('https://api.openai.com/v1/chat/completions', async ({ request }) => {
+        requestBody = await request.json() as Record<string, unknown>
+        return HttpResponse.json({
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: JSON.stringify({
+                  infinitive: 'xyzverbar',
+                  tenses: [],
+                }),
+              },
+            },
+          ],
+        })
+      })
+    )
+
+    await hydrateConjugation('xyzverbar')
+
+    const messages = requestBody?.messages as Array<{ role: string; content: string }>
+    const systemMessage = messages.find((message) => message.role === 'system')?.content
+
+    expect(systemMessage).toContain('present-progressive')
+    expect(systemMessage).toContain('preterite-progressive')
+    expect(systemMessage).toContain('imperfect-progressive')
+    expect(systemMessage).toContain('future-progressive')
+  })
+
   it('strips markdown code fences from LLM response', async () => {
     const conjugationData = {
       infinitive: 'xyzverbar',
