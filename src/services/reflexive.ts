@@ -59,39 +59,67 @@ function isStrongVowel(ch: string): boolean {
 }
 
 /**
- * Find the index of the last vowel of the syllable at the given position from
- * the end (0 = last syllable, 1 = penultimate, etc.). Treats vowel groups
- * (diphthongs) as a single nucleus.
+ * Walk the vowels in a word and return one nucleus (vowel index) per
+ * syllable, ordered from the end of the word back to the start.
  *
- * Returns the index of the vowel that takes the written accent: the strong
- * vowel of the diphthong, or the last vowel if all are weak.
+ * Spanish syllabification of vowel groups:
+ *   - Two strong vowels (a/e/o) form a hiatus and are split into separate
+ *     syllables (e.g. "ca-er", "le-er", "ve-o").
+ *   - A strong + weak (or weak + weak) vowel pair is a diphthong (one
+ *     syllable), unless the weak vowel carries a written accent (e.g.
+ *     "ra-íz", "pa-ís" — those are treated as accent-on-weak hiatuses).
+ *
+ * The returned index for each syllable is the vowel that would carry a
+ * written accent: the strong vowel of a diphthong, or the only vowel of a
+ * mono-vowel nucleus.
  */
-function findStressedVowelIndex(word: string, syllablesFromEnd: number): number {
+function getSyllableNucleiFromEnd(word: string): number[] {
   const lower = word.toLowerCase()
-  let syllablesSeen = -1
-  let i = lower.length - 1
-  let groupEnd = -1
-  let groupStart = -1
+  // Walk left-to-right, splitting vowel runs into syllable nuclei.
+  const nuclei: number[] = []
+  let i = 0
+  while (i < lower.length) {
+    if (!isVowel(lower[i])) { i++; continue }
+    // Collect a maximal run of vowels.
+    let j = i
+    while (j < lower.length && isVowel(lower[j])) j++
+    const groupStart = i
+    const groupEnd = j - 1
 
-  while (i >= 0) {
-    if (isVowel(lower[i])) {
-      groupEnd = i
-      while (i >= 0 && isVowel(lower[i])) i--
-      groupStart = i + 1
-      syllablesSeen++
-      if (syllablesSeen === syllablesFromEnd) {
-        // Within [groupStart, groupEnd], pick the strong vowel; fall back to
-        // the last vowel of the group.
-        for (let j = groupStart; j <= groupEnd; j++) {
-          if (isStrongVowel(lower[j])) return j
-        }
-        return groupEnd
+    // Split the group into syllable nuclei using hiatus/diphthong rules.
+    let nucleusStart = groupStart
+    for (let k = groupStart; k < groupEnd; k++) {
+      const a = lower[k]
+      const b = lower[k + 1]
+      const aStrong = isStrongVowel(a)
+      const bStrong = isStrongVowel(b)
+      const accented = ACCENTED_VOWELS.includes(a) || ACCENTED_VOWELS.includes(b)
+      // A break occurs between two strong vowels, or when an accented weak
+      // vowel breaks a would-be diphthong.
+      const isHiatus = (aStrong && bStrong) ||
+        (accented && (a === 'í' || a === 'ú' || b === 'í' || b === 'ú'))
+      if (isHiatus) {
+        nuclei.push(pickAccentVowel(lower, nucleusStart, k))
+        nucleusStart = k + 1
       }
-    } else {
-      i--
     }
+    nuclei.push(pickAccentVowel(lower, nucleusStart, groupEnd))
+    i = j
   }
-  return -1
+  return nuclei.reverse()
+}
+
+/** Within a single-syllable vowel nucleus, return the index that takes the accent. */
+function pickAccentVowel(lower: string, from: number, to: number): number {
+  for (let k = from; k <= to; k++) {
+    if (isStrongVowel(lower[k])) return k
+  }
+  return to
+}
+
+function findStressedVowelIndex(word: string, syllablesFromEnd: number): number {
+  const nuclei = getSyllableNucleiFromEnd(word)
+  return nuclei[syllablesFromEnd] ?? -1
 }
 
 function addAccentAt(word: string, index: number): string {
@@ -192,39 +220,18 @@ function endsInVowelOrNS_for(word: string): boolean {
 }
 
 function syllablesFromEndOfPosition(word: string, index: number): number {
-  // Count vowel-group nuclei between `index` and the end of the word.
-  // The syllable containing `index` counts as 0 if it is the last, 1 if penult, etc.
-  const lower = word.toLowerCase()
+  // Number of syllable nuclei strictly to the right of `index`.
+  const nuclei = getSyllableNucleiFromEnd(word)
   let count = 0
-  let inVowelGroup = false
-  for (let i = lower.length - 1; i > index; i--) {
-    if (isVowel(lower[i])) {
-      if (!inVowelGroup) {
-        count++
-        inVowelGroup = true
-      }
-    } else {
-      inVowelGroup = false
-    }
+  for (const n of nuclei) {
+    if (n > index) count++
+    else break
   }
   return count
 }
 
 function countSyllables(word: string): number {
-  const lower = word.toLowerCase()
-  let count = 0
-  let inVowelGroup = false
-  for (let i = 0; i < lower.length; i++) {
-    if (isVowel(lower[i])) {
-      if (!inVowelGroup) {
-        count++
-        inVowelGroup = true
-      }
-    } else {
-      inVowelGroup = false
-    }
-  }
-  return count
+  return getSyllableNucleiFromEnd(word).length
 }
 
 /**

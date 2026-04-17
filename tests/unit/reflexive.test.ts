@@ -104,6 +104,21 @@ describe('addReflexivePronouns — affirmative imperative', () => {
     expect(addReflexivePronouns('vestid', 'vosotros/as', 'imperative')).toBe('vestíos')
     expect(addReflexivePronouns('partid', 'vosotros/as', 'imperative')).toBe('partíos')
   })
+
+  it('honors hiatus rules when two strong vowels meet', () => {
+    // caer/traer/leer/creer/ver: stem ends in a strong vowel and the clitic
+    // begins with one too, so the vowel pair is a hiatus (two syllables).
+    // The originally stressed syllable shifts back by 2 syllables and needs
+    // a written accent on its strong vowel.
+    expect(addReflexivePronouns('cae', 'tú', 'imperative')).toBe('cáete')
+    expect(addReflexivePronouns('trae', 'tú', 'imperative')).toBe('tráete')
+    expect(addReflexivePronouns('cree', 'tú', 'imperative')).toBe('créete')
+    expect(addReflexivePronouns('lee', 'tú', 'imperative')).toBe('léete')
+    expect(addReflexivePronouns('vea', 'usted', 'imperative')).toBe('véase')
+    expect(addReflexivePronouns('vean', 'ustedes', 'imperative')).toBe('véanse')
+    expect(addReflexivePronouns('crea', 'usted', 'imperative')).toBe('créase')
+    expect(addReflexivePronouns('lea', 'usted', 'imperative')).toBe('léase')
+  })
 })
 
 describe('formatReflexiveForm', () => {
