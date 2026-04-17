@@ -132,6 +132,16 @@ function getPrimaryLibraryResult(infinitive: string): LibraryResult | null {
   return result.find((entry) => !entry.info.defective) ?? result[0] ?? null
 }
 
+/**
+ * Strip a trailing reflexive clitic and undo the accent shift that
+ * accompanied it. e.g. "antojándose" -> "antojando".
+ */
+function stripGerundClitic(gerund: string): string {
+  if (!gerund.endsWith('se')) return gerund
+  const stripped = gerund.slice(0, -2)
+  return stripped.normalize('NFD').replace(/\u0301/g, '').normalize('NFC')
+}
+
 function getSyntheticBaseForms(primary: LibraryResult, infinitive: string): {
   baseInfinitive: string
   gerund: string
@@ -145,11 +155,10 @@ function getSyntheticBaseForms(primary: LibraryResult, infinitive: string): {
 
   const baseInfinitive = infinitive.slice(0, -2)
   const baseResult = getPrimaryLibraryResult(baseInfinitive)
+  const gerund = baseResult?.conjugation.Impersonal.Gerundio
+    ?? stripGerundClitic(primary.conjugation.Impersonal.Gerundio)
 
-  return {
-    baseInfinitive,
-    gerund: baseResult?.conjugation.Impersonal.Gerundio ?? primary.conjugation.Impersonal.Gerundio,
-  }
+  return { baseInfinitive, gerund }
 }
 
 function makeSyntheticForms(leadForms: string[], tail: string, infinitive: string): string[] {
@@ -389,6 +398,28 @@ function makeCompoundTense(
   return makeTense(tenseId, forms)
 }
 
+/**
+ * Ensure non-imperative forms for reflexive verbs start with a pronoun.
+ * conjugate-esp normally adds them, but for some defective reflexive verbs
+ * (e.g. "antojarse") it returns the raw third-person form without pronouns.
+ */
+function ensureReflexivePrefix(forms: string[]): string[] {
+  return forms.map((form, i) => {
+    if (!form) return form
+    const first = form.split(/\s+/)[0]
+    if (REFLEXIVE_PRONOUNS.includes(first)) return form
+    return `${REFLEXIVE_PRONOUNS[i]} ${form}`
+  })
+}
+
+function buildSimpleTense(
+  forms: string[],
+  infinitive: string
+): string[] {
+  const normalized = normalizeLibraryForms(forms)
+  return isReflexiveInfinitive(infinitive) ? ensureReflexivePrefix(normalized) : normalized
+}
+
 function conjugateWithLibrary(infinitive: string): ConjugationTable | null {
   const primary = getPrimaryLibraryResult(infinitive)
   if (!primary) return null
@@ -399,30 +430,30 @@ function conjugateWithLibrary(infinitive: string): ConjugationTable | null {
   return {
     infinitive,
     tenses: [
-      makeTense('present', normalizeLibraryForms(conjugation.Indicativo.Presente)),
-      makeTense('preterite', normalizeLibraryForms(conjugation.Indicativo.PreteritoIndefinido)),
-      makeTense('imperfect', normalizeLibraryForms(conjugation.Indicativo.PreteritoImperfecto)),
-      makeTense('future', normalizeLibraryForms(conjugation.Indicativo.FuturoImperfecto)),
-      makeTense('conditional', normalizeLibraryForms(conjugation.Indicativo.CondicionalSimple)),
-      makeTense('present-subjunctive', normalizeLibraryForms(conjugation.Subjuntivo.Presente)),
+      makeTense('present', buildSimpleTense(conjugation.Indicativo.Presente, infinitive)),
+      makeTense('preterite', buildSimpleTense(conjugation.Indicativo.PreteritoIndefinido, infinitive)),
+      makeTense('imperfect', buildSimpleTense(conjugation.Indicativo.PreteritoImperfecto, infinitive)),
+      makeTense('future', buildSimpleTense(conjugation.Indicativo.FuturoImperfecto, infinitive)),
+      makeTense('conditional', buildSimpleTense(conjugation.Indicativo.CondicionalSimple, infinitive)),
+      makeTense('present-subjunctive', buildSimpleTense(conjugation.Subjuntivo.Presente, infinitive)),
       makeTense(
         'imperfect-subjunctive',
-        normalizeLibraryForms(conjugation.Subjuntivo.PreteritoImperfectoRa)
+        buildSimpleTense(conjugation.Subjuntivo.PreteritoImperfectoRa, infinitive)
       ),
       makeTense(
         'imperative',
         normalizeLibraryForms(conjugation.Imperativo.Afirmativo.slice(1)),
         IMPERATIVE_PERSONS
       ),
-      makeTense('present-perfect', normalizeLibraryForms(conjugation.Indicativo.PreteritoPerfecto)),
+      makeTense('present-perfect', buildSimpleTense(conjugation.Indicativo.PreteritoPerfecto, infinitive)),
       makeTense(
         'pluperfect',
-        normalizeLibraryForms(conjugation.Indicativo.PreteritoPluscuamperfecto)
+        buildSimpleTense(conjugation.Indicativo.PreteritoPluscuamperfecto, infinitive)
       ),
-      makeTense('future-perfect', normalizeLibraryForms(conjugation.Indicativo.FuturoPerfecto)),
+      makeTense('future-perfect', buildSimpleTense(conjugation.Indicativo.FuturoPerfecto, infinitive)),
       makeTense(
         'conditional-perfect',
-        normalizeLibraryForms(conjugation.Indicativo.CondicionalCompuesto)
+        buildSimpleTense(conjugation.Indicativo.CondicionalCompuesto, infinitive)
       ),
       makeTense('present-progressive', makeSyntheticForms(ESTAR.present, gerund, infinitive)),
       makeTense('preterite-progressive', makeSyntheticForms(ESTAR.preterite, gerund, infinitive)),
