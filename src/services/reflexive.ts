@@ -5,10 +5,14 @@
  * When conjugated, the reflexive pronoun must be placed correctly:
  *   - Simple tenses: pronoun before verb ("me levanto")
  *   - Compound tenses: pronoun before auxiliary ("me he levantado")
- *   - Affirmative imperative: pronoun attached to end ("levántate")
+ *   - Progressive tenses: pronoun before auxiliary ("me estoy levantando")
+ *   - Modal constructs: pronoun before modal ("me puedo levantar")
+ *   - Affirmative imperative: pronoun attached to end with stress accent
+ *     adjustment ("levántate", "múdense")
  */
 
-/** Reflexive pronoun for each grammatical person */
+import type { TenseData, VerbData } from '../types'
+
 const REFLEXIVE_PRONOUNS: Record<string, string> = {
   'yo': 'me',
   'tú': 'te',
@@ -22,101 +26,280 @@ const REFLEXIVE_PRONOUNS: Record<string, string> = {
   'ustedes': 'se',
 }
 
-/** Compound tense auxiliaries (haber forms) */
-const HABER_FORMS = ['he', 'has', 'ha', 'hemos', 'habéis', 'han',
-  'había', 'habías', 'habíamos', 'habíais', 'habían',
-  'habré', 'habrás', 'habrá', 'habremos', 'habréis', 'habrán',
-  'habría', 'habrías', 'habríamos', 'habríais', 'habrían',
-  'haya', 'hayas', 'hayamos', 'hayáis', 'hayan',
-  'hubiera', 'hubieras', 'hubiéramos', 'hubierais', 'hubieran']
-
-/** Set of reflexive pronoun words for quick lookup */
 const REFLEXIVE_PRONOUN_WORDS = new Set(['me', 'te', 'se', 'nos', 'os'])
 
 /** Pronoun suffixes for imperative, ordered longest-first to avoid partial matches */
 const PRONOUN_SUFFIXES = ['nos', 'me', 'te', 'se', 'os']
 
-/** Check if a verb infinitive is reflexive (ends in -se) */
+const VOWELS = 'aeiouáéíóúü'
+const STRONG_VOWELS = 'aeoáéó'
+const ACCENTED_VOWELS = 'áéíóú'
+const PLAIN_TO_ACCENTED: Record<string, string> = {
+  a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú',
+}
+
 export function isReflexiveVerb(infinitive: string): boolean {
   return infinitive.endsWith('se') && infinitive.length > 2
 }
 
-/** Get the non-reflexive infinitive (strip -se) */
 export function getBaseInfinitive(infinitive: string): string {
-  if (!isReflexiveVerb(infinitive)) return infinitive
-  return infinitive.slice(0, -2)
+  return isReflexiveVerb(infinitive) ? infinitive.slice(0, -2) : infinitive
 }
 
-/** Get the reflexive pronoun for a given person */
 export function getReflexivePronoun(person: string): string {
-  const normalized = person.toLowerCase().trim()
-  return REFLEXIVE_PRONOUNS[normalized] ?? 'se'
+  return REFLEXIVE_PRONOUNS[person.toLowerCase().trim()] ?? 'se'
 }
 
-/** Check if a conjugated form already has a reflexive pronoun */
-function formAlreadyHasPronoun(form: string, tenseId: string): boolean {
-  if (tenseId === 'imperative') {
-    return PRONOUN_SUFFIXES.some(p => form.endsWith(p))
-  }
-  const firstWord = form.split(' ')[0].toLowerCase()
-  return REFLEXIVE_PRONOUN_WORDS.has(firstWord)
+function isVowel(ch: string): boolean {
+  return VOWELS.includes(ch.toLowerCase())
+}
+
+function isStrongVowel(ch: string): boolean {
+  return STRONG_VOWELS.includes(ch.toLowerCase())
 }
 
 /**
- * Add reflexive pronouns to a conjugated form.
- * Does not check if the verb is reflexive — caller decides when to use this.
- * Safe to call on forms that already have pronouns (will not double-add).
+ * Walk the vowels in a word and return one nucleus (vowel index) per
+ * syllable, ordered from the end of the word back to the start.
+ *
+ * Spanish syllabification of vowel groups:
+ *   - Two strong vowels (a/e/o) form a hiatus and are split into separate
+ *     syllables (e.g. "ca-er", "le-er", "ve-o").
+ *   - A strong + weak (or weak + weak) vowel pair is a diphthong (one
+ *     syllable), unless the weak vowel carries a written accent (e.g.
+ *     "ra-íz", "pa-ís" — those are treated as accent-on-weak hiatuses).
+ *
+ * The returned index for each syllable is the vowel that would carry a
+ * written accent: the strong vowel of a diphthong, or the only vowel of a
+ * mono-vowel nucleus.
+ */
+function getSyllableNucleiFromEnd(word: string): number[] {
+  const lower = word.toLowerCase()
+  // Walk left-to-right, splitting vowel runs into syllable nuclei.
+  const nuclei: number[] = []
+  let i = 0
+  while (i < lower.length) {
+    if (!isVowel(lower[i])) { i++; continue }
+    // Collect a maximal run of vowels.
+    let j = i
+    while (j < lower.length && isVowel(lower[j])) j++
+    const groupStart = i
+    const groupEnd = j - 1
+
+    // Split the group into syllable nuclei using hiatus/diphthong rules.
+    let nucleusStart = groupStart
+    for (let k = groupStart; k < groupEnd; k++) {
+      const a = lower[k]
+      const b = lower[k + 1]
+      const aStrong = isStrongVowel(a)
+      const bStrong = isStrongVowel(b)
+      const accented = ACCENTED_VOWELS.includes(a) || ACCENTED_VOWELS.includes(b)
+      // A break occurs between two strong vowels, or when an accented weak
+      // vowel breaks a would-be diphthong.
+      const isHiatus = (aStrong && bStrong) ||
+        (accented && (a === 'í' || a === 'ú' || b === 'í' || b === 'ú'))
+      if (isHiatus) {
+        nuclei.push(pickAccentVowel(lower, nucleusStart, k))
+        nucleusStart = k + 1
+      }
+    }
+    nuclei.push(pickAccentVowel(lower, nucleusStart, groupEnd))
+    i = j
+  }
+  return nuclei.reverse()
+}
+
+/** Within a single-syllable vowel nucleus, return the index that takes the accent. */
+function pickAccentVowel(lower: string, from: number, to: number): number {
+  for (let k = from; k <= to; k++) {
+    if (isStrongVowel(lower[k])) return k
+  }
+  return to
+}
+
+function findStressedVowelIndex(word: string, syllablesFromEnd: number): number {
+  const nuclei = getSyllableNucleiFromEnd(word)
+  return nuclei[syllablesFromEnd] ?? -1
+}
+
+function addAccentAt(word: string, index: number): string {
+  if (index < 0) return word
+  const ch = word[index]
+  const lower = ch.toLowerCase()
+  const accented = PLAIN_TO_ACCENTED[lower]
+  if (!accented) return word
+  const replacement = ch === lower ? accented : accented.toUpperCase()
+  return word.slice(0, index) + replacement + word.slice(index + 1)
+}
+
+function removeWrittenAccents(word: string): string {
+  return word.normalize('NFD').replace(/\u0301/g, '').normalize('NFC')
+}
+
+/**
+ * Attach a clitic pronoun to the end of an imperative form, applying Spanish
+ * stress accent rules so the original stressed syllable keeps its stress.
+ *
+ * The stressed syllable in the input is determined as follows:
+ * - If the input has a written accent, that is the stressed syllable.
+ * - Otherwise the default rule applies: penultimate if the word ends in
+ *   vowel/n/s, last syllable otherwise.
+ *
+ * After attaching `addedSyllables` extra syllables, a written accent is added
+ * on the original stressed vowel if natural stress would otherwise fall
+ * elsewhere.
+ */
+function attachCliticToImperative(
+  base: string,
+  pronoun: string,
+  person: string
+): string {
+  const isNosotros = person === 'nosotros' || person === 'nosotros/as'
+  const isVosotros = person === 'vosotros' || person === 'vosotros/as'
+
+  // Drop the conjugation-final letter that's elided when the clitic attaches:
+  //   nosotros: drop final `-s` ("mudemos" + "nos" -> "mudémonos")
+  //   vosotros: drop final `-d` ("mudad"   + "os"  -> "mudaos")
+  let stem = base
+  if (isNosotros && base.endsWith('s')) stem = base.slice(0, -1)
+  if (isVosotros && base.endsWith('d')) stem = base.slice(0, -1)
+
+  const combined = stem + pronoun
+
+  // Special case for -ir verbs in vosotros: the stem ends in `i` and the
+  // pronoun starts with `o`. Default rules would treat `io` as a diphthong;
+  // a written accent on the stem `i` is required to mark the hiatus.
+  // Examples: vivid + os -> vivíos, partid + os -> partíos.
+  if (isVosotros && base.endsWith('id')) {
+    const accentIdx = combined.length - pronoun.length - 1
+    return addAccentAt(combined, accentIdx)
+  }
+
+  const baseAccentIdx = findExistingAccentIndex(base)
+
+  // Determine the syllable position (counted from the end) of the originally
+  // stressed vowel.
+  let originalStressedSyllableFromEnd: number
+  if (baseAccentIdx >= 0) {
+    originalStressedSyllableFromEnd = syllablesFromEndOfPosition(base, baseAccentIdx)
+  } else if (countSyllables(base) === 1) {
+    originalStressedSyllableFromEnd = 0
+  } else {
+    originalStressedSyllableFromEnd = endsInVowelOrNS_for(base) ? 1 : 0
+  }
+
+  const addedSyllables = countSyllables(pronoun)
+  const newStressedSyllableFromEnd = originalStressedSyllableFromEnd + addedSyllables
+
+  const lastChar = combined[combined.length - 1].toLowerCase()
+  const endsInVowelOrNS = isVowel(lastChar) || lastChar === 'n' || lastChar === 's'
+  const naturalSyllableFromEnd = endsInVowelOrNS ? 1 : 0
+
+  if (newStressedSyllableFromEnd === naturalSyllableFromEnd || baseAccentIdx >= 0) {
+    return combined
+  }
+
+  const accentVowelIdx = findStressedVowelIndex(combined, newStressedSyllableFromEnd)
+  return addAccentAt(combined, accentVowelIdx)
+}
+
+function findExistingAccentIndex(word: string): number {
+  const lower = word.toLowerCase()
+  for (let i = 0; i < lower.length; i++) {
+    if (ACCENTED_VOWELS.includes(lower[i])) return i
+  }
+  return -1
+}
+
+function endsInVowelOrNS_for(word: string): boolean {
+  if (!word) return false
+  const last = word[word.length - 1].toLowerCase()
+  // Strip any accent for the check
+  const stripped = removeWrittenAccents(last)
+  return isVowel(stripped) || stripped === 'n' || stripped === 's'
+}
+
+function syllablesFromEndOfPosition(word: string, index: number): number {
+  // Number of syllable nuclei strictly to the right of `index`.
+  const nuclei = getSyllableNucleiFromEnd(word)
+  let count = 0
+  for (const n of nuclei) {
+    if (n > index) count++
+    else break
+  }
+  return count
+}
+
+function countSyllables(word: string): number {
+  return getSyllableNucleiFromEnd(word).length
+}
+
+/**
+ * Add a reflexive pronoun to a single conjugated form derived from a
+ * non-reflexive base verb (e.g. "mudo" -> "me mudo", "muda" -> "múdate").
+ *
+ * Caller is responsible for only invoking this on forms that do NOT already
+ * have a pronoun attached. For data sourced from a reflexive infinitive
+ * (e.g. from the static DB for "quejarse"), the pronouns are already in
+ * place and this function should not be applied.
  */
 export function addReflexivePronouns(
   form: string,
   person: string,
   tenseId: string
 ): string {
-  if (formAlreadyHasPronoun(form, tenseId)) return form
+  if (!form) return form
+  const personLower = person.toLowerCase().trim()
+  const pronoun = getReflexivePronoun(personLower)
 
-  const pronoun = getReflexivePronoun(person)
-
-  // Affirmative imperative: pronoun attached to end
   if (tenseId === 'imperative') {
-    return `${form}${pronoun}`
+    return attachCliticToImperative(form, pronoun, personLower)
   }
 
-  // Compound tense: pronoun before auxiliary
-  const words = form.split(' ')
-  if (words.length >= 2 && HABER_FORMS.includes(words[0].toLowerCase())) {
-    return `${pronoun} ${form}`
-  }
-
-  // Simple tense: pronoun before verb
   return `${pronoun} ${form}`
+}
+
+/** True if the first whitespace-separated token is a reflexive pronoun. */
+function startsWithReflexivePronoun(form: string): boolean {
+  if (!form) return false
+  return REFLEXIVE_PRONOUN_WORDS.has(form.split(/\s+/)[0].toLowerCase())
 }
 
 /**
  * Strip reflexive pronouns from a conjugated form.
- * For simple/compound tenses, removes the leading pronoun word.
- * For imperative, strips the trailing pronoun suffix and removes
- * any accent that was added for the attachment.
+ * Inverse of addReflexivePronouns.
+ *
+ * For imperative, also undoes the elisions/accent additions caused by
+ * clitic attachment so we recover the original verb form:
+ *   quejémonos -> quejemos     (re-add lost `-s`, drop accent)
+ *   quejaos    -> quejad       (re-add lost `-d`)
+ *   vestíos    -> vestid
+ *   múdate     -> muda         (drop accent)
  */
 export function stripReflexivePronoun(form: string, tenseId: string): string {
+  if (!form) return form
   if (tenseId === 'imperative') {
+    const lower = form.toLowerCase()
+    if (lower.endsWith('monos')) {
+      const stripped = form.slice(0, -3) + 's' // drop "nos", re-add "s"
+      return removeWrittenAccents(stripped)
+    }
+    if (lower.endsWith('aos') || lower.endsWith('eos') || lower.endsWith('íos')) {
+      const stripped = form.slice(0, -2) + 'd' // drop "os", re-add "d"
+      return removeWrittenAccents(stripped)
+    }
     for (const suffix of PRONOUN_SUFFIXES) {
-      if (form.endsWith(suffix)) {
-        let stripped = form.slice(0, -suffix.length)
-        // Remove accent that was added when pronoun was attached
-        // e.g. "quéjate" → "quéja" → "queja"
-        stripped = stripped.normalize('NFD').replace(/\u0301/g, '').normalize('NFC')
-        return stripped
+      if (lower.endsWith(suffix)) {
+        const stripped = form.slice(0, -suffix.length)
+        return removeWrittenAccents(stripped)
       }
     }
     return form
   }
-
-  // Simple/compound: pronoun is the first word
-  const words = form.split(' ')
+  const words = form.split(/\s+/)
   if (words.length >= 2 && REFLEXIVE_PRONOUN_WORDS.has(words[0].toLowerCase())) {
     return words.slice(1).join(' ')
   }
-
   return form
 }
 
@@ -124,11 +307,8 @@ export function stripReflexivePronoun(form: string, tenseId: string): string {
  * Format a conjugated form with the correct reflexive pronoun placement.
  * Only applies to verbs whose infinitive ends in "-se".
  *
- * @param form - The conjugated verb form (e.g. "levanto", "he levantado")
- * @param person - The grammatical person (e.g. "yo", "tú")
- * @param infinitive - The verb infinitive (e.g. "levantarse")
- * @param tenseId - The tense identifier (e.g. "present", "imperative")
- * @returns The correctly formed reflexive expression (e.g. "me levanto")
+ * If the form already has a reflexive pronoun attached (the common case for
+ * data sourced from a reflexive infinitive), it is returned unchanged.
  */
 export function formatReflexiveForm(
   form: string,
@@ -136,6 +316,44 @@ export function formatReflexiveForm(
   infinitive: string,
   tenseId: string
 ): string {
-  if (!isReflexiveVerb(infinitive)) return form
+  if (!isReflexiveVerb(infinitive) || !form) return form
+  if (tenseId === 'imperative') {
+    // If any reflexive suffix is present, assume the pronoun is already
+    // attached. This is loose but works for our generated data.
+    if (PRONOUN_SUFFIXES.some((p) => form.toLowerCase().endsWith(p))) return form
+  } else if (startsWithReflexivePronoun(form)) {
+    return form
+  }
   return addReflexivePronouns(form, person, tenseId)
+}
+
+/**
+ * Synthesize a reflexive VerbData by adding reflexive pronouns to each form
+ * of a non-reflexive base VerbData. Used as a fallback when only the base
+ * verb is in the static conjugation database (e.g. user looks up "mudarse"
+ * but the DB only has "mudar").
+ */
+export function reflexifyVerbData(base: VerbData): VerbData {
+  const reflexiveInfinitive = base.infinitive.endsWith('se')
+    ? base.infinitive
+    : base.infinitive + 'se'
+
+  const tenses: TenseData[] = base.tenses.map((tense) => ({
+    tenseId: tense.tenseId,
+    tenseName: tense.tenseName,
+    description: tense.description,
+    conjugations: tense.conjugations.map((conj) => ({
+      person: conj.person,
+      form: conj.form
+        ? addReflexivePronouns(conj.form, conj.person, tense.tenseId)
+        : '',
+      miniTranslation: conj.miniTranslation,
+    })),
+  }))
+
+  return {
+    infinitive: reflexiveInfinitive,
+    language: base.language,
+    tenses,
+  }
 }

@@ -144,7 +144,13 @@ Include these tenses: ${CONJUGATION_TENSE_IDS.join(', ')}.
 
 For compound tenses, show the full form (e.g. "he comido", "había comido").
 For progressive tenses, show the full form with estar + gerund (e.g. "estuve hablando").
-For imperative, only include tú, usted, nosotros, vosotros, ustedes.`
+For imperative, only include tú, usted, nosotros, vosotros, ustedes.
+
+Reflexive verbs (infinitive ending in "-se" such as levantarse, mudarse, irse) MUST include the reflexive pronoun in every conjugated form:
+  - Simple/compound/progressive/modal tenses: pronoun before the verb or auxiliary, e.g. "me levanto", "te has levantado", "me estoy levantando", "me puedo levantar".
+  - Affirmative imperative: pronoun attached to the end with the correct stress accent, e.g. "levántate", "levántese", "levantémonos", "levantaos", "levántense".
+  - Use pronouns me/te/se/nos/os/se for yo/tú/él-ella-usted/nosotros/vosotros/ellos-ellas-ustedes respectively.
+  - Mini translations should reflect the reflexive meaning (e.g. "I get up", "I move (myself)", "I leave").`
 
 /**
  * Look up conjugation for a word. Tries static DB first, then LLM.

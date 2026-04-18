@@ -1,4 +1,5 @@
 import type { VerbData, TenseData } from '../types'
+import { isReflexiveVerb, getBaseInfinitive, reflexifyVerbData } from './reflexive'
 
 interface TenseMetadata {
   tenseId: string
@@ -79,23 +80,46 @@ function buildVerbData(data: CompactConjugationData, verbKey: string): VerbData 
 
 /**
  * Look up conjugation data for a verb from the static pre-computed database.
- * Tries exact match first, then accent-insensitive fallback.
- * Returns VerbData if found, null if the verb is not in the database.
+ *
+ * Lookup order:
+ *   1. Exact match for the requested infinitive
+ *   2. Accent-insensitive match
+ *   3. For reflexive infinitives ("-se"), fall back to the base form and
+ *      synthesize the reflexive table by adding pronouns to each form.
+ *
+ * Returns VerbData if found, null if neither the verb nor its base is in
+ * the database.
  */
 export async function lookupConjugation(infinitive: string): Promise<VerbData | null> {
   const data = await loadConjugationData()
   const verbKey = findVerbKey(data, infinitive)
-  if (!verbKey) return null
-  return buildVerbData(data, verbKey)
+  if (verbKey) return buildVerbData(data, verbKey)
+
+  if (isReflexiveVerb(infinitive)) {
+    const baseKey = findVerbKey(data, getBaseInfinitive(infinitive))
+    if (baseKey) {
+      const base = buildVerbData(data, baseKey)
+      const synthesized = reflexifyVerbData(base)
+      // Use the originally requested infinitive (preserves user's accents)
+      synthesized.infinitive = infinitive
+      return synthesized
+    }
+  }
+
+  return null
 }
 
 /**
  * Check if a verb exists in the static conjugation database.
- * Supports accent-insensitive matching.
+ * Supports accent-insensitive matching and reflexive base-form fallback.
  */
 export async function hasConjugation(infinitive: string): Promise<boolean> {
   const data = await loadConjugationData()
-  return findVerbKey(data, infinitive) !== null
+  if (findVerbKey(data, infinitive)) return true
+  if (isReflexiveVerb(infinitive)) {
+    return findVerbKey(data, getBaseInfinitive(infinitive)) !== null
+  }
+  return false
 }
 
 /**

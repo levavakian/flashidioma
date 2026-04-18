@@ -93,6 +93,60 @@ describe('Static conjugation DB lookup', () => {
     expect(pp.conjugations[5].form).toBe('han hablado')
   })
 
+  describe('reflexive verb support', () => {
+    it('falls back to base infinitive for -se verbs not in DB', async () => {
+      // mudarse is not in the DB; mudar is. lookupConjugation should
+      // synthesize the reflexive table from mudar.
+      const result = await lookupConjugation('mudarse')
+      expect(result).not.toBeNull()
+      expect(result!.infinitive).toBe('mudarse')
+      const present = result!.tenses.find((t) => t.tenseId === 'present')!
+      expect(present.conjugations.map((c) => c.form)).toEqual([
+        'me mudo', 'te mudas', 'se muda', 'nos mudamos', 'os mudáis', 'se mudan',
+      ])
+    })
+
+    it('synthesized reflexive imperative includes correct stress accents', async () => {
+      const result = await lookupConjugation('mudarse')
+      const imp = result!.tenses.find((t) => t.tenseId === 'imperative')!
+      expect(imp.conjugations.map((c) => c.form)).toEqual([
+        'múdate', 'múdese', 'mudémonos', 'mudaos', 'múdense',
+      ])
+    })
+
+    it('synthesized reflexive progressive places pronoun before estar', async () => {
+      const result = await lookupConjugation('mudarse')
+      const prog = result!.tenses.find((t) => t.tenseId === 'present-progressive')!
+      expect(prog.conjugations.map((c) => c.form)).toEqual([
+        'me estoy mudando',
+        'te estás mudando',
+        'se está mudando',
+        'nos estamos mudando',
+        'os estáis mudando',
+        'se están mudando',
+      ])
+    })
+
+    it('reflexive verbs already in the DB use stored forms', async () => {
+      const result = await lookupConjugation('quejarse')
+      expect(result).not.toBeNull()
+      const present = result!.tenses.find((t) => t.tenseId === 'present')!
+      expect(present.conjugations[0].form).toBe('me quejo')
+      const prog = result!.tenses.find((t) => t.tenseId === 'present-progressive')!
+      // Bug fix: progressive used to be "estoy quejándose" — now reflexive
+      // pronoun is correctly placed before estar with a clean gerund.
+      expect(prog.conjugations[0].form).toBe('me estoy quejando')
+      const pod = result!.tenses.find((t) => t.tenseId === 'poder-present')!
+      expect(pod.conjugations[0].form).toBe('me puedo quejar')
+    })
+
+    it('hasConjugation returns true for reflexive verbs whose base is in the DB', async () => {
+      expect(await hasConjugation('mudarse')).toBe(true)
+      expect(await hasConjugation('comerse')).toBe(true)
+      expect(await hasConjugation('xyzverbarse')).toBe(false)
+    })
+  })
+
   it('includes preterite progressive forms in static data', async () => {
     const result = await lookupConjugation('hablar')
     const preteriteProgressive = result!.tenses.find((t) => t.tenseId === 'preterite-progressive')!

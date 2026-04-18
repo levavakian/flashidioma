@@ -300,6 +300,8 @@ const AUX_ESTAR_FUTURE = ['estaré', 'estarás', 'estará', 'estaremos', 'estar�
 const AUX_PODER_PRESENT = ['puedo', 'puedes', 'puede', 'podemos', 'podéis', 'pueden']
 const AUX_DEBER_PRESENT = ['debo', 'debes', 'debe', 'debemos', 'debéis', 'deben']
 
+const REFLEXIVE_PRONOUNS_BY_PERSON = ['me', 'te', 'se', 'nos', 'os', 'se']
+
 // The exact tense order used in the compact conjugation format
 const TENSE_ORDER = [
   'present', 'preterite', 'imperfect', 'future', 'conditional',
@@ -309,36 +311,91 @@ const TENSE_ORDER = [
   'poder-present', 'deber-present',
 ]
 
+function isReflexiveInfinitive(infinitive: string): boolean {
+  return infinitive.endsWith('se') && infinitive.length > 2
+}
+
+/**
+ * Build a progressive tense for a (possibly reflexive) verb.
+ * Reflexive forms place the pronoun before the auxiliary:
+ *   "me estoy quejando" (NOT "estoy quejándose")
+ * The base infinitive is used to derive the gerund (without -se).
+ */
+function buildProgressive(
+  auxForms: string[],
+  gerundBase: string,
+  reflexive: boolean
+): string[] {
+  if (!reflexive) {
+    return auxForms.map((aux) => `${aux} ${gerundBase}`)
+  }
+  return auxForms.map((aux, i) => `${REFLEXIVE_PRONOUNS_BY_PERSON[i]} ${aux} ${gerundBase}`)
+}
+
+/**
+ * Build a modal-construct tense (poder/deber + infinitive) for a verb.
+ * Reflexive forms place the pronoun before the modal and use the base
+ * (non-"-se") infinitive followed by the appropriate clitic on the
+ * infinitive. We use the canonical "[clitic] [modal] [base infinitive]" form.
+ */
+function buildModalConstruct(
+  auxForms: string[],
+  baseInfinitive: string,
+  reflexive: boolean
+): string[] {
+  if (!reflexive) {
+    return auxForms.map((aux) => `${aux} ${baseInfinitive}`)
+  }
+  return auxForms.map((aux, i) => `${REFLEXIVE_PRONOUNS_BY_PERSON[i]} ${aux} ${baseInfinitive}`)
+}
+
+/**
+ * Strip the trailing reflexive clitic and any accent that was added to
+ * the originally-stressed vowel to support clitic attachment.
+ *
+ *   quejándose -> quejando
+ *   levantándose -> levantando
+ *   yéndose -> yendo
+ */
+function stripGerundClitic(gerund: string): string {
+  if (!gerund.endsWith('se')) return gerund
+  const stripped = gerund.slice(0, -2)
+  return stripped.normalize('NFD').replace(/\u0301/g, '').normalize('NFC')
+}
+
 function buildJehleConjugation(jehle: JehleVerbData): string[][] {
   const { infinitive, gerund } = jehle
+  const reflexive = isReflexiveInfinitive(infinitive)
+  // For modal constructs, we need the base infinitive (without -se).
+  // For progressive tenses, we need the gerund without the -se clitic.
+  const baseInfinitive = reflexive ? infinitive.slice(0, -2) : infinitive
+  const gerundBase = stripGerundClitic(gerund)
   const tenses: string[][] = []
 
   for (const tenseId of TENSE_ORDER) {
     const jehleData = jehle.tenses.get(tenseId)
 
     if (jehleData) {
-      // Use Jehle data directly
       tenses.push(jehleData)
     } else {
-      // Progressive/modal tenses — construct from gerund/infinitive
       switch (tenseId) {
         case 'present-progressive':
-          tenses.push(AUX_ESTAR_PRESENT.map(e => `${e} ${gerund}`))
+          tenses.push(buildProgressive(AUX_ESTAR_PRESENT, gerundBase, reflexive))
           break
         case 'preterite-progressive':
-          tenses.push(AUX_ESTAR_PRETERITE.map(e => `${e} ${gerund}`))
+          tenses.push(buildProgressive(AUX_ESTAR_PRETERITE, gerundBase, reflexive))
           break
         case 'imperfect-progressive':
-          tenses.push(AUX_ESTAR_IMPERFECT.map(e => `${e} ${gerund}`))
+          tenses.push(buildProgressive(AUX_ESTAR_IMPERFECT, gerundBase, reflexive))
           break
         case 'future-progressive':
-          tenses.push(AUX_ESTAR_FUTURE.map(e => `${e} ${gerund}`))
+          tenses.push(buildProgressive(AUX_ESTAR_FUTURE, gerundBase, reflexive))
           break
         case 'poder-present':
-          tenses.push(AUX_PODER_PRESENT.map(p => `${p} ${infinitive}`))
+          tenses.push(buildModalConstruct(AUX_PODER_PRESENT, baseInfinitive, reflexive))
           break
         case 'deber-present':
-          tenses.push(AUX_DEBER_PRESENT.map(d => `${d} ${infinitive}`))
+          tenses.push(buildModalConstruct(AUX_DEBER_PRESENT, baseInfinitive, reflexive))
           break
         default:
           // Should not happen — Jehle covers all 12 simple/compound tenses
