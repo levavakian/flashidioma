@@ -172,7 +172,6 @@ export interface AppExport {
 }
 
 // Verb lesson data shown in the Verbs > Lessons tab.
-// Generated at runtime from the static conjugation database.
 export interface LessonData {
   tenseId: string
   tenseName: string
@@ -181,12 +180,8 @@ export interface LessonData {
   formationSummary: string
   /** Regular ending tables (rows of verb types whose endings are identical can be merged). */
   endingsTables: EndingsTable[]
-  /** Per-tense rules / patterns for irregular verbs. */
-  irregularRules: string[]
-  /** Irregular verbs grouped by a shared alt-conjugation signature (≥2 verbs each). */
-  irregularGroups: LessonIrregularGroup[]
-  /** Other irregular verbs (≤1 verb per signature). Each has a stem hint string. */
-  otherIrregulars: LessonIrregularVerb[]
+  /** Hand-curated categories of irregular verbs for this tense. */
+  irregularCategories: LessonIrregularCategory[]
 }
 
 export interface EndingsTable {
@@ -202,16 +197,16 @@ export interface LessonIrregularVerb {
   hint: string
 }
 
-export interface LessonIrregularGroup {
-  /** Stable signature, used as React key. */
+export interface LessonIrregularCategory {
+  /** Stable id, used as React key. */
   id: string
-  /** Human-readable label e.g. "Endings -e -iste -o -imos -isteis -ieron". */
+  /** Human-readable label, e.g. "Strong preterite (stem + -e -iste -o -imos -isteis -ieron)". */
   label: string
-  /** Persons row for the alt endings table. */
-  persons: string[]
-  /** The alternate ending row that defines this group. */
-  endings: string[]
-  /** Member verbs in this group, each with their own stem hint. */
+  /** Plain-text rule explaining the pattern. */
+  description: string
+  /** Optional alt-endings table to display under the description. */
+  altEndings?: EndingsTable
+  /** Member verbs (base infinitives only — derived verbs like suponer/componer are not listed). */
   verbs: LessonIrregularVerb[]
 }
 

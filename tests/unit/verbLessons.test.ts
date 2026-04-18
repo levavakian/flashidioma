@@ -1,22 +1,48 @@
 import { describe, it, expect } from 'vitest'
 import { getSpanishLessons } from '../../src/services/verbLessons'
 
+const lessons = getSpanishLessons()
+
+function findCategory(tenseId: string, categoryId: string) {
+  const lesson = lessons.find((l) => l.tenseId === tenseId)
+  if (!lesson) throw new Error(`No lesson for ${tenseId}`)
+  const cat = lesson.irregularCategories.find((c) => c.id === categoryId)
+  if (!cat) throw new Error(`No category ${categoryId} in ${tenseId}`)
+  return cat
+}
+
+function categoryVerbs(tenseId: string, categoryId: string) {
+  return findCategory(tenseId, categoryId).verbs.map((v) => v.infinitive)
+}
+
 describe('getSpanishLessons', () => {
-  it('returns one lesson per construct', async () => {
-    const lessons = await getSpanishLessons()
+  it('returns one lesson per construct', () => {
     const ids = lessons.map((l) => l.tenseId)
     expect(ids).toContain('present')
     expect(ids).toContain('preterite')
     expect(ids).toContain('imperfect')
+    expect(ids).toContain('future')
+    expect(ids).toContain('conditional')
+    expect(ids).toContain('present-subjunctive')
+    expect(ids).toContain('imperfect-subjunctive')
     expect(ids).toContain('imperative')
     expect(ids).toContain('present-perfect')
     expect(ids).toContain('present-progressive')
     expect(ids).toContain('poder-present')
     expect(ids).toContain('deber-present')
+    expect(ids).toHaveLength(18)
   })
 
-  it('preterite has -ar and merged -er/-ir endings tables', async () => {
-    const lessons = await getSpanishLessons()
+  it('every lesson has a formation summary', () => {
+    for (const l of lessons) {
+      expect(l.formationSummary, `tense ${l.tenseId}`).not.toBe('')
+    }
+  })
+
+  it('present has 3 separate ending tables and preterite has -ar plus merged -er/-ir', () => {
+    const pres = lessons.find((l) => l.tenseId === 'present')!
+    expect(pres.endingsTables).toHaveLength(3)
+
     const pret = lessons.find((l) => l.tenseId === 'preterite')!
     expect(pret.endingsTables).toHaveLength(2)
     const ar = pret.endingsTables.find((t) => t.verbTypes.includes('-ar'))!
@@ -26,138 +52,128 @@ describe('getSpanishLessons', () => {
     expect(erIr.endings).toEqual(['í', 'iste', 'ió', 'imos', 'isteis', 'ieron'])
   })
 
-  it('present has 3 separate ending tables (-ar/-er/-ir)', async () => {
-    const lessons = await getSpanishLessons()
-    const pres = lessons.find((l) => l.tenseId === 'present')!
-    expect(pres.endingsTables).toHaveLength(3)
+  it('present categories cover stem changes, irregular yo, and fully-irregular verbs', () => {
+    expect(categoryVerbs('present', 'stem-e-ie')).toContain('querer')
+    expect(categoryVerbs('present', 'stem-o-ue')).toContain('poder')
+    expect(categoryVerbs('present', 'stem-e-i')).toContain('pedir')
+    expect(categoryVerbs('present', 'stem-u-ue')).toContain('jugar')
+    expect(categoryVerbs('present', 'yo-go')).toContain('tener')
+    expect(categoryVerbs('present', 'yo-zco')).toContain('conocer')
+    expect(categoryVerbs('present', 'yo-only')).toContain('saber')
+    const fully = categoryVerbs('present', 'fully-irregular')
+    expect(fully).toContain('ser')
+    expect(fully).toContain('ir')
+    expect(fully).toContain('estar')
+    expect(fully).toContain('haber')
   })
 
-  it('preterite has the strong-stem and j-stem irregular groups', async () => {
-    const lessons = await getSpanishLessons()
-    const pret = lessons.find((l) => l.tenseId === 'preterite')!
+  it('preterite has strong, j-stem, ir-stem-change, i-to-y, and fully-irregular categories', () => {
+    expect(categoryVerbs('preterite', 'strong')).toEqual(
+      expect.arrayContaining(['tener', 'estar', 'andar', 'poder', 'poner', 'saber', 'querer', 'venir', 'hacer'])
+    )
+    expect(categoryVerbs('preterite', 'strong')).not.toContain('dar')
+    expect(categoryVerbs('preterite', 'j-stem')).toEqual(
+      expect.arrayContaining(['decir', 'traer', 'conducir'])
+    )
+    expect(categoryVerbs('preterite', 'ir-stem-change-3rd')).toContain('pedir')
+    expect(categoryVerbs('preterite', 'ir-stem-change-3rd')).toContain('dormir')
+    expect(categoryVerbs('preterite', 'i-to-y')).toContain('leer')
+    expect(categoryVerbs('preterite', 'i-to-y')).toContain('construir')
 
-    const strong = pret.irregularGroups.find((g) => g.endings.includes('ieron'))
-    expect(strong).toBeDefined()
-    const strongVerbs = strong!.verbs.map((v) => v.infinitive)
-    expect(strongVerbs).toContain('tener')
-    expect(strongVerbs).toContain('estar')
-    expect(strongVerbs).toContain('poder')
-    expect(strongVerbs).toContain('poner')
-    expect(strongVerbs).toContain('saber')
-    expect(strongVerbs).toContain('hacer')
-    // dar uses regular -er/-ir endings (di, diste, dio, ...) without accents,
-    // not the strong-preterite endings — it should not be in the strong group.
-    expect(strongVerbs).not.toContain('dar')
-
-    const jStem = pret.irregularGroups.find((g) => g.endings.includes('eron'))
-    expect(jStem).toBeDefined()
-    const jVerbs = jStem!.verbs.map((v) => v.infinitive)
-    expect(jVerbs).toContain('decir')
-    expect(jVerbs).toContain('conducir')
-    // -ñer/-llir verbs use -eron after a palatal stem (atañer, bullir, gruñir),
-    // an orthographic rule, not a true j-stem irregularity.
-    expect(jVerbs).not.toContain('atañer')
-    expect(jVerbs).not.toContain('bullir')
+    const fully = categoryVerbs('preterite', 'fully-irregular')
+    expect(fully).toContain('ser')
+    expect(fully).toContain('ir')
+    expect(fully).toContain('dar')
+    expect(fully).toContain('ver')
   })
 
-  it('dar appears in preterite as an irregular verb (in "other")', async () => {
-    const lessons = await getSpanishLessons()
-    const pret = lessons.find((l) => l.tenseId === 'preterite')!
-    const dar = pret.otherIrregulars.find((v) => v.infinitive === 'dar')
-    expect(dar).toBeDefined()
-    expect(dar!.hint).toBe('d-')
+  it('preterite strong category exposes the alt-endings table', () => {
+    const cat = findCategory('preterite', 'strong')
+    expect(cat.altEndings).toBeDefined()
+    expect(cat.altEndings!.endings).toEqual(['e', 'iste', 'o', 'imos', 'isteis', 'ieron'])
   })
 
-  it('imperfect detects only ir, ser, ver as irregular', async () => {
-    const lessons = await getSpanishLessons()
-    const imp = lessons.find((l) => l.tenseId === 'imperfect')!
-    const irregularVerbs = [
-      ...imp.irregularGroups.flatMap((g) => g.verbs.map((v) => v.infinitive)),
-      ...imp.otherIrregulars.map((v) => v.infinitive),
-    ]
-    expect(irregularVerbs).toContain('ir')
-    expect(irregularVerbs).toContain('ser')
-    expect(irregularVerbs).toContain('ver')
-    expect(irregularVerbs).not.toContain('hablar')
-    expect(irregularVerbs).not.toContain('comer')
+  it('preterite j-stem category uses -eron', () => {
+    const cat = findCategory('preterite', 'j-stem')
+    expect(cat.altEndings!.endings).toEqual(['e', 'iste', 'o', 'imos', 'isteis', 'eron'])
   })
 
-  it('drops derived verbs in favor of their base (poner kept, suponer dropped)', async () => {
-    const lessons = await getSpanishLessons()
-    const fut = lessons.find((l) => l.tenseId === 'future')!
-    const allVerbs = [
-      ...fut.irregularGroups.flatMap((g) => g.verbs.map((v) => v.infinitive)),
-      ...fut.otherIrregulars.map((v) => v.infinitive),
-    ]
-    expect(allVerbs).toContain('poner')
-    expect(allVerbs).not.toContain('suponer')
-    expect(allVerbs).not.toContain('componer')
-    expect(allVerbs).not.toContain('proponer')
+  it('imperfect lists exactly ser, ir, ver as irregular', () => {
+    const verbs = categoryVerbs('imperfect', 'all')
+    expect(verbs).toEqual(['ser', 'ir', 'ver'])
   })
 
-  it('does not treat regular -ir verbs as derivatives of "ir"', async () => {
-    const lessons = await getSpanishLessons()
-    const pp = lessons.find((l) => l.tenseId === 'present-progressive')!
-    const all = pp.otherIrregulars.map((v) => v.infinitive)
-    expect(all).toContain('sentir')
-    expect(all).toContain('dormir')
-    expect(all).toContain('decir')
+  it('future and conditional share the same single irregular-stems category', () => {
+    const fut = categoryVerbs('future', 'irregular-stems')
+    const cond = categoryVerbs('conditional', 'irregular-stems')
+    expect(fut).toEqual(cond)
+    expect(fut).toContain('tener')
+    expect(fut).toContain('hacer')
+    expect(fut).toContain('decir')
   })
 
-  it('imperative only flags the "irregular tú affirmative" verbs', async () => {
-    const lessons = await getSpanishLessons()
-    const imp = lessons.find((l) => l.tenseId === 'imperative')!
-    const verbs = imp.otherIrregulars.map((v) => v.infinitive)
-    expect(verbs).toContain('decir')
-    expect(verbs).toContain('hacer')
-    expect(verbs).toContain('ir')
-    expect(verbs).toContain('poner')
-    expect(verbs).toContain('salir')
-    expect(verbs).toContain('ser')
+  it('present subjunctive lists six fully-irregular verbs', () => {
+    const verbs = categoryVerbs('present-subjunctive', 'fully-irregular')
+    expect(verbs).toEqual(expect.arrayContaining(['ser', 'estar', 'ir', 'haber', 'saber', 'dar']))
+  })
+
+  it('imperfect subjunctive irregulars come from the preterite stem', () => {
+    const verbs = categoryVerbs('imperfect-subjunctive', 'from-preterite')
     expect(verbs).toContain('tener')
-    expect(verbs).toContain('venir')
-    expect(verbs).not.toContain('hablar')
-    expect(verbs).not.toContain('pedir')
+    expect(verbs).toContain('decir')
+    expect(verbs).toContain('ir')
+    expect(verbs).toContain('leer')
   })
 
-  it('present perfect lists irregular participles like abierto/dicho/hecho', async () => {
-    const lessons = await getSpanishLessons()
-    const perf = lessons.find((l) => l.tenseId === 'present-perfect')!
-    const verbs = perf.otherIrregulars
-    expect(verbs.find((v) => v.infinitive === 'abrir')?.hint).toBe('participle abierto')
-    expect(verbs.find((v) => v.infinitive === 'decir')?.hint).toBe('participle dicho')
-    expect(verbs.find((v) => v.infinitive === 'hacer')?.hint).toBe('participle hecho')
+  it('imperative lists the eight one-syllable tú affirmatives', () => {
+    const verbs = categoryVerbs('imperative', 'irregular-tu')
+    expect(verbs).toEqual(['tener', 'venir', 'poner', 'salir', 'hacer', 'decir', 'ir', 'ser'])
   })
 
-  it('present progressive lists irregular gerunds', async () => {
-    const lessons = await getSpanishLessons()
-    const prog = lessons.find((l) => l.tenseId === 'present-progressive')!
-    const verbs = prog.otherIrregulars
-    expect(verbs.find((v) => v.infinitive === 'ir')?.hint).toBe('gerund yendo')
-    expect(verbs.find((v) => v.infinitive === 'dormir')?.hint).toBe('gerund durmiendo')
-    expect(verbs.find((v) => v.infinitive === 'sentir')?.hint).toBe('gerund sintiendo')
-  })
-
-  it('modal constructs (poder-present, deber-present) have no irregular verbs', async () => {
-    const lessons = await getSpanishLessons()
-    const poder = lessons.find((l) => l.tenseId === 'poder-present')!
-    const deber = lessons.find((l) => l.tenseId === 'deber-present')!
-    expect(poder.irregularGroups).toHaveLength(0)
-    expect(poder.otherIrregulars).toHaveLength(0)
-    expect(deber.irregularGroups).toHaveLength(0)
-    expect(deber.otherIrregulars).toHaveLength(0)
-  })
-
-  it('every lesson has a formation summary', async () => {
-    const lessons = await getSpanishLessons()
-    for (const l of lessons) {
-      expect(l.formationSummary, `tense ${l.tenseId}`).not.toBe('')
+  it('every perfect tense uses the same irregular-participles category', () => {
+    for (const tid of ['present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect']) {
+      const verbs = categoryVerbs(tid, 'irregular-participles')
+      expect(verbs).toContain('abrir')
+      expect(verbs).toContain('decir')
+      expect(verbs).toContain('hacer')
+      expect(verbs).toContain('volver')
     }
   })
 
-  it('memoises results across calls', async () => {
-    const a = await getSpanishLessons()
-    const b = await getSpanishLessons()
-    expect(b).toBe(a)
+  it('every progressive tense uses the same irregular-gerunds categories', () => {
+    for (const tid of [
+      'present-progressive',
+      'preterite-progressive',
+      'imperfect-progressive',
+      'future-progressive',
+    ]) {
+      const stemChange = categoryVerbs(tid, 'ir-stem-change-gerund')
+      expect(stemChange).toContain('dormir')
+      expect(stemChange).toContain('pedir')
+      const yendo = categoryVerbs(tid, 'yendo')
+      expect(yendo).toContain('leer')
+      expect(yendo).toContain('ir')
+    }
+  })
+
+  it('modal constructs have no irregular categories', () => {
+    const poder = lessons.find((l) => l.tenseId === 'poder-present')!
+    const deber = lessons.find((l) => l.tenseId === 'deber-present')!
+    expect(poder.irregularCategories).toEqual([])
+    expect(deber.irregularCategories).toEqual([])
+  })
+
+  it('does not list derived verbs alongside their base (no suponer when poner is present)', () => {
+    const allCuratedVerbs = new Set<string>()
+    for (const l of lessons) {
+      for (const cat of l.irregularCategories) {
+        for (const v of cat.verbs) allCuratedVerbs.add(v.infinitive)
+      }
+    }
+    expect(allCuratedVerbs).not.toContain('suponer')
+    expect(allCuratedVerbs).not.toContain('componer')
+    expect(allCuratedVerbs).not.toContain('proponer')
+    expect(allCuratedVerbs).not.toContain('disponer')
+    expect(allCuratedVerbs).toContain('poner')
   })
 })

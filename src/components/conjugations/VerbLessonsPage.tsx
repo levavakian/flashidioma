@@ -1,36 +1,30 @@
-import { useEffect, useState } from 'react'
-import type { LessonData, EndingsTable, LessonIrregularGroup, LessonIrregularVerb } from '../../types'
+import { useState } from 'react'
+import type {
+  LessonData,
+  EndingsTable,
+  LessonIrregularCategory,
+  LessonIrregularVerb,
+  VerbData,
+} from '../../types'
 import { getSpanishLessons } from '../../services/verbLessons'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import ConjugationView from '../cards/ConjugationView'
-import type { VerbData } from '../../types'
+
+const LESSONS = getSpanishLessons()
 
 export default function VerbLessonsPage() {
-  const [lessons, setLessons] = useState<LessonData[] | null>(null)
   const [openTense, setOpenTense] = useState<string | null>(null)
-
-  useEffect(() => {
-    getSpanishLessons().then(setLessons)
-  }, [])
-
-  if (!lessons) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading lessons...</div>
-      </div>
-    )
-  }
 
   return (
     <div>
       <h2 className="text-lg font-semibold mb-3">Verb Lessons</h2>
       <p className="text-sm text-gray-500 mb-4">
-        How each tense is formed, the rules for irregular verbs, and the irregular verbs grouped by
-        their alternate ending pattern.
+        How each tense is formed, the rules for irregular verbs, and the most important irregular
+        verbs grouped by their pattern.
       </p>
 
       <div className="space-y-2">
-        {lessons.map((lesson) => {
+        {LESSONS.map((lesson) => {
           const isOpen = openTense === lesson.tenseId
           return (
             <div key={lesson.tenseId} className="bg-white rounded-lg border">
@@ -81,39 +75,16 @@ function LessonContent({ lesson }: { lesson: LessonData }) {
         </section>
       )}
 
-      {lesson.irregularRules.length > 0 && (
+      {lesson.irregularCategories.length > 0 ? (
         <section>
-          <h3 className="text-sm font-semibold mb-1">Irregular verb rules</h3>
-          <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
-            {lesson.irregularRules.map((rule, idx) => (
-              <li key={idx}>{rule}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {lesson.irregularGroups.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold mb-2">Irregular verb groups</h3>
+          <h3 className="text-sm font-semibold mb-2">Irregular verb categories</h3>
           <div className="space-y-3">
-            {lesson.irregularGroups.map((group) => (
-              <IrregularGroupView key={group.id} group={group} />
+            {lesson.irregularCategories.map((cat) => (
+              <CategoryView key={cat.id} category={cat} />
             ))}
           </div>
         </section>
-      )}
-
-      {lesson.otherIrregulars.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold mb-2">
-            {lesson.irregularGroups.length > 0 ? 'Other irregular verbs' : 'Irregular verbs'}
-            <span className="ml-1 text-xs text-gray-400">({lesson.otherIrregulars.length})</span>
-          </h3>
-          <VerbList verbs={lesson.otherIrregulars} />
-        </section>
-      )}
-
-      {lesson.irregularGroups.length === 0 && lesson.otherIrregulars.length === 0 && (
+      ) : (
         <p className="text-sm text-gray-500 italic">No irregular verbs in this construct.</p>
       )}
     </div>
@@ -138,25 +109,16 @@ function EndingsTableView({ table }: { table: EndingsTable }) {
   )
 }
 
-function IrregularGroupView({ group }: { group: LessonIrregularGroup }) {
+function CategoryView({ category }: { category: LessonIrregularCategory }) {
   return (
     <div className="border rounded">
       <div className="px-3 py-2 bg-gray-50 border-b">
-        <div className="text-sm font-medium">{group.label}</div>
-        <div className="text-xs text-gray-500">{group.verbs.length} verbs share these endings</div>
+        <div className="text-sm font-medium">{category.label}</div>
       </div>
-      <div className="px-3 py-2">
-        <table className="w-full text-sm mb-3">
-          <tbody>
-            {group.persons.map((person, i) => (
-              <tr key={person} className="border-b last:border-b-0">
-                <td className="py-1 text-gray-500 w-1/2">{person}</td>
-                <td className="py-1 font-mono">-{group.endings[i] || '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <VerbList verbs={group.verbs} />
+      <div className="px-3 py-3 space-y-2">
+        <p className="text-sm text-gray-700">{category.description}</p>
+        {category.altEndings && <EndingsTableView table={category.altEndings} />}
+        <VerbList verbs={category.verbs} />
       </div>
     </div>
   )

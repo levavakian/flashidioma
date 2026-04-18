@@ -1,17 +1,19 @@
-import type {
-  EndingsTable,
-  LessonData,
-  LessonIrregularGroup,
-  LessonIrregularVerb,
-} from '../types'
+import type { EndingsTable, LessonData, LessonIrregularCategory } from '../types'
 
-interface CompactConjugationData {
-  language: string
-  generatedAt: string
-  verbCount: number
-  tenses: { tenseId: string; tenseName: string; description: string; persons: string[] }[]
-  verbs: Record<string, string[][]>
-}
+/**
+ * Hand-curated Spanish verb lessons for the Verbs > Lessons tab.
+ *
+ * The goal is not to be exhaustive but to give a learner a clear picture of
+ * each tense: how the regular forms are built, what categories of irregularity
+ * exist, the rule for each category, and ~10–20 of the most important verbs in
+ * each category that span every type of irregularity.
+ *
+ * Each verb's hint is a short reminder of *why* it's irregular (a stem, a
+ * participle, etc.). When several derived verbs share the same irregularity
+ * (poner / suponer / componer / proponer / disponer / oponer / imponer), only
+ * the base verb is listed; learners can find the derived forms by searching
+ * the Browse tab.
+ */
 
 type VerbType = 'ar' | 'er' | 'ir'
 
@@ -26,6 +28,7 @@ const PERSONS_FULL = [
 
 const IMPERATIVE_PERSONS = ['tú', 'usted', 'nosotros/as', 'vosotros/as', 'ustedes']
 
+// Regular ending tables, used both for display and to derive merged tables.
 const REGULAR_ENDINGS: Record<string, Record<VerbType, string[]>> = {
   present: {
     ar: ['o', 'as', 'a', 'amos', 'áis', 'an'],
@@ -63,265 +66,6 @@ const REGULAR_IMPERATIVE: Record<VerbType, { tu: string; vosotros: string }> = {
   ar: { tu: 'a', vosotros: 'ad' },
   er: { tu: 'e', vosotros: 'ed' },
   ir: { tu: 'e', vosotros: 'id' },
-}
-
-/** Alternative ending sets used by irregular verbs (preterite strong/j-stems share the regular -ir endings except for -eron). */
-const ALTERNATIVE_ENDINGS: Record<string, string[][]> = {
-  preterite: [
-    ['e', 'iste', 'o', 'imos', 'isteis', 'ieron'],
-    ['e', 'iste', 'o', 'imos', 'isteis', 'eron'],
-  ],
-  'imperfect-subjunctive': [
-    ['era', 'eras', 'era', 'éramos', 'erais', 'eran'],
-  ],
-}
-
-const FORMATION: Record<string, string> = {
-  present: 'Drop the infinitive ending and add the present endings to the stem.',
-  preterite: 'Drop the infinitive ending and add the preterite endings to the stem.',
-  imperfect: 'Drop the infinitive ending and add the imperfect endings to the stem.',
-  future: 'Add the future endings to the full infinitive (no stem change).',
-  conditional: 'Add the conditional endings to the full infinitive (no stem change).',
-  'present-subjunctive':
-    'Take the yo form of the present indicative, drop the -o, then add the opposite-vowel endings (-ar verbs use -e endings, -er/-ir verbs use -a endings).',
-  'imperfect-subjunctive':
-    'Take the ellos form of the preterite, drop -ron, then add the imperfect-subjunctive endings.',
-  imperative:
-    'Affirmative tú is the same as él/ella present indicative. Affirmative vosotros replaces the -r of the infinitive with -d. The other forms (usted, nosotros, ustedes) are taken from the present subjunctive.',
-  'present-perfect':
-    'Conjugate haber in the present + the past participle (regular: -ado / -ido).',
-  pluperfect: 'Conjugate haber in the imperfect + the past participle (regular: -ado / -ido).',
-  'future-perfect': 'Conjugate haber in the future + the past participle (regular: -ado / -ido).',
-  'conditional-perfect':
-    'Conjugate haber in the conditional + the past participle (regular: -ado / -ido).',
-  'present-progressive':
-    'Conjugate estar in the present + the gerund (regular: -ar → -ando, -er/-ir → -iendo).',
-  'preterite-progressive':
-    'Conjugate estar in the preterite + the gerund (regular: -ar → -ando, -er/-ir → -iendo).',
-  'imperfect-progressive':
-    'Conjugate estar in the imperfect + the gerund (regular: -ar → -ando, -er/-ir → -iendo).',
-  'future-progressive':
-    'Conjugate estar in the future + the gerund (regular: -ar → -ando, -er/-ir → -iendo).',
-  'poder-present':
-    'Conjugate poder (puedo, puedes, puede, podemos, podéis, pueden) + the infinitive.',
-  'deber-present':
-    'Conjugate deber (debo, debes, debe, debemos, debéis, deben) + the infinitive.',
-}
-
-const IRREGULAR_RULES: Record<string, string[]> = {
-  present: [
-    'Stem-changing verbs (e→ie, o→ue, e→i, u→ue) change in all forms except nosotros and vosotros.',
-    'Many verbs have an irregular yo form ending in -go (tengo, pongo, salgo, hago) or -zco for -cer/-cir verbs (conozco, traduzco).',
-    'Ser, ir, haber, and a few others are fully irregular.',
-  ],
-  preterite: [
-    'A small group of verbs uses a fully irregular stem with the endings -e, -iste, -o, -imos, -isteis, -ieron (no accent on yo / él): tener→tuv-, estar→estuv-, poder→pud-, poner→pus-, saber→sup-, hacer→hic- (hizo).',
-    'Verbs whose irregular stem ends in -j use -eron instead of -ieron (decir→dijeron, traer→trajeron, conducir→condujeron).',
-    'Ser and ir share the same fully irregular preterite (fui, fuiste, fue, fuimos, fuisteis, fueron).',
-    '-ir stem-changing verbs change e→i or o→u in the él/ella and ellos/ellas forms (pedir→pidió/pidieron, dormir→durmió/durmieron).',
-  ],
-  imperfect: [
-    'Only three verbs are irregular in the imperfect: ser (era, eras, era, éramos, erais, eran), ir (iba, ibas, iba, íbamos, ibais, iban), and ver (veía, veías, veía, veíamos, veíais, veían — keeping the e of the stem).',
-  ],
-  future: [
-    'A handful of verbs use a contracted or modified infinitive as the stem, but the endings are always -é, -ás, -á, -emos, -éis, -án.',
-    'Common irregular stems: decir→dir-, hacer→har-, poder→podr-, poner→pondr-, querer→querr-, saber→sabr-, salir→saldr-, tener→tendr-, valer→valdr-, venir→vendr-, caber→cabr-, haber→habr-.',
-  ],
-  conditional: [
-    'The conditional uses the same irregular stems as the future, with the endings -ía, -ías, -ía, -íamos, -íais, -ían.',
-  ],
-  'present-subjunctive': [
-    'Most irregular present subjunctives are derived from an irregular yo present (tener→tenga, hacer→haga, conocer→conozca).',
-    'Six verbs have a fully irregular present subjunctive stem: dar (dé), estar (esté), haber (haya), ir (vaya), saber (sepa), ser (sea).',
-  ],
-  'imperfect-subjunctive': [
-    'The imperfect subjunctive is built from the ellos preterite stem, so any verb irregular in the preterite is irregular here too (tuvieron → tuviera, dijeron → dijera).',
-  ],
-  imperative: [
-    'A small group of verbs has an irregular tú affirmative: di (decir), haz (hacer), ve (ir), pon (poner), sal (salir), sé (ser), ten (tener), ven (venir).',
-    'All other imperative forms use the present subjunctive.',
-  ],
-  'present-perfect': [
-    'The auxiliary haber is irregular (he, has, ha, hemos, habéis, han).',
-    'Common irregular past participles: abrir→abierto, decir→dicho, escribir→escrito, hacer→hecho, morir→muerto, poner→puesto, romper→roto, ver→visto, volver→vuelto, cubrir→cubierto, resolver→resuelto.',
-  ],
-  pluperfect: [
-    'Same irregular participles as the present perfect; the auxiliary haber is in the imperfect.',
-  ],
-  'future-perfect': [
-    'Same irregular participles as the present perfect; the auxiliary haber is in the future.',
-  ],
-  'conditional-perfect': [
-    'Same irregular participles as the present perfect; the auxiliary haber is in the conditional.',
-  ],
-  'present-progressive': [
-    'Estar is irregular in the present (estoy, estás, está, estamos, estáis, están).',
-    'Some gerunds are irregular: -ir verbs that stem-change in the preterite use the same change (dormir→durmiendo, pedir→pidiendo, sentir→sintiendo, venir→viniendo, decir→diciendo); -er/-ir verbs whose stem ends in a vowel take -yendo instead of -iendo (leer→leyendo, oír→oyendo, traer→trayendo, construir→construyendo); ir → yendo.',
-  ],
-  'preterite-progressive': [
-    'Estar is irregular in the preterite (estuve, estuviste, estuvo, estuvimos, estuvisteis, estuvieron).',
-    'Same irregular gerunds as the present progressive.',
-  ],
-  'imperfect-progressive': [
-    'Estar is regular in the imperfect (estaba, estabas, estaba, estábamos, estabais, estaban).',
-    'Same irregular gerunds as the present progressive.',
-  ],
-  'future-progressive': [
-    'Estar is regular in the future (estaré, estarás, estará, estaremos, estaréis, estarán).',
-    'Same irregular gerunds as the present progressive.',
-  ],
-  'poder-present': [
-    'Poder is the only irregular piece (puedo, puedes, puede, podemos, podéis, pueden); the infinitive that follows never changes.',
-  ],
-  'deber-present': ['Deber is regular; this construct has no irregular verbs.'],
-}
-
-function getVerbType(infinitive: string): VerbType | null {
-  if (infinitive.endsWith('ar')) return 'ar'
-  if (infinitive.endsWith('er')) return 'er'
-  if (infinitive.endsWith('ir')) return 'ir'
-  return null
-}
-
-function getStem(infinitive: string): string {
-  return infinitive.slice(0, -2)
-}
-
-function getRegularParticiple(infinitive: string): string {
-  const type = getVerbType(infinitive)
-  const stem = getStem(infinitive)
-  if (type === 'ar') return stem + 'ado'
-  return stem + 'ido'
-}
-
-function getRegularGerund(infinitive: string): string {
-  const type = getVerbType(infinitive)
-  const stem = getStem(infinitive)
-  if (type === 'ar') return stem + 'ando'
-  if (/[aeiouáéíóú]$/.test(stem)) return stem + 'yendo'
-  return stem + 'iendo'
-}
-
-function isReflexive(infinitive: string): boolean {
-  return infinitive.endsWith('se') && infinitive.length > 2
-}
-
-function regularSimpleForms(tenseId: string, infinitive: string): string[] | null {
-  const type = getVerbType(infinitive)
-  if (!type) return null
-  const stem = getStem(infinitive)
-
-  if (REGULAR_ENDINGS[tenseId]) {
-    return REGULAR_ENDINGS[tenseId][type].map((e) => stem + e)
-  }
-  if (REGULAR_INFINITIVE_ENDINGS[tenseId]) {
-    return REGULAR_INFINITIVE_ENDINGS[tenseId].map((e) => infinitive + e)
-  }
-  if (tenseId === 'imperative') {
-    const presentSubj = REGULAR_ENDINGS['present-subjunctive'][type].map((e) => stem + e)
-    const imp = REGULAR_IMPERATIVE[type]
-    return [
-      stem + imp.tu,
-      presentSubj[2],
-      presentSubj[3],
-      stem + imp.vosotros,
-      presentSubj[5],
-    ]
-  }
-  return null
-}
-
-/** Pure spelling-rule substitutions that don't represent a real lexical irregularity. */
-function isOrthographicOnly(infinitive: string, stems: string[]): boolean {
-  const regularStem = getStem(infinitive)
-  return stems.every((s) => stemMatchesOrtho(regularStem, s))
-}
-
-function stemMatchesOrtho(regular: string, actual: string): boolean {
-  if (regular === actual) return true
-  if (regular.endsWith('c') && actual === regular.slice(0, -1) + 'qu') return true
-  if (regular.endsWith('g') && actual === regular + 'u') return true
-  if (regular.endsWith('z') && actual === regular.slice(0, -1) + 'c') return true
-  if (regular.endsWith('g') && actual === regular.slice(0, -1) + 'j') return true
-  if (regular.endsWith('gu') && actual === regular.slice(0, -1)) return true
-  if (regular.endsWith('c') && actual === regular.slice(0, -1) + 'z') return true
-  return false
-}
-
-interface VerbForms {
-  infinitive: string
-  type: VerbType
-  forms: string[]
-  /** Per-person stem (form minus best-fitting ending). */
-  stems: string[]
-  /** Endings paired with each stem (the ending set chosen by extractStems). */
-  endings: string[]
-}
-
-function stripAccents(text: string): string {
-  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-}
-
-/**
- * Strip an ending from a form using accent-insensitive matching.
- * Some irregular verbs use regular endings without their accents (e.g. monosyllabic
- * dar: "di" = d- + -i, where the regular -er/-ir slot is -í). Returns null if the
- * form does not end with the (accent-insensitive) ending.
- */
-function stripEnding(form: string, ending: string): string | null {
-  if (!form || !ending) return null
-  if (form.length < ending.length) return null
-  const tail = form.slice(form.length - ending.length)
-  if (stripAccents(tail).toLowerCase() === stripAccents(ending).toLowerCase()) {
-    return form.slice(0, form.length - ending.length)
-  }
-  return null
-}
-
-/** Choose the ending set whose application yields the cleanest extraction (no stem == raw form). */
-function extractStems(
-  tenseId: string,
-  forms: string[]
-): { stems: string[]; endings: string[] } {
-  const candidates: string[][] = []
-  // Try every regular ending set, not just the verb's own type. Some irregular
-  // verbs borrow another type's endings (e.g. dar — an -ar verb — uses the
-  // regular -er/-ir preterite endings: di, diste, dio, dimos, disteis, dieron).
-  if (REGULAR_ENDINGS[tenseId]) {
-    for (const t of ['ar', 'er', 'ir'] as VerbType[]) {
-      candidates.push(REGULAR_ENDINGS[tenseId][t])
-    }
-  }
-  if (REGULAR_INFINITIVE_ENDINGS[tenseId]) candidates.push(REGULAR_INFINITIVE_ENDINGS[tenseId])
-  if (ALTERNATIVE_ENDINGS[tenseId]) candidates.push(...ALTERNATIVE_ENDINGS[tenseId])
-
-  if (candidates.length === 0) return { stems: forms.slice(), endings: forms.map(() => '') }
-
-  let bestStems = forms.slice()
-  let bestEndings = candidates[0]
-  let bestScore = Infinity
-  for (const endings of candidates) {
-    const stems = forms.map((form, i) => stripEnding(form, endings[i]) ?? form)
-    const uncleanCount = stems.filter((s, i) => s === forms[i] && forms[i] !== '').length
-    const distinct = new Set(stems).size
-    const score = uncleanCount * 1000 + distinct
-    if (score < bestScore) {
-      bestScore = score
-      bestStems = stems
-      bestEndings = endings
-    }
-  }
-  return { stems: bestStems, endings: bestEndings }
-}
-
-function hasShorterIrregularBase(infinitive: string, pool: Set<string>): boolean {
-  for (const other of pool) {
-    if (other === infinitive) continue
-    if (other.length < 4) continue
-    if (other.length >= infinitive.length) continue
-    if (infinitive.endsWith(other)) return true
-  }
-  return false
 }
 
 function buildEndingsTables(tenseId: string): EndingsTable[] {
@@ -372,268 +116,485 @@ function buildEndingsTables(tenseId: string): EndingsTable[] {
   return tables
 }
 
-interface IrregularEntry {
-  verb: VerbForms
-  /** Hint shown next to the verb name (the unique stem(s) that differ from regular). */
-  hint: string
-  /** Group key: the ending signature this verb conjugates with. */
-  endingSignature: string
+const FORMATION: Record<string, string> = {
+  present: 'Drop the infinitive ending and add the present endings to the stem.',
+  preterite: 'Drop the infinitive ending and add the preterite endings to the stem.',
+  imperfect: 'Drop the infinitive ending and add the imperfect endings to the stem.',
+  future: 'Add the future endings to the full infinitive (no stem change).',
+  conditional: 'Add the conditional endings to the full infinitive (no stem change).',
+  'present-subjunctive':
+    'Take the yo form of the present indicative, drop the -o, then add the opposite-vowel endings (-ar verbs use -e endings, -er/-ir verbs use -a endings).',
+  'imperfect-subjunctive':
+    'Take the ellos form of the preterite, drop -ron, then add the imperfect-subjunctive endings.',
+  imperative:
+    'Affirmative tú is the same as él/ella present indicative. Affirmative vosotros replaces the -r of the infinitive with -d. The other forms (usted, nosotros, ustedes) are taken from the present subjunctive.',
+  'present-perfect':
+    'Conjugate haber in the present + the past participle (regular: -ado / -ido).',
+  pluperfect: 'Conjugate haber in the imperfect + the past participle (regular: -ado / -ido).',
+  'future-perfect': 'Conjugate haber in the future + the past participle (regular: -ado / -ido).',
+  'conditional-perfect':
+    'Conjugate haber in the conditional + the past participle (regular: -ado / -ido).',
+  'present-progressive':
+    'Conjugate estar in the present + the gerund (regular: -ar → -ando, -er/-ir → -iendo).',
+  'preterite-progressive':
+    'Conjugate estar in the preterite + the gerund (regular: -ar → -ando, -er/-ir → -iendo).',
+  'imperfect-progressive':
+    'Conjugate estar in the imperfect + the gerund (regular: -ar → -ando, -er/-ir → -iendo).',
+  'future-progressive':
+    'Conjugate estar in the future + the gerund (regular: -ar → -ando, -er/-ir → -iendo).',
+  'poder-present':
+    'Conjugate poder (puedo, puedes, puede, podemos, podéis, pueden) + the infinitive.',
+  'deber-present':
+    'Conjugate deber (debo, debes, debe, debemos, debéis, deben) + the infinitive.',
 }
 
-function detectSimpleTenseIrregulars(
-  tenseId: string,
-  data: CompactConjugationData,
-  tenseIdx: number,
-  persons: string[]
-): { irregularGroups: LessonIrregularGroup[]; otherIrregulars: LessonIrregularVerb[] } {
-  const entries: IrregularEntry[] = []
+// =============================================================================
+// Curated irregular categories per construct
+// =============================================================================
 
-  // Imperative has its own "irregular" definition: tú affirmative differs from
-  // the él/ella present indicative (catches the di/haz/ve/pon/sal/sé/ten/ven
-  // shortcuts only). Every other imperative slot is the present subjunctive
-  // and is covered by that lesson.
-  const presentTenseIdx = data.tenses.findIndex((t) => t.tenseId === 'present')
+const PRESENT: LessonIrregularCategory[] = [
+  {
+    id: 'stem-e-ie',
+    label: 'Stem-changing e → ie',
+    description:
+      'The stressed e of the stem becomes ie in all forms except nosotros and vosotros.',
+    verbs: [
+      { infinitive: 'pensar', hint: 'pienso' },
+      { infinitive: 'cerrar', hint: 'cierro' },
+      { infinitive: 'empezar', hint: 'empiezo' },
+      { infinitive: 'entender', hint: 'entiendo' },
+      { infinitive: 'perder', hint: 'pierdo' },
+      { infinitive: 'querer', hint: 'quiero' },
+      { infinitive: 'sentir', hint: 'siento' },
+      { infinitive: 'preferir', hint: 'prefiero' },
+    ],
+  },
+  {
+    id: 'stem-o-ue',
+    label: 'Stem-changing o → ue',
+    description:
+      'The stressed o of the stem becomes ue in all forms except nosotros and vosotros.',
+    verbs: [
+      { infinitive: 'contar', hint: 'cuento' },
+      { infinitive: 'encontrar', hint: 'encuentro' },
+      { infinitive: 'recordar', hint: 'recuerdo' },
+      { infinitive: 'volver', hint: 'vuelvo' },
+      { infinitive: 'poder', hint: 'puedo' },
+      { infinitive: 'dormir', hint: 'duermo' },
+      { infinitive: 'morir', hint: 'muero' },
+    ],
+  },
+  {
+    id: 'stem-e-i',
+    label: 'Stem-changing e → i (-ir verbs only)',
+    description:
+      'The stressed e of the stem becomes i in all forms except nosotros and vosotros. Only happens with -ir verbs.',
+    verbs: [
+      { infinitive: 'pedir', hint: 'pido' },
+      { infinitive: 'servir', hint: 'sirvo' },
+      { infinitive: 'repetir', hint: 'repito' },
+      { infinitive: 'seguir', hint: 'sigo' },
+      { infinitive: 'vestir', hint: 'visto' },
+    ],
+  },
+  {
+    id: 'stem-u-ue',
+    label: 'Stem-changing u → ue',
+    description: 'Only one common verb has this pattern.',
+    verbs: [{ infinitive: 'jugar', hint: 'juego' }],
+  },
+  {
+    id: 'yo-go',
+    label: 'Irregular yo in -go',
+    description:
+      'These verbs have an irregular yo form ending in -go. The other persons follow the regular pattern (sometimes with an additional stem change).',
+    verbs: [
+      { infinitive: 'tener', hint: 'tengo (also e→ie: tienes)' },
+      { infinitive: 'venir', hint: 'vengo (also e→ie: vienes)' },
+      { infinitive: 'poner', hint: 'pongo' },
+      { infinitive: 'salir', hint: 'salgo' },
+      { infinitive: 'hacer', hint: 'hago' },
+      { infinitive: 'decir', hint: 'digo (also e→i: dices)' },
+      { infinitive: 'oír', hint: 'oigo' },
+      { infinitive: 'caer', hint: 'caigo' },
+      { infinitive: 'traer', hint: 'traigo' },
+    ],
+  },
+  {
+    id: 'yo-zco',
+    label: 'Irregular yo in -zco (-cer / -cir verbs after a vowel)',
+    description:
+      '-cer and -cir verbs whose stem ends in a vowel insert a z before the c in the yo form.',
+    verbs: [
+      { infinitive: 'conocer', hint: 'conozco' },
+      { infinitive: 'parecer', hint: 'parezco' },
+      { infinitive: 'ofrecer', hint: 'ofrezco' },
+      { infinitive: 'conducir', hint: 'conduzco' },
+      { infinitive: 'traducir', hint: 'traduzco' },
+    ],
+  },
+  {
+    id: 'yo-only',
+    label: 'Irregular yo only',
+    description: 'These verbs have an irregular yo but otherwise conjugate regularly.',
+    verbs: [
+      { infinitive: 'saber', hint: 'sé' },
+      { infinitive: 'ver', hint: 'veo' },
+      { infinitive: 'dar', hint: 'doy' },
+      { infinitive: 'caber', hint: 'quepo' },
+    ],
+  },
+  {
+    id: 'fully-irregular',
+    label: 'Fully irregular',
+    description:
+      'These verbs do not follow any pattern and must be memorised. They are also among the most common verbs.',
+    verbs: [
+      { infinitive: 'ser', hint: 'soy, eres, es, somos, sois, son' },
+      { infinitive: 'estar', hint: 'estoy, estás, está, estamos, estáis, están' },
+      { infinitive: 'ir', hint: 'voy, vas, va, vamos, vais, van' },
+      { infinitive: 'haber', hint: 'he, has, ha, hemos, habéis, han' },
+    ],
+  },
+]
 
-  for (const [infinitive, allTenseForms] of Object.entries(data.verbs)) {
-    if (isReflexive(infinitive)) continue
-    const type = getVerbType(infinitive)
-    if (!type) continue
-    const forms = allTenseForms[tenseIdx]
-    if (!forms || forms.length !== persons.length) continue
+const PRETERITE: LessonIrregularCategory[] = [
+  {
+    id: 'strong',
+    label: 'Strong preterite',
+    description:
+      'These verbs use a fully irregular stem with a special set of endings (no accent on yo or él/ella).',
+    altEndings: {
+      verbTypes: ['stem +'],
+      persons: PERSONS_FULL,
+      endings: ['e', 'iste', 'o', 'imos', 'isteis', 'ieron'],
+    },
+    verbs: [
+      { infinitive: 'tener', hint: 'tuv-' },
+      { infinitive: 'estar', hint: 'estuv-' },
+      { infinitive: 'andar', hint: 'anduv-' },
+      { infinitive: 'poder', hint: 'pud-' },
+      { infinitive: 'poner', hint: 'pus-' },
+      { infinitive: 'saber', hint: 'sup-' },
+      { infinitive: 'caber', hint: 'cup-' },
+      { infinitive: 'haber', hint: 'hub-' },
+      { infinitive: 'querer', hint: 'quis-' },
+      { infinitive: 'venir', hint: 'vin-' },
+      { infinitive: 'hacer', hint: 'hic- (hizo for él/ella)' },
+    ],
+  },
+  {
+    id: 'j-stem',
+    label: 'j-stem preterite',
+    description:
+      'These verbs use a stem ending in -j and take -eron instead of -ieron in the ellos/ellas form.',
+    altEndings: {
+      verbTypes: ['stem +'],
+      persons: PERSONS_FULL,
+      endings: ['e', 'iste', 'o', 'imos', 'isteis', 'eron'],
+    },
+    verbs: [
+      { infinitive: 'decir', hint: 'dij-' },
+      { infinitive: 'traer', hint: 'traj-' },
+      { infinitive: 'conducir', hint: 'conduj-' },
+      { infinitive: 'producir', hint: 'produj-' },
+      { infinitive: 'traducir', hint: 'traduj-' },
+    ],
+  },
+  {
+    id: 'ir-stem-change-3rd',
+    label: 'Stem change in 3rd person (-ir verbs)',
+    description:
+      '-ir stem-changing verbs change e → i or o → u, but only in the él/ella and ellos/ellas forms.',
+    verbs: [
+      { infinitive: 'pedir', hint: 'pidió, pidieron' },
+      { infinitive: 'servir', hint: 'sirvió, sirvieron' },
+      { infinitive: 'repetir', hint: 'repitió, repitieron' },
+      { infinitive: 'sentir', hint: 'sintió, sintieron' },
+      { infinitive: 'preferir', hint: 'prefirió, prefirieron' },
+      { infinitive: 'dormir', hint: 'durmió, durmieron' },
+      { infinitive: 'morir', hint: 'murió, murieron' },
+      { infinitive: 'seguir', hint: 'siguió, siguieron' },
+    ],
+  },
+  {
+    id: 'i-to-y',
+    label: 'i → y in 3rd person',
+    description:
+      '-er and -ir verbs whose stem ends in a vowel change i → y in the él/ella and ellos/ellas forms (e.g. leyó, leyeron).',
+    verbs: [
+      { infinitive: 'leer', hint: 'leyó, leyeron' },
+      { infinitive: 'creer', hint: 'creyó, creyeron' },
+      { infinitive: 'oír', hint: 'oyó, oyeron' },
+      { infinitive: 'caer', hint: 'cayó, cayeron' },
+      { infinitive: 'construir', hint: 'construyó, construyeron' },
+    ],
+  },
+  {
+    id: 'fully-irregular',
+    label: 'Fully irregular',
+    description:
+      'Ser and ir share the same fully irregular preterite. Dar and ver use the regular -er/-ir endings without accents.',
+    verbs: [
+      { infinitive: 'ser', hint: 'fui, fuiste, fue, fuimos, fuisteis, fueron' },
+      { infinitive: 'ir', hint: 'fui, fuiste, fue, fuimos, fuisteis, fueron' },
+      { infinitive: 'dar', hint: 'di, diste, dio, dimos, disteis, dieron' },
+      { infinitive: 'ver', hint: 'vi, viste, vio, vimos, visteis, vieron' },
+    ],
+  },
+]
 
-    let isIrregular: boolean
-    if (tenseId === 'imperative') {
-      const tu = forms[0]
-      const presentForms = allTenseForms[presentTenseIdx]
-      const elPresent = presentForms?.[2]
-      if (!tu || !elPresent) continue
-      isIrregular = tu !== elPresent
-    } else {
-      const expected = regularSimpleForms(tenseId, infinitive)
-      if (!expected) continue
-      isIrregular = forms.some((f, i) => f && f !== expected[i])
-    }
-    if (!isIrregular) continue
+const IMPERFECT: LessonIrregularCategory[] = [
+  {
+    id: 'all',
+    label: 'The only three irregular verbs in the imperfect',
+    description:
+      'The imperfect is the most regular tense in Spanish. Only three verbs are irregular.',
+    verbs: [
+      { infinitive: 'ser', hint: 'era, eras, era, éramos, erais, eran' },
+      { infinitive: 'ir', hint: 'iba, ibas, iba, íbamos, ibais, iban' },
+      { infinitive: 'ver', hint: 'veía, veías, veía, veíamos, veíais, veían (keeps the e)' },
+    ],
+  },
+]
 
-    const { stems, endings } = extractStems(tenseId, forms)
-    // Only treat the verb as "merely orthographic" when it uses its own
-    // type's regular endings. dar (an -ar verb) extracts to stem "d" with
-    // the -er/-ir endings, but that's a real ending irregularity, not just
-    // a spelling shift.
-    const ownTypeEndings = REGULAR_ENDINGS[tenseId]?.[type] ?? REGULAR_INFINITIVE_ENDINGS[tenseId]
-    const usesOwnTypeEndings =
-      ownTypeEndings !== undefined && endings.join('|') === ownTypeEndings.join('|')
-    if (usesOwnTypeEndings && isOrthographicOnly(infinitive, stems)) continue
+const FUTURE_CONDITIONAL: LessonIrregularCategory[] = [
+  {
+    id: 'irregular-stems',
+    label: 'Verbs with an irregular stem',
+    description:
+      'A handful of verbs use a contracted or modified infinitive as the stem. The endings are always regular.',
+    verbs: [
+      { infinitive: 'tener', hint: 'tendr- (tendré, tendrías, ...)' },
+      { infinitive: 'venir', hint: 'vendr-' },
+      { infinitive: 'poner', hint: 'pondr-' },
+      { infinitive: 'salir', hint: 'saldr-' },
+      { infinitive: 'valer', hint: 'valdr-' },
+      { infinitive: 'poder', hint: 'podr-' },
+      { infinitive: 'saber', hint: 'sabr-' },
+      { infinitive: 'caber', hint: 'cabr-' },
+      { infinitive: 'haber', hint: 'habr-' },
+      { infinitive: 'querer', hint: 'querr-' },
+      { infinitive: 'hacer', hint: 'har-' },
+      { infinitive: 'decir', hint: 'dir-' },
+    ],
+  },
+]
 
-    const uniqueStems = Array.from(new Set(stems.filter((s) => s !== '')))
-    const hint = tenseId === 'imperative'
-      ? `tú ${forms[0]}`
-      : uniqueStems.map((s) => `${s}-`).join(' / ')
+const PRESENT_SUBJUNCTIVE: LessonIrregularCategory[] = [
+  {
+    id: 'derived-from-yo',
+    label: 'Derived from an irregular yo present',
+    description:
+      'Most irregular present subjunctives are built by taking the yo form of the present indicative, dropping -o, and adding the subjunctive endings.',
+    verbs: [
+      { infinitive: 'tener', hint: 'tengo → tenga' },
+      { infinitive: 'venir', hint: 'vengo → venga' },
+      { infinitive: 'poner', hint: 'pongo → ponga' },
+      { infinitive: 'hacer', hint: 'hago → haga' },
+      { infinitive: 'decir', hint: 'digo → diga' },
+      { infinitive: 'salir', hint: 'salgo → salga' },
+      { infinitive: 'oír', hint: 'oigo → oiga' },
+      { infinitive: 'conocer', hint: 'conozco → conozca' },
+    ],
+  },
+  {
+    id: 'fully-irregular',
+    label: 'Fully irregular present subjunctive',
+    description: 'These six verbs have a fully irregular present subjunctive stem.',
+    verbs: [
+      { infinitive: 'ser', hint: 'sea' },
+      { infinitive: 'estar', hint: 'esté' },
+      { infinitive: 'ir', hint: 'vaya' },
+      { infinitive: 'haber', hint: 'haya' },
+      { infinitive: 'saber', hint: 'sepa' },
+      { infinitive: 'dar', hint: 'dé' },
+    ],
+  },
+  {
+    id: 'ir-stem-change',
+    label: 'Stem change in nosotros/vosotros (-ir verbs)',
+    description:
+      '-ir stem-changing verbs keep the stem change in nosotros and vosotros (unlike the present indicative).',
+    verbs: [
+      { infinitive: 'sentir', hint: 'sintamos, sintáis' },
+      { infinitive: 'preferir', hint: 'prefiramos, prefiráis' },
+      { infinitive: 'dormir', hint: 'durmamos, durmáis' },
+      { infinitive: 'pedir', hint: 'pidamos, pidáis' },
+    ],
+  },
+]
 
-    // A verb only belongs in an alt-endings group when it extracts to a
-    // single uniform stem (with at most an orthographic spelling variant,
-    // like satisfic-/satisfiz- or hic-/hiz-). Vowel-stem verbs with
-    // y-insertion (caer→cayeron, leer→leyeron) yield 3+ stems and stay
-    // out of the alt-endings groups.
-    let altEligible = uniqueStems.length <= 2
-    // The preterite/imperfect-subjunctive "j-stem" alt endings (-eron, -era…)
-    // also fit verbs whose stem ends in ñ or ll (atañer, bullir, gruñir),
-    // but those follow an orthographic rule (loss of -i- after palatal),
-    // not a true j-stem irregularity. Exclude them.
-    if (altEligible && uniqueStems.length > 0) {
-      const lastChar = uniqueStems[uniqueStems.length - 1].slice(-1)
-      const isPalatalStem = lastChar === 'ñ' || uniqueStems[uniqueStems.length - 1].endsWith('ll')
-      if (isPalatalStem) altEligible = false
-    }
-    const endingSignature = altEligible ? endings.join('|') : 'other'
+const IMPERFECT_SUBJUNCTIVE: LessonIrregularCategory[] = [
+  {
+    id: 'from-preterite',
+    label: 'Derived from the ellos preterite stem',
+    description:
+      'The imperfect subjunctive is built from the ellos preterite stem, so any verb irregular in the preterite is irregular here too.',
+    verbs: [
+      { infinitive: 'tener', hint: 'tuvieron → tuviera' },
+      { infinitive: 'estar', hint: 'estuvieron → estuviera' },
+      { infinitive: 'poder', hint: 'pudieron → pudiera' },
+      { infinitive: 'poner', hint: 'pusieron → pusiera' },
+      { infinitive: 'saber', hint: 'supieron → supiera' },
+      { infinitive: 'hacer', hint: 'hicieron → hiciera' },
+      { infinitive: 'querer', hint: 'quisieron → quisiera' },
+      { infinitive: 'venir', hint: 'vinieron → viniera' },
+      { infinitive: 'decir', hint: 'dijeron → dijera' },
+      { infinitive: 'traer', hint: 'trajeron → trajera' },
+      { infinitive: 'conducir', hint: 'condujeron → condujera' },
+      { infinitive: 'ser', hint: 'fueron → fuera' },
+      { infinitive: 'ir', hint: 'fueron → fuera' },
+      { infinitive: 'leer', hint: 'leyeron → leyera' },
+      { infinitive: 'pedir', hint: 'pidieron → pidiera' },
+      { infinitive: 'dormir', hint: 'durmieron → durmiera' },
+    ],
+  },
+]
 
-    entries.push({
-      verb: { infinitive, type, forms, stems, endings },
-      hint,
-      endingSignature,
-    })
-  }
+const IMPERATIVE: LessonIrregularCategory[] = [
+  {
+    id: 'irregular-tu',
+    label: 'Irregular tú affirmative (one-syllable shortcuts)',
+    description:
+      'These verbs have a special one-syllable tú affirmative form. Every other imperative slot (usted, nosotros, ustedes) uses the present subjunctive.',
+    verbs: [
+      { infinitive: 'tener', hint: 'ten' },
+      { infinitive: 'venir', hint: 'ven' },
+      { infinitive: 'poner', hint: 'pon' },
+      { infinitive: 'salir', hint: 'sal' },
+      { infinitive: 'hacer', hint: 'haz' },
+      { infinitive: 'decir', hint: 'di' },
+      { infinitive: 'ir', hint: 've' },
+      { infinitive: 'ser', hint: 'sé' },
+    ],
+  },
+]
 
-  const allInfinitives = new Set(entries.map((e) => e.verb.infinitive))
-  const baseEntries = entries.filter(
-    (e) => !hasShorterIrregularBase(e.verb.infinitive, allInfinitives)
-  )
+const IRREGULAR_PARTICIPLES: LessonIrregularCategory[] = [
+  {
+    id: 'irregular-participles',
+    label: 'Verbs with an irregular past participle',
+    description:
+      'The auxiliary haber is irregular (he, has, ha, hemos, habéis, han). The participle itself is irregular for these verbs.',
+    verbs: [
+      { infinitive: 'abrir', hint: 'abierto' },
+      { infinitive: 'cubrir', hint: 'cubierto' },
+      { infinitive: 'decir', hint: 'dicho' },
+      { infinitive: 'escribir', hint: 'escrito' },
+      { infinitive: 'hacer', hint: 'hecho' },
+      { infinitive: 'morir', hint: 'muerto' },
+      { infinitive: 'poner', hint: 'puesto' },
+      { infinitive: 'romper', hint: 'roto' },
+      { infinitive: 'ver', hint: 'visto' },
+      { infinitive: 'volver', hint: 'vuelto' },
+      { infinitive: 'resolver', hint: 'resuelto' },
+      { infinitive: 'absolver', hint: 'absuelto' },
+      { infinitive: 'freír', hint: 'frito' },
+      { infinitive: 'imprimir', hint: 'impreso' },
+    ],
+  },
+]
 
-  // Group by ending signature. Verbs that conjugate with the regular endings
-  // (i.e. only their stem changes) all land in one big "regular endings" group.
-  const byEndings = new Map<string, IrregularEntry[]>()
-  for (const e of baseEntries) {
-    const arr = byEndings.get(e.endingSignature) ?? []
-    arr.push(e)
-    byEndings.set(e.endingSignature, arr)
-  }
+const IRREGULAR_GERUNDS: LessonIrregularCategory[] = [
+  {
+    id: 'ir-stem-change-gerund',
+    label: 'Stem change in the gerund (-ir verbs)',
+    description:
+      '-ir verbs that stem-change in the preterite use the same change in the gerund (e → i or o → u).',
+    verbs: [
+      { infinitive: 'pedir', hint: 'pidiendo' },
+      { infinitive: 'servir', hint: 'sirviendo' },
+      { infinitive: 'repetir', hint: 'repitiendo' },
+      { infinitive: 'sentir', hint: 'sintiendo' },
+      { infinitive: 'preferir', hint: 'prefiriendo' },
+      { infinitive: 'dormir', hint: 'durmiendo' },
+      { infinitive: 'morir', hint: 'muriendo' },
+      { infinitive: 'venir', hint: 'viniendo' },
+      { infinitive: 'decir', hint: 'diciendo' },
+      { infinitive: 'poder', hint: 'pudiendo' },
+    ],
+  },
+  {
+    id: 'yendo',
+    label: '-er / -ir verbs with a vowel-ending stem (-yendo)',
+    description:
+      'When the stem ends in a vowel, -iendo becomes -yendo to avoid three vowels in a row.',
+    verbs: [
+      { infinitive: 'leer', hint: 'leyendo' },
+      { infinitive: 'creer', hint: 'creyendo' },
+      { infinitive: 'oír', hint: 'oyendo' },
+      { infinitive: 'caer', hint: 'cayendo' },
+      { infinitive: 'traer', hint: 'trayendo' },
+      { infinitive: 'construir', hint: 'construyendo' },
+      { infinitive: 'huir', hint: 'huyendo' },
+      { infinitive: 'ir', hint: 'yendo' },
+    ],
+  },
+]
 
-  // Identify the regular-endings signature(s) for this tense. Verbs in those
-  // groups don't get a labelled "alt endings" group: they go into otherIrregulars
-  // (still sorted alphabetically with their stem hint).
-  // For the imperative, we never form ending groups: each form is its own
-  // irregular shortcut and ending-grouping isn't meaningful.
-  const skipGrouping = tenseId === 'imperative'
-  const regularSignatures = new Set<string>()
-  if (REGULAR_ENDINGS[tenseId]) {
-    for (const t of ['ar', 'er', 'ir'] as VerbType[]) {
-      regularSignatures.add(REGULAR_ENDINGS[tenseId][t].join('|'))
-    }
-  }
-  if (REGULAR_INFINITIVE_ENDINGS[tenseId]) {
-    regularSignatures.add(REGULAR_INFINITIVE_ENDINGS[tenseId].join('|'))
-  }
+const NO_IRREGULARS: LessonIrregularCategory[] = []
 
-  const groups: LessonIrregularGroup[] = []
-  const others: LessonIrregularVerb[] = []
-  for (const [sig, es] of byEndings.entries()) {
-    if (skipGrouping || sig === 'other' || regularSignatures.has(sig)) {
-      for (const e of es) {
-        others.push({ infinitive: e.verb.infinitive, hint: e.hint })
-      }
-      continue
-    }
-    const verbs: LessonIrregularVerb[] = es
-      .map((e) => ({ infinitive: e.verb.infinitive, hint: e.hint }))
-      .sort((a, b) => a.infinitive.localeCompare(b.infinitive))
-    const repEndings = es[0].verb.endings
-    const label = `Endings: ${repEndings.map((e) => `-${e}`).join(' ')}`
-    groups.push({
-      id: sig,
-      label,
-      persons,
-      endings: repEndings,
-      verbs,
-    })
-  }
-
-  groups.sort((a, b) => b.verbs.length - a.verbs.length || a.label.localeCompare(b.label))
-  others.sort((a, b) => a.infinitive.localeCompare(b.infinitive))
-  return { irregularGroups: groups, otherIrregulars: others }
+const CATEGORIES: Record<string, LessonIrregularCategory[]> = {
+  present: PRESENT,
+  preterite: PRETERITE,
+  imperfect: IMPERFECT,
+  future: FUTURE_CONDITIONAL,
+  conditional: FUTURE_CONDITIONAL,
+  'present-subjunctive': PRESENT_SUBJUNCTIVE,
+  'imperfect-subjunctive': IMPERFECT_SUBJUNCTIVE,
+  imperative: IMPERATIVE,
+  'present-perfect': IRREGULAR_PARTICIPLES,
+  pluperfect: IRREGULAR_PARTICIPLES,
+  'future-perfect': IRREGULAR_PARTICIPLES,
+  'conditional-perfect': IRREGULAR_PARTICIPLES,
+  'present-progressive': IRREGULAR_GERUNDS,
+  'preterite-progressive': IRREGULAR_GERUNDS,
+  'imperfect-progressive': IRREGULAR_GERUNDS,
+  'future-progressive': IRREGULAR_GERUNDS,
+  'poder-present': NO_IRREGULARS,
+  'deber-present': NO_IRREGULARS,
 }
 
-interface CompoundDetection {
-  irregularGroups: LessonIrregularGroup[]
-  otherIrregulars: LessonIrregularVerb[]
+// =============================================================================
+// Tense metadata (id, name, description) — kept in sync with the static
+// conjugation database / Spanish language module.
+// =============================================================================
+
+interface TenseMeta {
+  id: string
+  name: string
+  description: string
 }
 
-/** Pull the last whitespace-separated word out of a compound form. */
-function compoundTail(form: string): string {
-  const parts = form.split(/\s+/)
-  if (parts.length < 2) return ''
-  return parts[parts.length - 1]
-}
+const TENSES: TenseMeta[] = [
+  { id: 'present', name: 'Present', description: 'Actions happening now, habitual actions, general truths' },
+  { id: 'preterite', name: 'Preterite', description: 'Completed past actions with a definite endpoint' },
+  { id: 'imperfect', name: 'Imperfect', description: 'Ongoing, habitual, or background past actions' },
+  { id: 'future', name: 'Future', description: 'Actions that will happen, predictions, probability' },
+  { id: 'conditional', name: 'Conditional', description: 'Hypothetical situations, polite requests, future in the past' },
+  { id: 'present-subjunctive', name: 'Present Subjunctive', description: 'Wishes, doubts, emotions, impersonal expressions in the present' },
+  { id: 'imperfect-subjunctive', name: 'Imperfect Subjunctive', description: 'Hypothetical or contrary-to-fact situations in the past' },
+  { id: 'imperative', name: 'Imperative', description: 'Commands and instructions' },
+  { id: 'present-perfect', name: 'Present Perfect', description: 'Actions completed recently or with present relevance' },
+  { id: 'pluperfect', name: 'Pluperfect', description: 'Actions completed before another past action' },
+  { id: 'future-perfect', name: 'Future Perfect', description: 'Actions that will be completed before a future point' },
+  { id: 'conditional-perfect', name: 'Conditional Perfect', description: 'Hypothetical completed actions' },
+  { id: 'present-progressive', name: 'Present Progressive', description: 'Actions happening right now (estoy hablando)' },
+  { id: 'preterite-progressive', name: 'Preterite Progressive', description: 'Actions that were underway during a bounded stretch of the past (estuve hablando)' },
+  { id: 'imperfect-progressive', name: 'Imperfect Progressive', description: 'Ongoing past actions in progress (estaba hablando)' },
+  { id: 'future-progressive', name: 'Future Progressive', description: 'Actions that will be in progress (estaré hablando)' },
+  { id: 'poder-present', name: 'Poder + Infinitive', description: 'Ability or possibility (puedo hablar)' },
+  { id: 'deber-present', name: 'Deber + Infinitive', description: 'Obligation or probability (debo hablar)' },
+]
 
-function detectCompoundTenseIrregulars(
-  data: CompactConjugationData,
-  tenseIdx: number,
-  persons: string[],
-  expectedTail: (infinitive: string) => string,
-  hintLabel: string
-): CompoundDetection {
-  const records: { infinitive: string; tail: string }[] = []
-  for (const [infinitive, allTenseForms] of Object.entries(data.verbs)) {
-    if (isReflexive(infinitive)) continue
-    if (!getVerbType(infinitive)) continue
-    const forms = allTenseForms[tenseIdx]
-    if (!forms || forms.length !== persons.length) continue
-    const tail = compoundTail(forms[0])
-    if (!tail) continue
-    if (tail === expectedTail(infinitive)) continue
-    records.push({ infinitive, tail })
-  }
-
-  const allInfinitives = new Set(records.map((r) => r.infinitive))
-  const base = records.filter(
-    (r) => !hasShorterIrregularBase(r.infinitive, allInfinitives)
-  )
-
-  const byTail = new Map<string, string[]>()
-  for (const r of base) {
-    const arr = byTail.get(r.tail) ?? []
-    arr.push(r.infinitive)
-    byTail.set(r.tail, arr)
-  }
-
-  // For perfect/progressive tenses, every irregular verb has its own unique
-  // tail (participle/gerund), so there are no natural multi-verb groups.
-  // Just produce a flat list of {verb, hint=tail}.
-  const others: LessonIrregularVerb[] = []
-  for (const [tail, verbs] of byTail.entries()) {
-    for (const v of verbs.sort((a, b) => a.localeCompare(b))) {
-      others.push({ infinitive: v, hint: `${hintLabel.toLowerCase()} ${tail}` })
-    }
-  }
-  others.sort((a, b) => a.infinitive.localeCompare(b.infinitive))
-  return { irregularGroups: [], otherIrregulars: others }
-}
-
-const PERFECT_TENSES = new Set([
-  'present-perfect',
-  'pluperfect',
-  'future-perfect',
-  'conditional-perfect',
-])
-
-const PROGRESSIVE_TENSES = new Set([
-  'present-progressive',
-  'preterite-progressive',
-  'imperfect-progressive',
-  'future-progressive',
-])
-
-const MODAL_TENSES = new Set(['poder-present', 'deber-present'])
-
-function buildLessonForTense(data: CompactConjugationData, tenseIdx: number): LessonData {
-  const tense = data.tenses[tenseIdx]
-  const tenseId = tense.tenseId
-
-  const base = {
-    tenseId,
-    tenseName: tense.tenseName,
-    description: tense.description,
-    formationSummary: FORMATION[tenseId] ?? '',
-    endingsTables: buildEndingsTables(tenseId),
-    irregularRules: IRREGULAR_RULES[tenseId] ?? [],
-  }
-
-  if (MODAL_TENSES.has(tenseId)) {
-    return { ...base, irregularGroups: [], otherIrregulars: [] }
-  }
-
-  if (PERFECT_TENSES.has(tenseId)) {
-    const detection = detectCompoundTenseIrregulars(
-      data,
-      tenseIdx,
-      tense.persons,
-      getRegularParticiple,
-      'Participle'
-    )
-    return { ...base, ...detection }
-  }
-
-  if (PROGRESSIVE_TENSES.has(tenseId)) {
-    const detection = detectCompoundTenseIrregulars(
-      data,
-      tenseIdx,
-      tense.persons,
-      getRegularGerund,
-      'Gerund'
-    )
-    return { ...base, ...detection }
-  }
-
-  const detection = detectSimpleTenseIrregulars(tenseId, data, tenseIdx, tense.persons)
-  return { ...base, ...detection }
-}
-
-let cachedLessons: LessonData[] | null = null
-
-/** Build all per-tense lessons from the static Spanish conjugation database. Memoised. */
-export async function getSpanishLessons(): Promise<LessonData[]> {
-  if (cachedLessons) return cachedLessons
-  const module = await import('../data/spanish-conjugations.json')
-  const data = module.default as CompactConjugationData
-  cachedLessons = data.tenses.map((_, idx) => buildLessonForTense(data, idx))
-  return cachedLessons
+export function getSpanishLessons(): LessonData[] {
+  return TENSES.map((t) => ({
+    tenseId: t.id,
+    tenseName: t.name,
+    description: t.description,
+    formationSummary: FORMATION[t.id] ?? '',
+    endingsTables: buildEndingsTables(t.id),
+    irregularCategories: CATEGORIES[t.id] ?? [],
+  }))
 }
