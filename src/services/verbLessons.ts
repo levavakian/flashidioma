@@ -258,14 +258,40 @@ interface VerbForms {
   endings: string[]
 }
 
+function stripAccents(text: string): string {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+/**
+ * Strip an ending from a form using accent-insensitive matching.
+ * Some irregular verbs use regular endings without their accents (e.g. monosyllabic
+ * dar: "di" = d- + -i, where the regular -er/-ir slot is -í). Returns null if the
+ * form does not end with the (accent-insensitive) ending.
+ */
+function stripEnding(form: string, ending: string): string | null {
+  if (!form || !ending) return null
+  if (form.length < ending.length) return null
+  const tail = form.slice(form.length - ending.length)
+  if (stripAccents(tail).toLowerCase() === stripAccents(ending).toLowerCase()) {
+    return form.slice(0, form.length - ending.length)
+  }
+  return null
+}
+
 /** Choose the ending set whose application yields the cleanest extraction (no stem == raw form). */
 function extractStems(
   tenseId: string,
-  type: VerbType,
   forms: string[]
 ): { stems: string[]; endings: string[] } {
   const candidates: string[][] = []
-  if (REGULAR_ENDINGS[tenseId]) candidates.push(REGULAR_ENDINGS[tenseId][type])
+  // Try every regular ending set, not just the verb's own type. Some irregular
+  // verbs borrow another type's endings (e.g. dar — an -ar verb — uses the
+  // regular -er/-ir preterite endings: di, diste, dio, dimos, disteis, dieron).
+  if (REGULAR_ENDINGS[tenseId]) {
+    for (const t of ['ar', 'er', 'ir'] as VerbType[]) {
+      candidates.push(REGULAR_ENDINGS[tenseId][t])
+    }
+  }
   if (REGULAR_INFINITIVE_ENDINGS[tenseId]) candidates.push(REGULAR_INFINITIVE_ENDINGS[tenseId])
   if (ALTERNATIVE_ENDINGS[tenseId]) candidates.push(...ALTERNATIVE_ENDINGS[tenseId])
 
@@ -275,13 +301,7 @@ function extractStems(
   let bestEndings = candidates[0]
   let bestScore = Infinity
   for (const endings of candidates) {
-    const stems = forms.map((form, i) => {
-      const ending = endings[i]
-      if (form && ending && form.endsWith(ending)) {
-        return form.slice(0, form.length - ending.length)
-      }
-      return form
-    })
+    const stems = forms.map((form, i) => stripEnding(form, endings[i]) ?? form)
     const uncleanCount = stems.filter((s, i) => s === forms[i] && forms[i] !== '').length
     const distinct = new Set(stems).size
     const score = uncleanCount * 1000 + distinct
@@ -395,17 +415,42 @@ function detectSimpleTenseIrregulars(
     }
     if (!isIrregular) continue
 
-    const { stems, endings } = extractStems(tenseId, type, forms)
-    if (isOrthographicOnly(infinitive, stems)) continue
+    const { stems, endings } = extractStems(tenseId, forms)
+    // Only treat the verb as "merely orthographic" when it uses its own
+    // type's regular endings. dar (an -ar verb) extracts to stem "d" with
+    // the -er/-ir endings, but that's a real ending irregularity, not just
+    // a spelling shift.
+    const ownTypeEndings = REGULAR_ENDINGS[tenseId]?.[type] ?? REGULAR_INFINITIVE_ENDINGS[tenseId]
+    const usesOwnTypeEndings =
+      ownTypeEndings !== undefined && endings.join('|') === ownTypeEndings.join('|')
+    if (usesOwnTypeEndings && isOrthographicOnly(infinitive, stems)) continue
 
     const uniqueStems = Array.from(new Set(stems.filter((s) => s !== '')))
     const hint = tenseId === 'imperative'
       ? `tú ${forms[0]}`
       : uniqueStems.map((s) => `${s}-`).join(' / ')
+
+    // A verb only belongs in an alt-endings group when it extracts to a
+    // single uniform stem (with at most an orthographic spelling variant,
+    // like satisfic-/satisfiz- or hic-/hiz-). Vowel-stem verbs with
+    // y-insertion (caer→cayeron, leer→leyeron) yield 3+ stems and stay
+    // out of the alt-endings groups.
+    let altEligible = uniqueStems.length <= 2
+    // The preterite/imperfect-subjunctive "j-stem" alt endings (-eron, -era…)
+    // also fit verbs whose stem ends in ñ or ll (atañer, bullir, gruñir),
+    // but those follow an orthographic rule (loss of -i- after palatal),
+    // not a true j-stem irregularity. Exclude them.
+    if (altEligible && uniqueStems.length > 0) {
+      const lastChar = uniqueStems[uniqueStems.length - 1].slice(-1)
+      const isPalatalStem = lastChar === 'ñ' || uniqueStems[uniqueStems.length - 1].endsWith('ll')
+      if (isPalatalStem) altEligible = false
+    }
+    const endingSignature = altEligible ? endings.join('|') : 'other'
+
     entries.push({
       verb: { infinitive, type, forms, stems, endings },
       hint,
-      endingSignature: endings.join('|'),
+      endingSignature,
     })
   }
 
@@ -442,7 +487,7 @@ function detectSimpleTenseIrregulars(
   const groups: LessonIrregularGroup[] = []
   const others: LessonIrregularVerb[] = []
   for (const [sig, es] of byEndings.entries()) {
-    if (skipGrouping || regularSignatures.has(sig)) {
+    if (skipGrouping || sig === 'other' || regularSignatures.has(sig)) {
       for (const e of es) {
         others.push({ infinitive: e.verb.infinitive, hint: e.hint })
       }

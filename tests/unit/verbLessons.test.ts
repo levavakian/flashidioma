@@ -45,12 +45,27 @@ describe('getSpanishLessons', () => {
     expect(strongVerbs).toContain('poner')
     expect(strongVerbs).toContain('saber')
     expect(strongVerbs).toContain('hacer')
+    // dar uses regular -er/-ir endings (di, diste, dio, ...) without accents,
+    // not the strong-preterite endings — it should not be in the strong group.
+    expect(strongVerbs).not.toContain('dar')
 
     const jStem = pret.irregularGroups.find((g) => g.endings.includes('eron'))
     expect(jStem).toBeDefined()
     const jVerbs = jStem!.verbs.map((v) => v.infinitive)
     expect(jVerbs).toContain('decir')
     expect(jVerbs).toContain('conducir')
+    // -ñer/-llir verbs use -eron after a palatal stem (atañer, bullir, gruñir),
+    // an orthographic rule, not a true j-stem irregularity.
+    expect(jVerbs).not.toContain('atañer')
+    expect(jVerbs).not.toContain('bullir')
+  })
+
+  it('dar appears in preterite as an irregular verb (in "other")', async () => {
+    const lessons = await getSpanishLessons()
+    const pret = lessons.find((l) => l.tenseId === 'preterite')!
+    const dar = pret.otherIrregulars.find((v) => v.infinitive === 'dar')
+    expect(dar).toBeDefined()
+    expect(dar!.hint).toBe('d-')
   })
 
   it('imperfect detects only ir, ser, ver as irregular', async () => {
