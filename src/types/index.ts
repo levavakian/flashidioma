@@ -171,6 +171,50 @@ export interface AppExport {
   conjugationAutoAdds?: ConjugationAutoAdd[]
 }
 
+// Verb lesson data shown in the Verbs > Lessons tab.
+// Generated at runtime from the static conjugation database.
+export interface LessonData {
+  tenseId: string
+  tenseName: string
+  description: string
+  /** Plain-text summary of how regular forms are built for this tense. */
+  formationSummary: string
+  /** Regular ending tables (rows of verb types whose endings are identical can be merged). */
+  endingsTables: EndingsTable[]
+  /** Per-tense rules / patterns for irregular verbs. */
+  irregularRules: string[]
+  /** Irregular verbs grouped by a shared alt-conjugation signature (≥2 verbs each). */
+  irregularGroups: LessonIrregularGroup[]
+  /** Other irregular verbs (≤1 verb per signature). Each has a stem hint string. */
+  otherIrregulars: LessonIrregularVerb[]
+}
+
+export interface EndingsTable {
+  /** Verb types this table applies to (e.g. ["-ar"] or ["-er", "-ir"]). */
+  verbTypes: string[]
+  persons: string[]
+  endings: string[]
+}
+
+export interface LessonIrregularVerb {
+  infinitive: string
+  /** Short hint shown next to the verb name, e.g. "tuv-" or "abierto" or "yendo". */
+  hint: string
+}
+
+export interface LessonIrregularGroup {
+  /** Stable signature, used as React key. */
+  id: string
+  /** Human-readable label e.g. "Endings -e -iste -o -imos -isteis -ieron". */
+  label: string
+  /** Persons row for the alt endings table. */
+  persons: string[]
+  /** The alternate ending row that defines this group. */
+  endings: string[]
+  /** Member verbs in this group, each with their own stem hint. */
+  verbs: LessonIrregularVerb[]
+}
+
 // Importable deck catalog
 export interface ImportableDeck {
   id: string

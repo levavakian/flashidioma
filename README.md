@@ -454,6 +454,18 @@ When auto-generating conjugation cards for reflexive verbs, ensure the reflexive
   - [ ] Unit: compound tense — "levantarse" present perfect yo → "me he levantado"
   - [ ] Unit: non-reflexive verbs are unaffected — "comer" present tense yo → "como" (no pronoun)
 
+### Phase 14a: Verb Lessons Tab
+
+A "Lessons" sub-tab on the Verbs page that explains each construct (tense/mood):
+- [x] Sub-tabs on the Verbs page: "Browse" (existing conjugation database) and "Lessons" (new)
+- [x] One collapsible dropdown per construct, navigable by tense name
+- [x] Each lesson shows: tense description, formation summary, regular ending tables (rows merged when -er and -ir share the same endings), irregular-verb rules
+- [x] Irregular verbs grouped by their alternate-ending signature (e.g. strong preterite stems, j-stem preterites) with the alt endings displayed
+- [x] Other irregular verbs listed flat with a stem hint
+- [x] Each verb name expands inline to show its full conjugation table
+- [x] Derived verbs hidden in favor of their base (poner kept, suponer/componer/proponer dropped)
+- [x] Unit tests for lesson generation (regular endings, group detection, dedup, edge cases)
+
 ### Phase 14: Review Queue Fixes, Auto-Add Card State, Card Due Dates & Day Skip
 
 #### 14a: Bug Fix — "Again" Cards Re-queue in Same Review Session

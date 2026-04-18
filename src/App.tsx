@@ -3,7 +3,7 @@ import DecksPage from './components/decks/DecksPage'
 import DeckDetailPage from './components/decks/DeckDetailPage'
 import ImportDecksPage from './components/decks/ImportDecksPage'
 import TranslatePage from './components/translate/TranslatePage'
-import ConjugationBrowserPage from './components/conjugations/ConjugationBrowserPage'
+import VerbsPage from './components/conjugations/VerbsPage'
 import SettingsPage from './components/settings/SettingsPage'
 
 function App() {
@@ -21,7 +21,7 @@ function App() {
               <Route path="/deck/:deckId" element={<DeckDetailPage />} />
               <Route path="/import" element={<ImportDecksPage />} />
               <Route path="/translate" element={<TranslatePage />} />
-              <Route path="/conjugations" element={<ConjugationBrowserPage />} />
+              <Route path="/conjugations" element={<VerbsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
           </div>
