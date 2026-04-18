@@ -592,7 +592,3 @@ export async function getSpanishLessons(): Promise<LessonData[]> {
   cachedLessons = data.tenses.map((_, idx) => buildLessonForTense(data, idx))
   return cachedLessons
 }
-
-export function _resetLessonCache(): void {
-  cachedLessons = null
-}
