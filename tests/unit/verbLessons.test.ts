@@ -125,9 +125,20 @@ describe('getSpanishLessons', () => {
     expect(verbs).toContain('leer')
   })
 
-  it('imperative lists the eight one-syllable tú affirmatives', () => {
+  it('imperative lists every irregular tú affirmative', () => {
     const verbs = categoryVerbs('imperative', 'irregular-tu')
-    expect(verbs).toEqual(['tener', 'venir', 'poner', 'salir', 'hacer', 'decir', 'ir', 'ser'])
+    expect(verbs).toEqual([
+      'tener',
+      'venir',
+      'poner',
+      'salir',
+      'hacer',
+      'decir',
+      'ir',
+      'ser',
+      'haber',
+      'satisfacer',
+    ])
   })
 
   it('every perfect tense uses the same irregular-participles category', () => {
@@ -161,6 +172,41 @@ describe('getSpanishLessons', () => {
     const deber = lessons.find((l) => l.tenseId === 'deber-present')!
     expect(poder.irregularCategories).toEqual([])
     expect(deber.irregularCategories).toEqual([])
+  })
+
+  it('strong preterite is 100% complete (12 base irregular verbs)', () => {
+    const verbs = categoryVerbs('preterite', 'strong')
+    expect(verbs).toEqual(
+      expect.arrayContaining([
+        'tener', 'estar', 'andar', 'poder', 'poner', 'saber',
+        'caber', 'haber', 'querer', 'venir', 'hacer', 'satisfacer',
+      ])
+    )
+    expect(verbs).toHaveLength(12)
+  })
+
+  it('j-stem preterite is 100% complete (11 base irregular verbs)', () => {
+    const verbs = categoryVerbs('preterite', 'j-stem')
+    expect(verbs).toHaveLength(11)
+    expect(verbs).toContain('decir')
+    expect(verbs).toContain('traer')
+    // The full -ucir family
+    for (const v of ['conducir', 'producir', 'traducir', 'reducir', 'introducir', 'deducir', 'inducir', 'seducir', 'aducir']) {
+      expect(verbs).toContain(v)
+    }
+  })
+
+  it('future-stems is 100% complete (13 base irregular verbs)', () => {
+    const verbs = categoryVerbs('future', 'irregular-stems')
+    expect(verbs).toHaveLength(13)
+    expect(verbs).toContain('satisfacer')
+  })
+
+  it('imperative tú is 100% complete (10 base irregular verbs)', () => {
+    const verbs = categoryVerbs('imperative', 'irregular-tu')
+    expect(verbs).toHaveLength(10)
+    expect(verbs).toContain('haber')
+    expect(verbs).toContain('satisfacer')
   })
 
   it('does not list derived verbs alongside their base (no suponer when poner is present)', () => {
