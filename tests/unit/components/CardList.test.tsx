@@ -202,4 +202,31 @@ describe('CardList', () => {
     })
     expect(screen.queryByText('front 51')).not.toBeInTheDocument()
   })
+
+  it('wraps pagination at the first and last pages', async () => {
+    const user = userEvent.setup()
+    const cards = Array.from({ length: 51 }, (_, index) =>
+      makeCard({
+        id: `card-${index + 1}`,
+        frontText: `front ${index + 1}`,
+        backText: `back ${index + 1}`,
+        createdAt: new Date(2026, 0, index + 1).toISOString(),
+      })
+    )
+
+    render(<CardList cards={cards} deckId="test-deck" onUpdate={onUpdate} />)
+
+    expect(screen.getByText('front 1')).toBeInTheDocument()
+    expect(screen.queryByText('front 51')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Prev' }))
+
+    expect(screen.getByText('front 51')).toBeInTheDocument()
+    expect(screen.queryByText('front 1')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(screen.getByText('front 1')).toBeInTheDocument()
+    expect(screen.queryByText('front 51')).not.toBeInTheDocument()
+  })
 })

@@ -91,6 +91,14 @@ export default function ImportDecksPage() {
     (previewPage + 1) * PREVIEW_PAGE_SIZE
   )
 
+  const goToPreviousPreviewPage = () => {
+    setPreviewPage((p) => (p === 0 ? previewTotalPages - 1 : p - 1))
+  }
+
+  const goToNextPreviewPage = () => {
+    setPreviewPage((p) => (p === previewTotalPages - 1 ? 0 : p + 1))
+  }
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
@@ -264,9 +272,8 @@ export default function ImportDecksPage() {
                 {previewTotalPages > 1 && (
                   <div className="flex items-center justify-center gap-2 mt-3">
                     <button
-                      onClick={() => setPreviewPage((p) => Math.max(0, p - 1))}
-                      disabled={previewPage === 0}
-                      className="px-3 py-1 rounded text-sm border disabled:opacity-30 hover:bg-gray-50"
+                      onClick={goToPreviousPreviewPage}
+                      className="px-3 py-1 rounded text-sm border hover:bg-gray-50"
                     >
                       Prev
                     </button>
@@ -274,9 +281,8 @@ export default function ImportDecksPage() {
                       {previewPage + 1} / {previewTotalPages}
                     </span>
                     <button
-                      onClick={() => setPreviewPage((p) => Math.min(previewTotalPages - 1, p + 1))}
-                      disabled={previewPage >= previewTotalPages - 1}
-                      className="px-3 py-1 rounded text-sm border disabled:opacity-30 hover:bg-gray-50"
+                      onClick={goToNextPreviewPage}
+                      className="px-3 py-1 rounded text-sm border hover:bg-gray-50"
                     >
                       Next
                     </button>

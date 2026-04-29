@@ -121,4 +121,51 @@ describe('PracticeTab', () => {
     expect(card.direction).toBe('target-to-source')
     expect(card.source).toBe('practice')
   })
+
+  it('wraps practice sentence navigation at both ends', async () => {
+    const user = userEvent.setup()
+    const sentences: PracticeSentence[] = [
+      {
+        id: 'sentence-1',
+        deckId: deck.id,
+        sourceText: 'First sentence.',
+        targetText: 'Primera oración.',
+        selectedVerb: null,
+        selectedAdjective: null,
+        selectedConstruct: 'present',
+        sourceCardIds: [],
+        direction: 'source-to-target',
+        createdAt: new Date(2026, 0, 1).toISOString(),
+      },
+      {
+        id: 'sentence-2',
+        deckId: deck.id,
+        sourceText: 'Second sentence.',
+        targetText: 'Segunda oración.',
+        selectedVerb: null,
+        selectedAdjective: null,
+        selectedConstruct: 'present',
+        sourceCardIds: [],
+        direction: 'source-to-target',
+        createdAt: new Date(2026, 0, 2).toISOString(),
+      },
+    ]
+    await db.practiceSentences.bulkPut(sentences)
+
+    render(<PracticeTab deck={deck} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('First sentence.')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /Prev/ }))
+
+    expect(screen.getByText('Second sentence.')).toBeInTheDocument()
+    expect(screen.queryByText('First sentence.')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Next/ }))
+
+    expect(screen.getByText('First sentence.')).toBeInTheDocument()
+    expect(screen.queryByText('Second sentence.')).not.toBeInTheDocument()
+  })
 })

@@ -95,4 +95,32 @@ describe('ImportDecksPage', () => {
     const cards = await db.cards.where('deckId').equals(deck.id).toArray()
     expect(cards).toHaveLength(6)
   })
+
+  it('wraps preview pagination at the first and last pages', async () => {
+    await createDeck('My Spanish')
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Spanish Frequency (Top Words)')).toBeInTheDocument()
+    })
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Preview' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 \/ \d+/)).toBeInTheDocument()
+    })
+
+    const pageLabel = screen.getByText(/1 \/ \d+/)
+    const totalPages = Number(pageLabel.textContent?.split('/')[1].trim())
+    expect(totalPages).toBeGreaterThan(1)
+
+    await user.click(screen.getByRole('button', { name: 'Prev' }))
+
+    expect(screen.getByText(`${totalPages} / ${totalPages}`)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(screen.getByText(`1 / ${totalPages}`)).toBeInTheDocument()
+  })
 })

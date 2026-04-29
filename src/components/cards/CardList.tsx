@@ -186,6 +186,14 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
     setExpandedCardId(prev => prev === cardId ? null : cardId)
   }
 
+  const goToPreviousPage = () => {
+    setPage((p) => (p === 0 ? totalPages - 1 : p - 1))
+  }
+
+  const goToNextPage = () => {
+    setPage((p) => (p === totalPages - 1 ? 0 : p + 1))
+  }
+
   const stateLabel = (state: Card['fsrs']['state']) => {
     switch (state) {
       case 'new': return 'New'
@@ -453,9 +461,8 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-4">
           <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            className="px-3 py-1 rounded text-sm border disabled:opacity-30 hover:bg-gray-50"
+            onClick={goToPreviousPage}
+            className="px-3 py-1 rounded text-sm border hover:bg-gray-50"
           >
             Prev
           </button>
@@ -463,9 +470,8 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
             {page + 1} / {totalPages}
           </span>
           <button
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
-            className="px-3 py-1 rounded text-sm border disabled:opacity-30 hover:bg-gray-50"
+            onClick={goToNextPage}
+            className="px-3 py-1 rounded text-sm border hover:bg-gray-50"
           >
             Next
           </button>

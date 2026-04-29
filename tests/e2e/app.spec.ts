@@ -89,6 +89,24 @@ test.describe('E2E: Core Workflow', () => {
     // Cards tab should show cards
     await expect(page.getByText(/\d+ cards?/)).toBeVisible()
   })
+
+  test('import preview pagination wraps at boundaries', async ({ page }) => {
+    await page.getByRole('button', { name: 'Import' }).first().click()
+    await expect(page.getByText('Spanish Frequency (Top Words)')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Preview' }).click()
+    await expect(page.getByText(/1 \/ \d+/)).toBeVisible()
+
+    const pageLabel = page.getByText(/1 \/ \d+/)
+    const totalPages = Number((await pageLabel.textContent())?.split('/')[1].trim())
+    expect(totalPages).toBeGreaterThan(1)
+
+    await page.getByRole('button', { name: 'Prev', exact: true }).click()
+    await expect(page.getByText(`${totalPages} / ${totalPages}`)).toBeVisible()
+
+    await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await expect(page.getByText(`1 / ${totalPages}`)).toBeVisible()
+  })
 })
 
 test.describe('E2E: Construct Review', () => {

@@ -165,19 +165,15 @@ export default function PracticeTab({ deck }: Props) {
   // Navigation
   const goNext = useCallback(() => {
     if (sentences.length === 0) return
-    if (currentIndex < sentences.length - 1) {
-      setCurrentIndex((i) => i + 1)
-      setRevealed(false)
-    }
-  }, [sentences.length, currentIndex])
+    setCurrentIndex((i) => (i === sentences.length - 1 ? 0 : i + 1))
+    setRevealed(false)
+  }, [sentences.length])
 
   const goPrev = useCallback(() => {
     if (sentences.length === 0) return
-    if (currentIndex > 0) {
-      setCurrentIndex((i) => i - 1)
-      setRevealed(false)
-    }
-  }, [sentences.length, currentIndex])
+    setCurrentIndex((i) => (i === 0 ? sentences.length - 1 : i - 1))
+    setRevealed(false)
+  }, [sentences.length])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -355,15 +351,13 @@ export default function PracticeTab({ deck }: Props) {
           <div className="flex justify-between items-center mt-3">
             <button
               onClick={goPrev}
-              disabled={currentIndex === 0}
-              className="px-4 py-2 rounded text-sm border disabled:opacity-30 hover:bg-gray-50"
+              className="px-4 py-2 rounded text-sm border hover:bg-gray-50"
             >
               ← Prev
             </button>
             <button
               onClick={goNext}
-              disabled={currentIndex >= sentences.length - 1}
-              className="px-4 py-2 rounded text-sm border disabled:opacity-30 hover:bg-gray-50"
+              className="px-4 py-2 rounded text-sm border hover:bg-gray-50"
             >
               Next →
             </button>
