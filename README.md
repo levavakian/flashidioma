@@ -131,6 +131,9 @@ A tab where the user can generate sentences to translate from source to target l
 - Cards can be filtered/searched by tags or by card content (front/back text)
 - Tags are per-card, not per-deck
 
+### Pagination
+- Any user-facing previous/next navigation across multiple pages or generated items wraps at the boundaries: Previous from the first page/item opens the last page/item, and Next from the last page/item returns to the first.
+
 ### Deduplication
 When adding a new card, the app checks for duplicates:
 - Deduplication is based on the **target language text only** (e.g. the Spanish word)
