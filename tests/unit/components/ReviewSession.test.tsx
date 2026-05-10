@@ -34,6 +34,27 @@ function makeCard(overrides: Partial<Card> = {}): Card {
   }
 }
 
+function makeNewCard(frontText: string, sortOrder: number): Card {
+  return makeCard({
+    frontText,
+    backText: `translation ${sortOrder}`,
+    sortOrder,
+    fsrs: {
+      stability: 0,
+      difficulty: 0,
+      dueDate: new Date().toISOString(),
+      lastReview: null,
+      reviewCount: 0,
+      lapses: 0,
+      state: 'new',
+      elapsedDays: 0,
+      scheduledDays: 0,
+      reps: 0,
+      learningSteps: 0,
+    },
+  })
+}
+
 beforeEach(async () => {
   await db.decks.clear()
   await db.cards.clear()
@@ -334,6 +355,47 @@ describe('ReviewSession', () => {
     await waitFor(() => {
       expect(onComplete).toHaveBeenCalled()
     })
+  })
+
+  it('does not introduce another new-card batch after the current session batch is reviewed', async () => {
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+    deck = {
+      ...deck,
+      newCardBatchSize: 2,
+      newCardsPerDay: 6,
+      newCardsIntroducedToday: 0,
+      lastNewCardDate: null,
+      autoAddConjugations: false,
+      maxConjugationCardsPerDay: 5,
+      conjugationCardsAddedToday: 0,
+      lastConjugationCardDate: null,
+      requestRetention: 0.9,
+    }
+    await db.decks.put(deck)
+
+    const cards = Array.from({ length: 6 }, (_, index) => makeNewCard(`new word ${index}`, index))
+    await db.cards.bulkPut(cards)
+
+    render(<ReviewSession deck={deck} onComplete={onComplete} />)
+    await waitFor(() => {
+      expect(screen.getByText('new word 0')).toBeInTheDocument()
+      expect(screen.getByText(/2 remaining/)).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Show Answer'))
+    await user.click(screen.getByText('Easy'))
+    await waitFor(() => {
+      expect(screen.getByText('new word 1')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Show Answer'))
+    await user.click(screen.getByText('Easy'))
+
+    await waitFor(() => {
+      expect(onComplete).toHaveBeenCalled()
+    })
+    expect(screen.queryByText('new word 2')).not.toBeInTheDocument()
   })
 
   it('reloads the queue when the deck prop changes', async () => {

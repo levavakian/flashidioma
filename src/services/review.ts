@@ -297,7 +297,8 @@ export function getDayBoundary(now: Date, dayStartHour: number = 9): Date {
 /** Full-day review queue: due now + upcoming before day boundary + new cards */
 export async function getReviewQueueFullDay(
   deck: Deck,
-  now: Date = new Date()
+  now: Date = new Date(),
+  options: { includeNewCards?: boolean } = {}
 ): Promise<{ dueCards: Card[]; upcomingCards: Card[]; newCards: Card[] }> {
   const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
   const cards = await db.cards.where('deckId').equals(deck.id).toArray()
@@ -313,7 +314,7 @@ export async function getReviewQueueFullDay(
     return due > now && due <= cutoff
   })
 
-  const newCards = await getNewCardBatch(deck, now)
+  const newCards = options.includeNewCards === false ? [] : await getNewCardBatch(deck, now)
   return { dueCards, upcomingCards, newCards }
 }
 

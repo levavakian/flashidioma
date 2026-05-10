@@ -522,3 +522,4 @@ Add a button that simulates a day passing, making tomorrow's due cards available
 | 5 | Review queue could stay on the previous deck after switching deck routes while the Review tab stayed mounted | Fixed |
 | 6 | Manual cards were double-counted against the daily new-card limit, and auto-conjugation cards were counted when first reviewed | Fixed |
 | 7 | Spanish constructs omitted preterite progressive (`estuve + gerundio`) from the checklist and conjugation hydration schema | Fixed |
+| 8 | Review sessions could keep introducing follow-up new-card batches after the active batch was finished | Fixed |
