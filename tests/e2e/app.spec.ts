@@ -15,13 +15,28 @@ function importDeckCard(page: Page, name: string): Locator {
 }
 
 async function clearDB(page: Page) {
-  await page.evaluate(() => {
-    return new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase('flashidioma')
-      req.onsuccess = () => resolve()
-      req.onerror = () => resolve()
-      req.onblocked = () => resolve()
+  await page.evaluate(async () => {
+    const request = indexedDB.open('flashidioma')
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
     })
+
+    const storeNames = Array.from(db.objectStoreNames)
+    if (storeNames.length === 0) {
+      db.close()
+      return
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(storeNames, 'readwrite')
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+      for (const storeName of storeNames) {
+        transaction.objectStore(storeName).clear()
+      }
+    })
+    db.close()
   })
 }
 
