@@ -271,10 +271,15 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
       setCurrentIndex(0)
       setRevealed(false)
     } else {
-      // Do a full reload to catch new card batches, upcoming cards, etc.
+      // Do a full reload for due/upcoming cards, but do not introduce another
+      // new-card batch into this already-exhausted session.
       const freshDeck = await getDeck(deck.id)
       if (freshDeck) {
-        const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(freshDeck)
+        const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(
+          freshDeck,
+          new Date(),
+          { includeNewCards: false }
+        )
         const fullReload = [...dueCards, ...upcomingCards, ...newCards]
         if (fullReload.length > 0) {
           setQueue(fullReload)
