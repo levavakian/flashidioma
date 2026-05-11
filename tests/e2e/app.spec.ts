@@ -17,7 +17,7 @@ function importDeckCard(page: Page, name: string): Locator {
 async function clearDB(page: Page) {
   await page.evaluate(() => {
     return new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase('FlashIdiomaDB')
+      const req = indexedDB.deleteDatabase('flashidioma')
       req.onsuccess = () => resolve()
       req.onerror = () => resolve()
       req.onblocked = () => resolve()
@@ -118,7 +118,7 @@ test.describe('E2E: Core Workflow', () => {
     await expect(page.getByText('Imported 3 cards (6 total with both directions), skipped 0 duplicates.')).toBeVisible()
 
     const importedCards = await page.evaluate(async () => {
-      const request = indexedDB.open('FlashIdiomaDB')
+      const request = indexedDB.open('flashidioma')
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
         request.onsuccess = () => resolve(request.result)
         request.onerror = () => reject(request.error)
