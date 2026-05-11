@@ -110,9 +110,9 @@ test.describe('E2E: Core Workflow', () => {
 
     const irregularDeckCard = importDeckCard(page, 'Spanish Irregular Infinitives: Imperfect')
     await irregularDeckCard.getByRole('button', { name: 'Preview' }).click()
-    await expect(irregularDeckCard.getByText('ser')).toBeVisible()
-    await expect(irregularDeckCard.getByText('ir')).toBeVisible()
-    await expect(irregularDeckCard.getByText('ver')).toBeVisible()
+    await expect(irregularDeckCard.getByRole('cell', { name: 'ser', exact: true })).toBeVisible()
+    await expect(irregularDeckCard.getByRole('cell', { name: 'ir', exact: true })).toBeVisible()
+    await expect(irregularDeckCard.getByRole('cell', { name: 'ver', exact: true })).toBeVisible()
 
     await irregularDeckCard.getByRole('button', { name: 'Import' }).click()
     await expect(page.getByText('Imported 3 cards (6 total with both directions), skipped 0 duplicates.')).toBeVisible()
