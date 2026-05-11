@@ -46,6 +46,7 @@ A **build-time preprocessing script** combines `frequency.csv` and `es-en.data` 
 - Users can have **multiple concurrent decks**, each fully independent
 - Each deck has its own: cards, review history, FSRS state, practice sentences, construct checklist, and settings
 - Pre-built decks (e.g. the spanish_data frequency deck) can be imported from an "Importable Decks" tab — importing is optional, not automatic
+- Each Spanish conjugation lesson that has irregular verbs also exposes an importable deck of the unique irregular infinitives from that lesson (e.g. Present, Preterite/Indefinido, Imperfect, Present Perfect)
 - Multiple pre-built decks can be imported into the same user deck
 
 ### Cards
@@ -143,7 +144,7 @@ When adding a new card, the app checks for duplicates:
 
 ### Import / Export
 - **Full app state export/import:** the entire app state — all decks (including imported ones), all cards, review history, FSRS state, settings, tags, practice sentences, side deck, construct checklists, LLM config — is exportable to and importable from a **single JSON file**. This is the primary backup/restore and device-transfer mechanism.
-- **Pre-built deck import:** from the "Importable Decks" tab, users can browse and import pre-built decks (e.g. the spanish_data frequency deck) into their own decks
+- **Pre-built deck import:** from the "Importable Decks" tab, users can browse and import pre-built decks (e.g. the spanish_data frequency deck and conjugation-lesson irregular infinitive decks) into their own decks
 
 ## Offline Behavior
 
@@ -315,6 +316,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Bundle artifact with the app build
 - [x] "Importable Decks" tab UI
 - [x] Import pre-built deck(s) into user deck(s)
+- [x] Importable irregular infinitive decks for each Spanish conjugation lesson with irregular verbs
 - **Tests:**
   - [x] Unit: preprocessing script — run on a small subset of the real data files, verify output JSON has correct structure (frequency order, POS tags, translations, conjugation tables)
   - [x] Unit: preprocessing script — verify known verbs (ser, estar, tener) have complete conjugation tables in output

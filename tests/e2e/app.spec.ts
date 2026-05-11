@@ -1,21 +1,42 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 
 // Helper to create a deck via the UI
-async function createDeck(page: import('@playwright/test').Page, name: string) {
+async function createDeck(page: Page, name: string) {
   await page.getByRole('button', { name: '+ New Deck' }).click()
   await page.getByPlaceholder('Deck name').fill(name)
   await page.getByRole('button', { name: 'Create' }).click()
   await expect(page.getByText(name)).toBeVisible()
 }
 
-async function clearDB(page: import('@playwright/test').Page) {
-  await page.evaluate(() => {
-    return new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase('FlashIdiomaDB')
-      req.onsuccess = () => resolve()
-      req.onerror = () => resolve()
-      req.onblocked = () => resolve()
+function importDeckCard(page: Page, name: string): Locator {
+  return page
+    .getByRole('heading', { name, exact: true })
+    .locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " bg-white ")][1]')
+}
+
+async function clearDB(page: Page) {
+  await page.evaluate(async () => {
+    const request = indexedDB.open('flashidioma')
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
     })
+
+    const storeNames = Array.from(db.objectStoreNames)
+    if (storeNames.length === 0) {
+      db.close()
+      return
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(storeNames, 'readwrite')
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+      for (const storeName of storeNames) {
+        transaction.objectStore(storeName).clear()
+      }
+    })
+    db.close()
   })
 }
 
@@ -70,6 +91,9 @@ test.describe('E2E: Core Workflow', () => {
 
     // Should show the available pre-built deck
     await expect(page.getByText('Spanish Frequency (Top Words)')).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Spanish Irregular Infinitives: Present', exact: true })
+    ).toBeVisible()
 
     // Set a small limit using the number input
     const limitInput = page.locator('input[type="number"]')
@@ -77,7 +101,8 @@ test.describe('E2E: Core Workflow', () => {
     await limitInput.fill('5')
 
     // Click the Import button on the deck card
-    await page.getByRole('button', { name: 'Import' }).click()
+    const frequencyDeckCard = importDeckCard(page, 'Spanish Frequency (Top Words)')
+    await frequencyDeckCard.getByRole('button', { name: 'Import' }).click()
 
     // Wait for import confirmation
     await expect(page.getByText(/Imported \d+ cards/)).toBeVisible({ timeout: 10000 })
@@ -90,11 +115,55 @@ test.describe('E2E: Core Workflow', () => {
     await expect(page.getByText(/\d+ cards?/)).toBeVisible()
   })
 
+  test('import irregular lesson deck and verify infinitive cards exist', async ({ page }) => {
+    await createDeck(page, 'Irregular Target')
+
+    await page.getByRole('button', { name: 'Import' }).first().click()
+    await expect(
+      page.getByRole('heading', { name: 'Spanish Irregular Infinitives: Imperfect', exact: true })
+    ).toBeVisible()
+
+    const irregularDeckCard = importDeckCard(page, 'Spanish Irregular Infinitives: Imperfect')
+    await irregularDeckCard.getByRole('button', { name: 'Preview' }).click()
+    await expect(irregularDeckCard.getByRole('cell', { name: 'ser', exact: true })).toBeVisible()
+    await expect(irregularDeckCard.getByRole('cell', { name: 'ir', exact: true })).toBeVisible()
+    await expect(irregularDeckCard.getByRole('cell', { name: 'ver', exact: true })).toBeVisible()
+
+    await irregularDeckCard.getByRole('button', { name: 'Import' }).click()
+    await expect(page.getByText('Imported 3 cards (6 total with both directions), skipped 0 duplicates.')).toBeVisible()
+
+    const importedCards = await page.evaluate(async () => {
+      const request = indexedDB.open('flashidioma')
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+      const transaction = db.transaction('cards', 'readonly')
+      const store = transaction.objectStore('cards')
+      const cards = await new Promise<Array<{ backText: string; verbData?: { language: string } }>>(
+        (resolve, reject) => {
+          const getAll = store.getAll()
+          getAll.onsuccess = () => resolve(getAll.result as Array<{ backText: string; verbData?: { language: string } }>)
+          getAll.onerror = () => reject(getAll.error)
+        }
+      )
+      db.close()
+      return cards
+    })
+
+    expect(importedCards).toHaveLength(6)
+    expect(importedCards.map((card) => card.backText)).toEqual(
+      expect.arrayContaining(['ser', 'ir', 'ver'])
+    )
+    expect(importedCards.every((card) => card.verbData?.language === 'spanish')).toBe(true)
+  })
+
   test('import preview pagination wraps at boundaries', async ({ page }) => {
     await page.getByRole('button', { name: 'Import' }).first().click()
     await expect(page.getByText('Spanish Frequency (Top Words)')).toBeVisible()
 
-    await page.getByRole('button', { name: 'Preview' }).click()
+    const frequencyDeckCard = importDeckCard(page, 'Spanish Frequency (Top Words)')
+    await frequencyDeckCard.getByRole('button', { name: 'Preview' }).click()
     await expect(page.getByText(/1 \/ \d+/)).toBeVisible()
 
     const pageLabel = page.getByText(/1 \/ \d+/)
@@ -328,7 +397,9 @@ test.describe('E2E: Large Deck Performance', () => {
     const limitInput = page.locator('input[type="number"]')
     await limitInput.clear()
     await limitInput.fill('1000')
-    await page.getByRole('button', { name: 'Import' }).click()
+    await importDeckCard(page, 'Spanish Frequency (Top Words)')
+      .getByRole('button', { name: 'Import' })
+      .click()
 
     // Wait for import to complete (1000 cards can take a while)
     await expect(page.getByText(/Imported \d+ cards/)).toBeVisible({ timeout: 90000 })
