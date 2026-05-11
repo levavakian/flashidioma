@@ -70,6 +70,7 @@ test.describe('E2E: Core Workflow', () => {
 
     // Should show the available pre-built deck
     await expect(page.getByText('Spanish Frequency (Top Words)')).toBeVisible()
+    await expect(page.getByText('Spanish Irregular Infinitives: Present')).toBeVisible()
 
     // Set a small limit using the number input
     const limitInput = page.locator('input[type="number"]')
@@ -77,7 +78,8 @@ test.describe('E2E: Core Workflow', () => {
     await limitInput.fill('5')
 
     // Click the Import button on the deck card
-    await page.getByRole('button', { name: 'Import' }).click()
+    const frequencyDeckCard = page.locator('.bg-white', { hasText: 'Spanish Frequency (Top Words)' }).first()
+    await frequencyDeckCard.getByRole('button', { name: 'Import' }).click()
 
     // Wait for import confirmation
     await expect(page.getByText(/Imported \d+ cards/)).toBeVisible({ timeout: 10000 })
@@ -90,11 +92,55 @@ test.describe('E2E: Core Workflow', () => {
     await expect(page.getByText(/\d+ cards?/)).toBeVisible()
   })
 
+  test('import irregular lesson deck and verify infinitive cards exist', async ({ page }) => {
+    await createDeck(page, 'Irregular Target')
+
+    await page.getByRole('button', { name: 'Import' }).first().click()
+    await expect(page.getByText('Spanish Irregular Infinitives: Imperfect')).toBeVisible()
+
+    const irregularDeckCard = page
+      .locator('.bg-white', { hasText: 'Spanish Irregular Infinitives: Imperfect' })
+      .first()
+    await irregularDeckCard.getByRole('button', { name: 'Preview' }).click()
+    await expect(irregularDeckCard.getByText('ser')).toBeVisible()
+    await expect(irregularDeckCard.getByText('ir')).toBeVisible()
+    await expect(irregularDeckCard.getByText('ver')).toBeVisible()
+
+    await irregularDeckCard.getByRole('button', { name: 'Import' }).click()
+    await expect(page.getByText('Imported 3 cards (6 total with both directions), skipped 0 duplicates.')).toBeVisible()
+
+    const importedCards = await page.evaluate(async () => {
+      const request = indexedDB.open('FlashIdiomaDB')
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+      const transaction = db.transaction('cards', 'readonly')
+      const store = transaction.objectStore('cards')
+      const cards = await new Promise<Array<{ backText: string; verbData?: { language: string } }>>(
+        (resolve, reject) => {
+          const getAll = store.getAll()
+          getAll.onsuccess = () => resolve(getAll.result as Array<{ backText: string; verbData?: { language: string } }>)
+          getAll.onerror = () => reject(getAll.error)
+        }
+      )
+      db.close()
+      return cards
+    })
+
+    expect(importedCards).toHaveLength(6)
+    expect(importedCards.map((card) => card.backText)).toEqual(
+      expect.arrayContaining(['ser', 'ir', 'ver'])
+    )
+    expect(importedCards.every((card) => card.verbData?.language === 'spanish')).toBe(true)
+  })
+
   test('import preview pagination wraps at boundaries', async ({ page }) => {
     await page.getByRole('button', { name: 'Import' }).first().click()
     await expect(page.getByText('Spanish Frequency (Top Words)')).toBeVisible()
 
-    await page.getByRole('button', { name: 'Preview' }).click()
+    const frequencyDeckCard = page.locator('.bg-white', { hasText: 'Spanish Frequency (Top Words)' }).first()
+    await frequencyDeckCard.getByRole('button', { name: 'Preview' }).click()
     await expect(page.getByText(/1 \/ \d+/)).toBeVisible()
 
     const pageLabel = page.getByText(/1 \/ \d+/)

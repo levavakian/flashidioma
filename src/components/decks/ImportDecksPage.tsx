@@ -181,7 +181,7 @@ export default function ImportDecksPage() {
         )}
 
         <label className="block text-sm font-medium text-gray-700 mt-3 mb-1">
-          Number of words to import (by frequency)
+          Number of words to import
         </label>
         <EditableNumberInput
           value={limit}
@@ -191,7 +191,8 @@ export default function ImportDecksPage() {
           placeholder="Leave 0 for all"
         />
         <p className="text-xs text-gray-400 mt-1">
-          Each word creates 2 cards (one per direction).
+          Each word creates 2 cards (one per direction). Frequency decks use frequency order;
+          irregular decks use lesson order.
         </p>
       </div>
 
