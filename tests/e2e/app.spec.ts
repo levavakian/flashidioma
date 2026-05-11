@@ -1,14 +1,20 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 
 // Helper to create a deck via the UI
-async function createDeck(page: import('@playwright/test').Page, name: string) {
+async function createDeck(page: Page, name: string) {
   await page.getByRole('button', { name: '+ New Deck' }).click()
   await page.getByPlaceholder('Deck name').fill(name)
   await page.getByRole('button', { name: 'Create' }).click()
   await expect(page.getByText(name)).toBeVisible()
 }
 
-async function clearDB(page: import('@playwright/test').Page) {
+function importDeckCard(page: Page, name: string): Locator {
+  return page
+    .getByRole('heading', { name, exact: true })
+    .locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " bg-white ")][1]')
+}
+
+async function clearDB(page: Page) {
   await page.evaluate(() => {
     return new Promise<void>((resolve) => {
       const req = indexedDB.deleteDatabase('FlashIdiomaDB')
@@ -70,7 +76,9 @@ test.describe('E2E: Core Workflow', () => {
 
     // Should show the available pre-built deck
     await expect(page.getByText('Spanish Frequency (Top Words)')).toBeVisible()
-    await expect(page.getByText('Spanish Irregular Infinitives: Present')).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Spanish Irregular Infinitives: Present', exact: true })
+    ).toBeVisible()
 
     // Set a small limit using the number input
     const limitInput = page.locator('input[type="number"]')
@@ -78,7 +86,7 @@ test.describe('E2E: Core Workflow', () => {
     await limitInput.fill('5')
 
     // Click the Import button on the deck card
-    const frequencyDeckCard = page.locator('.bg-white', { hasText: 'Spanish Frequency (Top Words)' }).first()
+    const frequencyDeckCard = importDeckCard(page, 'Spanish Frequency (Top Words)')
     await frequencyDeckCard.getByRole('button', { name: 'Import' }).click()
 
     // Wait for import confirmation
@@ -96,11 +104,11 @@ test.describe('E2E: Core Workflow', () => {
     await createDeck(page, 'Irregular Target')
 
     await page.getByRole('button', { name: 'Import' }).first().click()
-    await expect(page.getByText('Spanish Irregular Infinitives: Imperfect')).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Spanish Irregular Infinitives: Imperfect', exact: true })
+    ).toBeVisible()
 
-    const irregularDeckCard = page
-      .locator('.bg-white', { hasText: 'Spanish Irregular Infinitives: Imperfect' })
-      .first()
+    const irregularDeckCard = importDeckCard(page, 'Spanish Irregular Infinitives: Imperfect')
     await irregularDeckCard.getByRole('button', { name: 'Preview' }).click()
     await expect(irregularDeckCard.getByText('ser')).toBeVisible()
     await expect(irregularDeckCard.getByText('ir')).toBeVisible()
@@ -139,7 +147,7 @@ test.describe('E2E: Core Workflow', () => {
     await page.getByRole('button', { name: 'Import' }).first().click()
     await expect(page.getByText('Spanish Frequency (Top Words)')).toBeVisible()
 
-    const frequencyDeckCard = page.locator('.bg-white', { hasText: 'Spanish Frequency (Top Words)' }).first()
+    const frequencyDeckCard = importDeckCard(page, 'Spanish Frequency (Top Words)')
     await frequencyDeckCard.getByRole('button', { name: 'Preview' }).click()
     await expect(page.getByText(/1 \/ \d+/)).toBeVisible()
 
@@ -374,7 +382,9 @@ test.describe('E2E: Large Deck Performance', () => {
     const limitInput = page.locator('input[type="number"]')
     await limitInput.clear()
     await limitInput.fill('1000')
-    await page.getByRole('button', { name: 'Import' }).click()
+    await importDeckCard(page, 'Spanish Frequency (Top Words)')
+      .getByRole('button', { name: 'Import' })
+      .click()
 
     // Wait for import to complete (1000 cards can take a while)
     await expect(page.getByText(/Imported \d+ cards/)).toBeVisible({ timeout: 90000 })
