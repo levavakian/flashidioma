@@ -136,6 +136,7 @@ describe('DecksPage', () => {
     expect(screen.getByText('1 due')).toBeInTheDocument()
     expect(screen.getByText('1 new')).toBeInTheDocument()
     expect(screen.queryByText('2 new')).not.toBeInTheDocument()
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(0)
   })
 
   it('renames a deck', async () => {

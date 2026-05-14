@@ -204,7 +204,11 @@ function sortByFrequency(cards: Card[]): Card[] {
  * Manual/practice cards count against this daily limit.
  * Always reads fresh deck state from the DB so counters are accurate.
  */
-export async function getNewCardBatch(deck: Deck, now: Date = new Date()): Promise<Card[]> {
+export async function getNewCardBatch(
+  deck: Deck,
+  now: Date = new Date(),
+  options: { introduce?: boolean } = {}
+): Promise<Card[]> {
   // Re-read the deck from DB to get the latest counters and batch IDs.
   const freshDeck = await db.decks.get(deck.id)
   if (!freshDeck) return []
@@ -233,6 +237,10 @@ export async function getNewCardBatch(deck: Deck, now: Date = new Date()): Promi
   const batchSize = Math.min(remaining, freshDeck.newCardBatchSize ?? 5)
   const batch = newCards.slice(0, batchSize)
   const batchIds = batch.map((c) => c.id)
+
+  if (options.introduce === false) {
+    return batch
+  }
 
   // Update deck with new batch IDs
   await db.decks.update(deck.id, { currentBatchCardIds: batchIds })
@@ -298,7 +306,11 @@ export function getDayBoundary(now: Date, dayStartHour: number = 9): Date {
 export async function getReviewQueueFullDay(
   deck: Deck,
   now: Date = new Date(),
-  options: { includeNewCards?: boolean; includeUpcomingCards?: boolean } = {}
+  options: {
+    includeNewCards?: boolean
+    includeUpcomingCards?: boolean
+    introduceNewCards?: boolean
+  } = {}
 ): Promise<{ dueCards: Card[]; upcomingCards: Card[]; newCards: Card[] }> {
   const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
   const cards = await db.cards.where('deckId').equals(deck.id).toArray()
@@ -316,7 +328,9 @@ export async function getReviewQueueFullDay(
         return due > now && due <= cutoff
       })
 
-  const newCards = options.includeNewCards === false ? [] : await getNewCardBatch(deck, now)
+  const newCards = options.includeNewCards === false
+    ? []
+    : await getNewCardBatch(deck, now, { introduce: options.introduceNewCards !== false })
   return { dueCards, upcomingCards, newCards }
 }
 

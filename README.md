@@ -524,3 +524,4 @@ Add a button that simulates a day passing, making tomorrow's due cards available
 | 7 | Spanish constructs omitted preterite progressive (`estuve + gerundio`) from the checklist and conjugation hydration schema | Fixed |
 | 8 | Review sessions could keep introducing follow-up new-card batches after the active batch was finished | Fixed |
 | 9 | New cards graded Good/Hard/Again could immediately cycle before their FSRS learning interval was due | Fixed |
+| 10 | Passive deck count refreshes could introduce new-card batches before a review session started | Fixed |

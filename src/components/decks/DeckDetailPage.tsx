@@ -43,7 +43,11 @@ export default function DeckDetailPage() {
     const allCards = await getCardsByDeck(deckId)
     setCards(allCards)
 
-    const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(d)
+    const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(
+      d,
+      new Date(),
+      { introduceNewCards: false }
+    )
     setDueCount(dueCards.length + upcomingCards.length)
     setNewCount(newCards.length)
     setLoading(false)

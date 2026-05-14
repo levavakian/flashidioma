@@ -77,5 +77,6 @@ describe('DeckDetailPage', () => {
     })
 
     expect(screen.getByRole('button', { name: /Review\s*2/i })).toBeInTheDocument()
+    expect((await db.decks.get(updatedDeck.id))!.currentBatchCardIds).toHaveLength(0)
   })
 })
