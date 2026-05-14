@@ -83,7 +83,8 @@ describe('DecksPage', () => {
 
   it('shows reviewable counts that match the actual review queue', async () => {
     const deck = await createDeck('Queue Counts')
-    await updateDeck(deck.id, { newCardsPerDay: 1, newCardBatchSize: 1 })
+    const dayStartHour = (new Date().getHours() + 2) % 24
+    await updateDeck(deck.id, { newCardsPerDay: 1, newCardBatchSize: 1, dayStartHour })
 
     await createCard({
       deckId: deck.id,
@@ -112,7 +113,7 @@ describe('DecksPage', () => {
       fsrs: {
         stability: 5,
         difficulty: 5,
-        dueDate: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        dueDate: new Date(Date.now() + 60 * 1000).toISOString(),
         lastReview: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         reviewCount: 1,
         lapses: 0,

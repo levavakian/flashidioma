@@ -10,6 +10,7 @@ import {
   getDueCardsWithin24h,
   getNextDueWithin24h,
   getDayBoundary,
+  getReviewQueueFullDay,
 } from '../../src/services/review'
 import type { Deck } from '../../src/types'
 
@@ -450,6 +451,67 @@ describe('24h review window', () => {
 
     const nextDue = await getNextDueWithin24h(deck.id, now)
     expect(nextDue).toBeNull()
+  })
+
+  it('getReviewQueueFullDay can skip future upcoming cards and new-card batches', async () => {
+    const now = new Date('2025-06-01T12:00:00')
+    await db.decks.update(deck.id, {
+      dayStartHour: 14,
+      newCardBatchSize: 1,
+      newCardsPerDay: 1,
+    })
+    deck = (await db.decks.get(deck.id))!
+
+    const dueCard = await createCard({
+      deckId: deck.id,
+      frontText: 'due now',
+      backText: 'ahora',
+      direction: 'source-to-target',
+    })
+    await db.cards.update(dueCard.id, {
+      fsrs: {
+        ...dueCard.fsrs,
+        state: 'review',
+        dueDate: new Date('2025-06-01T11:00:00').toISOString(),
+        lastReview: new Date('2025-05-31T12:00:00').toISOString(),
+        reps: 1,
+        reviewCount: 1,
+      },
+    })
+
+    const upcomingCard = await createCard({
+      deckId: deck.id,
+      frontText: 'upcoming',
+      backText: 'próximo',
+      direction: 'source-to-target',
+    })
+    await db.cards.update(upcomingCard.id, {
+      fsrs: {
+        ...upcomingCard.fsrs,
+        state: 'learning',
+        dueDate: new Date('2025-06-01T13:00:00').toISOString(),
+        lastReview: new Date('2025-06-01T12:00:00').toISOString(),
+        reps: 1,
+        reviewCount: 1,
+      },
+    })
+
+    await createCard({
+      deckId: deck.id,
+      frontText: 'new card',
+      backText: 'nueva',
+      direction: 'source-to-target',
+    })
+
+    const queue = await getReviewQueueFullDay(deck, now, {
+      includeNewCards: false,
+      includeUpcomingCards: false,
+    })
+
+    expect(queue.dueCards.map((card) => card.frontText)).toEqual(['due now'])
+    expect(queue.upcomingCards).toHaveLength(0)
+    expect(queue.newCards).toHaveLength(0)
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(0)
   })
 })
 

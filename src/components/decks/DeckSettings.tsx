@@ -252,7 +252,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
               <span className="text-sm text-gray-500">:00</span>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Review sessions include all cards due before this hour tomorrow. Cards graded during a session that are due again before this boundary are requeued immediately.
+              Review sessions include all cards due before this hour tomorrow. Cards graded during a session wait until their next FSRS due time before appearing again.
             </p>
           </div>
 

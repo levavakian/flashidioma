@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { reviewCard, getReviewQueueFullDay, getDueCards, getDayBoundary, getSchedulingPreview, formatInterval } from '../../services/review'
+import { reviewCard, getReviewQueueFullDay, getDueCards, getSchedulingPreview, formatInterval } from '../../services/review'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { hydrateConjugation } from '../../services/llm'
 import { updateCard, deleteCard } from '../../services/card'
@@ -252,9 +252,9 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
     const remaining = queue.slice(currentIndex + 1)
     const now = new Date()
 
-    // If card will be due again before the day boundary, put it back at end of queue immediately
-    const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
-    const requeue = new Date(updated.fsrs.dueDate) <= cutoff
+    // If the card is already due again, put it back at end of queue.
+    // Future learning intervals should wait until they are actually due.
+    const requeue = new Date(updated.fsrs.dueDate) <= now
       ? [updated] : []
 
     // Also check DB for any newly-due cards not in our queue (e.g. auto-added conjugation cards)
@@ -271,14 +271,14 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
       setCurrentIndex(0)
       setRevealed(false)
     } else {
-      // Do a full reload for due/upcoming cards, but do not introduce another
-      // new-card batch into this already-exhausted session.
+      // Do a full reload for cards that became due now, but do not introduce
+      // another new-card batch or pull future learning intervals forward.
       const freshDeck = await getDeck(deck.id)
       if (freshDeck) {
         const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(
           freshDeck,
           new Date(),
-          { includeNewCards: false }
+          { includeNewCards: false, includeUpcomingCards: false }
         )
         const fullReload = [...dueCards, ...upcomingCards, ...newCards]
         if (fullReload.length > 0) {

@@ -26,7 +26,8 @@ function renderDeckDetail(deckId: string) {
 describe('DeckDetailPage', () => {
   it('shows a review badge that matches the review-session queue', async () => {
     const deck = await createDeck('Badge Counts')
-    const updatedDeck = await updateDeck(deck.id, { newCardsPerDay: 1, newCardBatchSize: 1 })
+    const dayStartHour = (new Date().getHours() + 2) % 24
+    const updatedDeck = await updateDeck(deck.id, { newCardsPerDay: 1, newCardBatchSize: 1, dayStartHour })
 
     await createCard({
       deckId: updatedDeck.id,
@@ -55,7 +56,7 @@ describe('DeckDetailPage', () => {
       fsrs: {
         stability: 5,
         difficulty: 5,
-        dueDate: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        dueDate: new Date(Date.now() + 60 * 1000).toISOString(),
         lastReview: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         reviewCount: 1,
         lapses: 0,
