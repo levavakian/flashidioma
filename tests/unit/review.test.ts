@@ -10,6 +10,7 @@ import {
   getDueCardsWithin24h,
   getNextDueWithin24h,
   getDayBoundary,
+  getReviewQueueFullDay,
 } from '../../src/services/review'
 import type { Deck } from '../../src/types'
 
@@ -450,6 +451,127 @@ describe('24h review window', () => {
 
     const nextDue = await getNextDueWithin24h(deck.id, now)
     expect(nextDue).toBeNull()
+  })
+
+  it('getReviewQueueFullDay can skip future upcoming cards and new-card batches', async () => {
+    const now = new Date('2025-06-01T12:00:00')
+    await db.decks.update(deck.id, {
+      dayStartHour: 14,
+      newCardBatchSize: 1,
+      newCardsPerDay: 1,
+    })
+    deck = (await db.decks.get(deck.id))!
+
+    const dueCard = await createCard({
+      deckId: deck.id,
+      frontText: 'due now',
+      backText: 'ahora',
+      direction: 'source-to-target',
+    })
+    await db.cards.update(dueCard.id, {
+      fsrs: {
+        ...dueCard.fsrs,
+        state: 'review',
+        dueDate: new Date('2025-06-01T11:00:00').toISOString(),
+        lastReview: new Date('2025-05-31T12:00:00').toISOString(),
+        reps: 1,
+        reviewCount: 1,
+      },
+    })
+
+    const upcomingCard = await createCard({
+      deckId: deck.id,
+      frontText: 'upcoming',
+      backText: 'próximo',
+      direction: 'source-to-target',
+    })
+    await db.cards.update(upcomingCard.id, {
+      fsrs: {
+        ...upcomingCard.fsrs,
+        state: 'learning',
+        dueDate: new Date('2025-06-01T13:00:00').toISOString(),
+        lastReview: new Date('2025-06-01T12:00:00').toISOString(),
+        reps: 1,
+        reviewCount: 1,
+      },
+    })
+
+    await createCard({
+      deckId: deck.id,
+      frontText: 'new card',
+      backText: 'nueva',
+      direction: 'source-to-target',
+    })
+
+    const queue = await getReviewQueueFullDay(deck, now, {
+      includeNewCards: false,
+      includeUpcomingCards: false,
+    })
+
+    expect(queue.dueCards.map((card) => card.frontText)).toEqual(['due now'])
+    expect(queue.upcomingCards).toHaveLength(0)
+    expect(queue.newCards).toHaveLength(0)
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(0)
+  })
+
+  it('getReviewQueueFullDay can preview new cards without introducing a batch', async () => {
+    await db.decks.update(deck.id, {
+      newCardBatchSize: 2,
+      newCardsPerDay: 2,
+    })
+    deck = (await db.decks.get(deck.id))!
+
+    for (let i = 0; i < 4; i++) {
+      await createCard({
+        deckId: deck.id,
+        frontText: `preview ${i}`,
+        backText: `vista ${i}`,
+        direction: 'source-to-target',
+        sortOrder: i,
+      })
+    }
+
+    const queue = await getReviewQueueFullDay(deck, new Date(), { introduceNewCards: false })
+
+    expect(queue.newCards.map((card) => card.frontText)).toEqual(['preview 0', 'preview 1'])
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(0)
+  })
+
+  it('passive full-day queue refresh does not replace a completed active batch', async () => {
+    await db.decks.update(deck.id, {
+      newCardBatchSize: 2,
+      newCardsPerDay: 4,
+    })
+    deck = (await db.decks.get(deck.id))!
+
+    for (let i = 0; i < 4; i++) {
+      await createCard({
+        deckId: deck.id,
+        frontText: `session ${i}`,
+        backText: `sesión ${i}`,
+        direction: 'source-to-target',
+        sortOrder: i,
+      })
+    }
+
+    const activeQueue = await getReviewQueueFullDay(deck)
+    const activeBatchIds = activeQueue.newCards.map((card) => card.id)
+    expect(activeQueue.newCards.map((card) => card.frontText)).toEqual(['session 0', 'session 1'])
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toEqual(activeBatchIds)
+
+    for (const cardId of activeBatchIds) {
+      await reviewCard(cardId, 4)
+    }
+
+    const refreshedDeck = (await db.decks.get(deck.id))!
+    const passiveQueue = await getReviewQueueFullDay(
+      refreshedDeck,
+      new Date(),
+      { introduceNewCards: false }
+    )
+
+    expect(passiveQueue.newCards.map((card) => card.frontText)).toEqual(['session 2', 'session 3'])
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toEqual(activeBatchIds)
   })
 })
 

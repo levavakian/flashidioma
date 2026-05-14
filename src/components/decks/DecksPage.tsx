@@ -34,7 +34,11 @@ export default function DecksPage() {
         allDecks.map(async (deckSummary) => {
           const deck = (await getDeck(deckSummary.id)) ?? deckSummary
           const cards = await db.cards.where('deckId').equals(deck.id).toArray()
-          const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(deck, now)
+          const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(
+            deck,
+            now,
+            { introduceNewCards: false }
+          )
           return {
             ...deck,
             totalCards: cards.length,
