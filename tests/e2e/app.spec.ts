@@ -301,6 +301,31 @@ test.describe('E2E: Full Review Workflow', () => {
     // After reviewing all cards, should show completion message
     await expect(page.getByText(/No cards to review right now/)).toBeVisible({ timeout: 5000 })
   })
+
+  test('reviewed cards return to the queue when their learning interval becomes due', async ({ page }) => {
+    await createDeck(page, 'Learning Queue')
+    await page.getByText('Learning Queue').click()
+
+    await page.getByRole('button', { name: '+ Add' }).click()
+    await page.getByPlaceholder('e.g. hello').fill('return soon')
+    await page.getByPlaceholder('e.g. hola').fill('vuelve pronto')
+    await page.getByRole('button', { name: 'Add Card' }).click()
+    await expect(page.getByRole('button', { name: /Cards \(1\)/ })).toBeVisible()
+
+    await expect(async () => {
+      await page.getByRole('button', { name: /Review/ }).click()
+      await expect(page.getByText('Show Answer')).toBeVisible({ timeout: 1000 })
+    }).toPass()
+    await expect(page.getByText('return soon')).toBeVisible()
+    await page.clock.install()
+
+    await page.getByText('Show Answer').click()
+    await page.getByRole('button', { name: 'Again' }).click()
+    await expect(page.getByText('No cards to review right now.')).toBeVisible()
+
+    await page.clock.fastForward(10 * 60 * 1000)
+    await expect(page.getByText('return soon')).toBeVisible()
+  })
 })
 
 test.describe('E2E: Translate and Add', () => {
