@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { reviewCard, getReviewQueueFullDay, getDueCards, getNextDueWithin24h, getSchedulingPreview, formatInterval } from '../../services/review'
+import { reviewCard, getReviewQueueFullDay, getDueCards, getNextDueInReviewDay, getSchedulingPreview, formatInterval } from '../../services/review'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { hydrateConjugation } from '../../services/llm'
 import { updateCard, deleteCard } from '../../services/card'
@@ -97,7 +97,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
     tryConjugationLookup(currentCard).then((data) => {
       setLookedUpVerbData(data)
     })
-  }, [currentCard, revealed, deck.requestRetention])
+  }, [currentCard, revealed])
 
   // The verb data to display: prefer card's own verbData, fall back to static lookup
   const displayVerbData = currentCard?.verbData ?? lookedUpVerbData
@@ -183,7 +183,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
       3: formatInterval(now, dueDates[3]),
       4: formatInterval(now, dueDates[4]),
     }
-  }, [currentCard, revealed])
+  }, [currentCard, revealed, deck.requestRetention])
 
   // Keyboard shortcuts: space to reveal, 1-4 to grade
   useEffect(() => {
@@ -235,7 +235,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
     const scheduleDueRefresh = async () => {
       const d = deckRef.current
       const now = new Date()
-      const nextDue = await getNextDueWithin24h(d.id, now)
+      const nextDue = await getNextDueInReviewDay(d, now)
       if (cancelled || !nextDue) return
 
       dueRefreshTimeoutRef.current = setTimeout(async () => {

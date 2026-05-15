@@ -9,6 +9,7 @@ import {
   getNewCardBatch,
   getDueCardsWithin24h,
   getNextDueWithin24h,
+  getNextDueInReviewDay,
   getDayBoundary,
   getReviewQueueFullDay,
 } from '../../src/services/review'
@@ -450,6 +451,77 @@ describe('24h review window', () => {
     await reviewCard(card.id, 4, now)
 
     const nextDue = await getNextDueWithin24h(deck.id, now)
+    expect(nextDue).toBeNull()
+  })
+
+  it('getNextDueInReviewDay returns the earliest card inside the deck review-day block', async () => {
+    const now = new Date('2025-06-01T10:00:00')
+    await db.decks.update(deck.id, { dayStartHour: 9 })
+    deck = (await db.decks.get(deck.id))!
+
+    const laterInBlock = await createCard({
+      deckId: deck.id,
+      frontText: 'later in block',
+      backText: 'más tarde',
+      direction: 'source-to-target',
+    })
+    await db.cards.update(laterInBlock.id, {
+      fsrs: {
+        ...laterInBlock.fsrs,
+        state: 'learning',
+        dueDate: new Date('2025-06-02T08:30:00').toISOString(),
+        lastReview: now.toISOString(),
+        reps: 1,
+        reviewCount: 1,
+      },
+    })
+
+    const earlierInBlock = await createCard({
+      deckId: deck.id,
+      frontText: 'earlier in block',
+      backText: 'antes',
+      direction: 'source-to-target',
+    })
+    await db.cards.update(earlierInBlock.id, {
+      fsrs: {
+        ...earlierInBlock.fsrs,
+        state: 'learning',
+        dueDate: new Date('2025-06-01T12:00:00').toISOString(),
+        lastReview: now.toISOString(),
+        reps: 1,
+        reviewCount: 1,
+      },
+    })
+
+    const nextDue = await getNextDueInReviewDay(deck, now)
+
+    expect(nextDue?.toISOString()).toBe(new Date('2025-06-01T12:00:00').toISOString())
+  })
+
+  it('getNextDueInReviewDay excludes cards outside the deck review-day block even if within 24 hours', async () => {
+    const now = new Date('2025-06-01T08:00:00')
+    await db.decks.update(deck.id, { dayStartHour: 9 })
+    deck = (await db.decks.get(deck.id))!
+
+    const outsideBlock = await createCard({
+      deckId: deck.id,
+      frontText: 'outside block',
+      backText: 'fuera',
+      direction: 'source-to-target',
+    })
+    await db.cards.update(outsideBlock.id, {
+      fsrs: {
+        ...outsideBlock.fsrs,
+        state: 'learning',
+        dueDate: new Date('2025-06-01T10:00:00').toISOString(),
+        lastReview: now.toISOString(),
+        reps: 1,
+        reviewCount: 1,
+      },
+    })
+
+    const nextDue = await getNextDueInReviewDay(deck, now)
+
     expect(nextDue).toBeNull()
   })
 
