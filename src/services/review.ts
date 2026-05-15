@@ -287,6 +287,23 @@ export async function getNextDueWithin24h(
   return new Date(earliest)
 }
 
+/** Get the earliest non-new card due before this deck's review-day boundary */
+export async function getNextDueInReviewDay(
+  deck: Deck,
+  now: Date = new Date()
+): Promise<Date | null> {
+  const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
+  const cards = await db.cards.where('deckId').equals(deck.id).toArray()
+  const upcoming = cards.filter((card) => {
+    if (card.fsrs.state === 'new') return false
+    const due = new Date(card.fsrs.dueDate)
+    return due > now && due <= cutoff
+  })
+  if (upcoming.length === 0) return null
+  const earliest = Math.min(...upcoming.map(c => new Date(c.fsrs.dueDate).getTime()))
+  return new Date(earliest)
+}
+
 /**
  * Get the end-of-day boundary for the current review day.
  * The review day starts at dayStartHour (default 9am).

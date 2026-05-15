@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { reviewCard, getReviewQueueFullDay, getDueCards, getSchedulingPreview, formatInterval } from '../../services/review'
+import { reviewCard, getReviewQueueFullDay, getDueCards, getNextDueInReviewDay, getSchedulingPreview, formatInterval } from '../../services/review'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { hydrateConjugation } from '../../services/llm'
 import { updateCard, deleteCard } from '../../services/card'
@@ -59,6 +59,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
 
   const gradingRef = useRef(false)
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dueRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const deckRef = useRef(deck)
   deckRef.current = deck
 
@@ -74,6 +75,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
   useEffect(() => {
     return () => {
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+      if (dueRefreshTimeoutRef.current) clearTimeout(dueRefreshTimeoutRef.current)
     }
   }, [])
 
@@ -181,7 +183,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
       3: formatInterval(now, dueDates[3]),
       4: formatInterval(now, dueDates[4]),
     }
-  }, [currentCard, revealed])
+  }, [currentCard, revealed, deck.requestRetention])
 
   // Keyboard shortcuts: space to reveal, 1-4 to grade
   useEffect(() => {
@@ -224,6 +226,41 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
   useEffect(() => {
     void loadQueue()
   }, [deck.id, loadQueue])
+
+  useEffect(() => {
+    if (loading || queue.length > 0) return
+
+    let cancelled = false
+
+    const scheduleDueRefresh = async () => {
+      const d = deckRef.current
+      const now = new Date()
+      const nextDue = await getNextDueInReviewDay(d, now)
+      if (cancelled || !nextDue) return
+
+      dueRefreshTimeoutRef.current = setTimeout(async () => {
+        dueRefreshTimeoutRef.current = null
+        const dueCards = await getDueCards(d.id, new Date())
+        if (cancelled || dueCards.length === 0) return
+
+        setTotalDue(dueCards.length)
+        setTotalNew(0)
+        setQueue(dueCards)
+        setCurrentIndex(0)
+        setRevealed(false)
+      }, Math.max(0, nextDue.getTime() - now.getTime()))
+    }
+
+    void scheduleDueRefresh()
+
+    return () => {
+      cancelled = true
+      if (dueRefreshTimeoutRef.current) {
+        clearTimeout(dueRefreshTimeoutRef.current)
+        dueRefreshTimeoutRef.current = null
+      }
+    }
+  }, [deck.id, loading, queue.length])
 
   const handleGrade = async (grade: number) => {
     if (!currentCard) return
