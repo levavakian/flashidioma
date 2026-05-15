@@ -97,7 +97,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
     tryConjugationLookup(currentCard).then((data) => {
       setLookedUpVerbData(data)
     })
-  }, [currentCard, revealed])
+  }, [currentCard, revealed, deck.requestRetention])
 
   // The verb data to display: prefer card's own verbData, fall back to static lookup
   const displayVerbData = currentCard?.verbData ?? lookedUpVerbData
