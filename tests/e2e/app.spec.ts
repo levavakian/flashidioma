@@ -321,7 +321,7 @@ test.describe('E2E: Full Review Workflow', () => {
 
     await page.getByText('Show Answer').click()
     await page.getByRole('button', { name: 'Again' }).click()
-    await expect(page.getByText('No cards to review right now.')).toBeVisible()
+    await expect(page.getByText(/Next card due in/)).toBeVisible()
 
     await page.clock.fastForward(10 * 60 * 1000)
     await expect(page.getByText('return soon')).toBeVisible()

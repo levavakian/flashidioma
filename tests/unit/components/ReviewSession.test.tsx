@@ -273,8 +273,9 @@ describe('ReviewSession', () => {
     await user.click(screen.getByText('Hard'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      expect(screen.getByText(/Next card due in/)).toBeInTheDocument()
     })
+    expect(onComplete).not.toHaveBeenCalled()
     expect(screen.queryByText('hard requeue')).not.toBeInTheDocument()
   })
 
@@ -295,8 +296,9 @@ describe('ReviewSession', () => {
     await user.click(screen.getByText('Again'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      expect(screen.getByText(/Next card due in/)).toBeInTheDocument()
     })
+    expect(onComplete).not.toHaveBeenCalled()
     expect(screen.queryByText('tough word')).not.toBeInTheDocument()
   })
 
@@ -331,13 +333,14 @@ describe('ReviewSession', () => {
     await user.click(screen.getByText('Again'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      expect(screen.getByText(/Next card due in/)).toBeInTheDocument()
     })
+    expect(onComplete).not.toHaveBeenCalled()
     expect(screen.queryByText('word one')).not.toBeInTheDocument()
     expect(screen.queryByText('word two')).not.toBeInTheDocument()
   })
 
-  it('session completes when the only card is scheduled for a future learning interval', async () => {
+  it('waits when the only card is scheduled for a future learning interval', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
 
@@ -349,13 +352,14 @@ describe('ReviewSession', () => {
       expect(screen.getByText('graduate me')).toBeInTheDocument()
     })
 
-    // Grade "Again" — card is due later, so the current session is complete for now
+    // Grade "Again" — card is due later, so the mounted session waits for it
     await user.click(screen.getByText('Show Answer'))
     await user.click(screen.getByText('Again'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      expect(screen.getByText(/Next card due in/)).toBeInTheDocument()
     })
+    expect(onComplete).not.toHaveBeenCalled()
     expect(screen.queryByText('graduate me')).not.toBeInTheDocument()
   })
 
@@ -397,11 +401,16 @@ describe('ReviewSession', () => {
     })
     await act(async () => {
       fireEvent.click(screen.getByText('Again'))
-      await vi.advanceTimersByTimeAsync(0)
-      for (let i = 0; i < 10; i += 1) await Promise.resolve()
+      for (let i = 0; i < 20; i += 1) {
+        await vi.advanceTimersByTimeAsync(0)
+        await Promise.resolve()
+      }
     })
     expect(reviewCardSpy).toHaveBeenCalled()
-    expect(onComplete).toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Next card due in/)).toBeInTheDocument()
+    }, { timeout: 1000 })
+    expect(onComplete).not.toHaveBeenCalled()
     expect(screen.queryByText('return soon')).not.toBeInTheDocument()
 
     await act(async () => {
@@ -488,8 +497,9 @@ describe('ReviewSession', () => {
     await user.click(screen.getByText('Good'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      expect(screen.getByText(/Next card due in/)).toBeInTheDocument()
     })
+    expect(onComplete).not.toHaveBeenCalled()
     expect(screen.queryByText('good word 0')).not.toBeInTheDocument()
     expect(screen.queryByText('good word 2')).not.toBeInTheDocument()
   })

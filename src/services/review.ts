@@ -80,9 +80,21 @@ export function gradeToRating(grade: number): Grade {
   }
 }
 
-/** Get today's date string in YYYY-MM-DD format */
-function todayString(now: Date = new Date()): string {
-  return now.toISOString().split('T')[0]
+function formatLocalDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/** Get the local review-day key for daily limits. */
+export function getReviewDayKey(now: Date = new Date(), dayStartHour: number = 9): string {
+  const reviewDayStart = new Date(now)
+  reviewDayStart.setHours(dayStartHour, 0, 0, 0)
+  if (now < reviewDayStart) {
+    reviewDayStart.setDate(reviewDayStart.getDate() - 1)
+  }
+  return formatLocalDateKey(reviewDayStart)
 }
 
 /** Get remaining daily new card slots for a deck, resetting if day changed */
@@ -90,7 +102,7 @@ async function getDailyNewCardRemaining(deckId: string, now: Date = new Date()):
   const deck = await db.decks.get(deckId)
   if (!deck) return 0
 
-  const today = todayString(now)
+  const today = getReviewDayKey(now, deck.dayStartHour ?? 9)
   const perDay = deck.newCardsPerDay ?? 20
 
   if (deck.lastNewCardDate !== today) {
@@ -107,11 +119,15 @@ async function getDailyNewCardRemaining(deckId: string, now: Date = new Date()):
 }
 
 /** Increment the daily new card counter for a deck */
-export async function incrementDailyNewCardCount(deckId: string, count: number = 1): Promise<void> {
+export async function incrementDailyNewCardCount(
+  deckId: string,
+  count: number = 1,
+  now: Date = new Date()
+): Promise<void> {
   const deck = await db.decks.get(deckId)
   if (!deck) return
 
-  const today = todayString()
+  const today = getReviewDayKey(now, deck.dayStartHour ?? 9)
   if (deck.lastNewCardDate !== today) {
     await db.decks.update(deckId, {
       newCardsIntroducedToday: count,
@@ -166,7 +182,7 @@ export async function reviewCard(
       newFsrsState.state !== 'new' &&
       card.source !== 'auto-conjugation'
     ) {
-      await incrementDailyNewCardCount(card.deckId)
+      await incrementDailyNewCardCount(card.deckId, 1, now)
     }
   })
 
@@ -224,6 +240,10 @@ export async function getNewCardBatch(
     if (stillNew.length > 0) {
       // Once a batch is introduced, keep showing it until the user finishes it.
       return sortByFrequency(stillNew)
+    }
+
+    if (options.introduce !== false) {
+      await db.decks.update(deck.id, { currentBatchCardIds: [] })
     }
   }
 
@@ -329,7 +349,9 @@ export async function getReviewQueueFullDay(
     introduceNewCards?: boolean
   } = {}
 ): Promise<{ dueCards: Card[]; upcomingCards: Card[]; newCards: Card[] }> {
-  const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
+  const freshDeck = await db.decks.get(deck.id)
+  const queueDeck = freshDeck ?? deck
+  const cutoff = getDayBoundary(now, queueDeck.dayStartHour ?? 9)
   const cards = await db.cards.where('deckId').equals(deck.id).toArray()
 
   const dueCards = cards.filter((card) => {
@@ -340,14 +362,14 @@ export async function getReviewQueueFullDay(
   const upcomingCards = options.includeUpcomingCards === false
     ? []
     : cards.filter((card) => {
-        if (card.fsrs.state === 'new') return false
+        if (card.fsrs.state !== 'review') return false
         const due = new Date(card.fsrs.dueDate)
         return due > now && due <= cutoff
       })
 
   const newCards = options.includeNewCards === false
     ? []
-    : await getNewCardBatch(deck, now, { introduce: options.introduceNewCards !== false })
+    : await getNewCardBatch(queueDeck, now, { introduce: options.introduceNewCards !== false })
   return { dueCards, upcomingCards, newCards }
 }
 

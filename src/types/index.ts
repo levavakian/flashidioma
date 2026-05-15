@@ -45,12 +45,12 @@ export interface Deck {
   currentBatchCardIds: string[]
   newCardsPerDay: number // Anki-like daily new card limit (default 20)
   newCardsIntroducedToday: number // How many new cards introduced today
-  lastNewCardDate: string | null // ISO date (date portion only, e.g. "2026-02-08")
+  lastNewCardDate: string | null // Review-day key (YYYY-MM-DD, based on dayStartHour)
   autoAddConjugations: boolean // Whether to auto-add conjugation cards on Good/Easy review
   maxConjugationCardsPerDay: number // Daily limit for auto-added conjugation cards (default 5)
   conjugationCardsStartLearning?: boolean // If true, auto-conjugation cards start as "learning" (immediately reviewable); if false (default), they start as "new" and go through normal new-card batching
   conjugationCardsAddedToday: number // How many conjugation cards added today
-  lastConjugationCardDate: string | null // ISO date for daily reset
+  lastConjugationCardDate: string | null // Review-day key for daily reset
   dayStartHour?: number // Hour (0-23) when review day starts (default 9)
   requestRetention?: number // FSRS target retention rate (default 0.9, higher = shorter intervals)
 }
@@ -63,7 +63,7 @@ export interface ConjugationAutoAdd {
   tenseId: string // e.g. "present"
   person: string // e.g. "tú"
   form: string // e.g. "comes"
-  addedDate: string // ISO date (YYYY-MM-DD) — for per-verb per-day limiting
+  addedDate: string // Review-day key (YYYY-MM-DD) — for per-verb per-day limiting
   createdAt: string // Full ISO timestamp
 }
 
