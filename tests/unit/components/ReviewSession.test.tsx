@@ -1,8 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ReviewSession from '../../../src/components/review/ReviewSession'
 import { db } from '../../../src/db'
+import * as reviewService from '../../../src/services/review'
+import * as deckService from '../../../src/services/deck'
+import * as autoAddService from '../../../src/services/conjugationAutoAdd'
 import type { Deck, Card } from '../../../src/types'
 
 let deck: Deck
@@ -70,6 +73,11 @@ beforeEach(async () => {
     currentBatchCardIds: [],
   }
   await db.decks.put(deck)
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 describe('ReviewSession', () => {
@@ -349,6 +357,58 @@ describe('ReviewSession', () => {
       expect(onComplete).toHaveBeenCalled()
     })
     expect(screen.queryByText('graduate me')).not.toBeInTheDocument()
+  })
+
+  it('automatically queues a reviewed card when its short learning interval becomes due', async () => {
+    const onComplete = vi.fn()
+
+    const card = makeCard({ frontText: 'return soon', backText: 'vuelve pronto' })
+    await db.cards.put(card)
+
+    render(<ReviewSession deck={deck} onComplete={onComplete} />)
+    await waitFor(() => {
+      expect(screen.getByText('return soon')).toBeInTheDocument()
+    })
+
+    const now = new Date('2026-05-15T12:00:00.000Z')
+    const dueAt = new Date(now.getTime() + 5000)
+    const reviewedCard: Card = {
+      ...card,
+      fsrs: {
+        ...card.fsrs,
+        dueDate: dueAt.toISOString(),
+        lastReview: now.toISOString(),
+        state: 'learning',
+      },
+    }
+    await db.cards.put(reviewedCard)
+
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    const reviewCardSpy = vi.spyOn(reviewService, 'reviewCard').mockResolvedValue(reviewedCard)
+    vi.spyOn(reviewService, 'getDueCards').mockImplementation(async (_deckId, queryNow = new Date()) => (
+      queryNow.getTime() >= dueAt.getTime() ? [reviewedCard] : []
+    ))
+    vi.spyOn(deckService, 'getDeck').mockResolvedValue(deck)
+    vi.spyOn(autoAddService, 'maybeAutoAddConjugationCard').mockResolvedValue({ added: false })
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Show Answer'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByText('Again'))
+      await vi.advanceTimersByTimeAsync(0)
+      for (let i = 0; i < 10; i += 1) await Promise.resolve()
+    })
+    expect(reviewCardSpy).toHaveBeenCalled()
+    expect(onComplete).toHaveBeenCalled()
+    expect(screen.queryByText('return soon')).not.toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(dueAt.getTime() - Date.now() + 1)
+    })
+
+    expect(screen.getByText('return soon')).toBeInTheDocument()
   })
 
   it('does not introduce another new-card batch after the current session batch is reviewed', async () => {
