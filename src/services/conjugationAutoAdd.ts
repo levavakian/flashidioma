@@ -216,7 +216,7 @@ export async function maybeAutoAddConjugationCard(
   // frontText=English, backText=Spanish for both directions.
   // The direction field controls which is shown first during review.
   // If conjugationCardsStartLearning is true, cards start as "learning" (immediately
-  // reviewable). Otherwise they start as "new" and go through normal new-card batching.
+  // reviewable). Otherwise they start as "new" and enter the next daily new-card set.
   const startAsLearning = deck.conjugationCardsStartLearning ?? false
   await createCard({
     deckId: deck.id,

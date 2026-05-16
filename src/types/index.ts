@@ -41,14 +41,14 @@ export interface Deck {
   targetLanguage: string
   createdAt: string // ISO date
   constructChecklist: ConstructChecklist
-  newCardBatchSize: number
+  newCardBatchSize: number // Legacy field; daily queue now uses newCardsPerDay as the full new-card set
   currentBatchCardIds: string[]
   newCardsPerDay: number // Anki-like daily new card limit (default 20)
   newCardsIntroducedToday: number // How many new cards introduced today
   lastNewCardDate: string | null // Review-day key (YYYY-MM-DD, based on dayStartHour)
   autoAddConjugations: boolean // Whether to auto-add conjugation cards on Good/Easy review
   maxConjugationCardsPerDay: number // Daily limit for auto-added conjugation cards (default 5)
-  conjugationCardsStartLearning?: boolean // If true, auto-conjugation cards start as "learning" (immediately reviewable); if false (default), they start as "new" and go through normal new-card batching
+  conjugationCardsStartLearning?: boolean // If true, auto-conjugation cards start as "learning" (immediately reviewable); if false (default), they start as "new" and go through the next daily new-card set
   conjugationCardsAddedToday: number // How many conjugation cards added today
   lastConjugationCardDate: string | null // Review-day key for daily reset
   dayStartHour?: number // Hour (0-23) when review day starts (default 9)

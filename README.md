@@ -63,28 +63,27 @@ A card consists of:
 Uses the [Free Spaced Repetition Scheduler (FSRS)](https://github.com/open-spaced-repetition/fsrs4anki) algorithm.
 
 - Cards become due based on FSRS scheduling
-- **New card introduction:** new cards are introduced in configurable batches (default: 5 per day). The next batch is only introduced after the current batch of new cards have all been reviewed at least once (converting them from "new" to "review" cards)
+- **New card introduction:** up to `newCardsPerDay` new cards are introduced together at the start of a review session. There are no smaller intra-day chunks.
 - Due cards accumulate in the review queue and are presented when the user opens the review tab
-- **Per-deck SRS settings:** each deck has a Settings tab where the user can adjust new cards per day, batch size, and auto-conjugation parameters
+- **Per-deck SRS settings:** each deck has a Settings tab where the user can adjust new cards per day and auto-conjugation parameters
 
 ### Review Queue Specification
 
 The review queue is deliberately Anki-like while staying simple and local-first:
 
-- **Per-deck isolation:** review queues, daily counters, active new-card batches, FSRS state, and auto-conjugation limits are scoped to one deck. Switching decks must rebuild the mounted review queue for the new deck.
+- **Per-deck isolation:** review queues, daily counters, active daily new-card sets, FSRS state, and auto-conjugation limits are scoped to one deck. Switching decks must rebuild the mounted review queue for the new deck.
 - **Review-day boundary:** each deck has a `dayStartHour` (default: 9). Daily new-card limits, conjugation auto-add limits, same-day review windows, and displayed due counts all use that review-day boundary, not UTC midnight and not a fixed 24-hour window.
-- **Due-now cards:** any non-new card (`learning`, `review`, or `relearning`) whose FSRS `dueDate` is at or before the current time is due immediately.
-- **Same-day review cards:** `review` cards due later in the current review-day block may be included in the queue when the Review tab opens, so users can clear today's scheduled reviews in one sitting.
-- **Learning/relearning precision:** `learning` and `relearning` cards due in the future keep their minute-level FSRS due time. They must not be pulled forward merely because they are due before the review-day boundary.
-- **Mounted-session refresh:** when the active queue is empty but a learning/relearning card is due later in the current review day, the Review tab shows a waiting message and automatically resumes when that card becomes due. The session is complete only when no cards are due now and no cards are pending inside the current review day.
-- **New-card active batch:** opening an active review session introduces at most one new-card batch. The batch remains stable until every card in it has left `new` state. A later passive count refresh must not replace that active batch.
-- **No chained new batches in one session:** after the active batch is reviewed, the current session may continue with due learning/relearning cards, but it must not introduce the next new-card batch until the user starts a later review session.
-- **Passive counts are side-effect safe:** deck-list and deck-detail badges may preview the next eligible new-card batch, but they must not pin `currentBatchCardIds`.
+- **Review-day queue:** any non-new card (`learning`, `review`, or `relearning`) whose FSRS `dueDate` is at or before the current review-day boundary is reviewable immediately, even if its due time is later than the current clock time.
+- **No waiting inside the day:** the Review tab must not make the user wait, navigate away/back, or reopen the queue for cards due later in the same review-day block. Cards graded during the session re-enter the queue immediately if their next FSRS due time is still inside the current review day.
+- **New-card daily set:** opening an active review session introduces the full remaining daily new-card allowance at once (`newCardsPerDay - newCardsIntroducedToday`). `newCardBatchSize` is a legacy field and must not split that allowance into smaller chunks.
+- **Stable daily new-card set:** once a daily new-card set is introduced, it remains stable until every card in it has left `new` state. A later passive count refresh must not replace it.
+- **No chained daily sets in one session:** after the daily new-card set is reviewed, the current session may continue with non-new cards due before the review-day boundary, but it must not introduce another new-card set until the next review day.
+- **Passive counts are side-effect safe:** deck-list and deck-detail badges may preview the next eligible daily new-card set, but they must not pin `currentBatchCardIds`.
 - **Daily new-card limit:** manual, imported, and practice cards count against `newCardsPerDay` when first reviewed out of `new` state. Auto-conjugation cards never count against this limit.
-- **Batch cleanup:** when a batch is finished, stale `currentBatchCardIds` are cleared even if the daily limit prevents another batch from being introduced yet.
-- **Auto-conjugation cards:** by default, auto-conjugation cards start as `new` and flow through normal batching. If `conjugationCardsStartLearning` is enabled, they start as `learning`, are immediately due, and enter the due queue without consuming a new-card slot or batch slot.
-- **Ordering:** imported/prebuilt new cards are introduced by `sortOrder` first, then by creation time. The current active batch order remains deterministic by the same rule.
-- **Counts:** Review badges and session headers distinguish due/same-day scheduled review cards from currently eligible new cards. A displayed "new" count is the currently introducible/active batch size, not the total number of unreviewed cards in the deck.
+- **Daily-set cleanup:** when a daily new-card set is finished, stale `currentBatchCardIds` are cleared even if the daily limit prevents another set from being introduced yet.
+- **Auto-conjugation cards:** by default, auto-conjugation cards start as `new` and flow through the next daily new-card set. If `conjugationCardsStartLearning` is enabled, they start as `learning`, are immediately reviewable, and enter the due queue without consuming a new-card slot or daily-set slot.
+- **Ordering:** imported/prebuilt new cards are introduced by `sortOrder` first, then by creation time. The current active daily-set order remains deterministic by the same rule.
+- **Counts:** Review badges and session headers distinguish due/same-day scheduled review cards from currently eligible new cards. A displayed "new" count is the currently introducible/active daily set size, not the total number of unreviewed cards in the deck.
 
 ## Features
 
@@ -126,7 +125,7 @@ When reviewing a verb card and grading **Good** or **Easy**, the app automatical
 - **No duplicates:** forms already present as cards in the deck are skipped
 - **Reflexive verb support:** for reflexive verbs (e.g. levantarse), the card text includes the correct reflexive pronoun (e.g. "me levanto", not "levanto")
 - **Daily limit:** configurable max conjugation cards per day (default: 5) to avoid overwhelming the review queue
-- **Card initial state (configurable):** by default, auto-added conjugation cards start as "new" and are introduced through the normal new-card batching flow. A per-deck toggle ("Start conjugation cards as immediately reviewable") changes them to start as "learning" so they appear in the review queue immediately without consuming a daily new-card slot
+- **Card initial state (configurable):** by default, auto-added conjugation cards start as "new" and are introduced through the next daily new-card set. A per-deck toggle ("Start conjugation cards as immediately reviewable") changes them to start as "learning" so they appear in the review queue immediately without consuming a daily new-card slot
 - **Example flow:** reviewing "comer" and grading Good → a card "tú comes / you eat" is auto-added. Next day, reviewing "comer" or "tú comes" with Good → "yo como / I eat" is auto-added. Only tenses from the enabled construct checklist are used.
 - Can be toggled on/off in the deck's Settings tab
 
@@ -206,7 +205,7 @@ App
 │   │   ├── verb_data? (conjugations, tense descriptions, mini translations)
 │   │   └── fsrs_state (stability, difficulty, due date, review count, etc.)
 │   ├── Construct checklist (which tenses/constructs are enabled)
-│   ├── New card batch settings (batch size, current batch)
+│   ├── New card daily-set settings (newCardsPerDay, currentBatchCardIds legacy field)
 │   ├── SRS settings (newCardsPerDay, autoAddConjugations, maxConjugationCardsPerDay)
 │   ├── Conjugation auto-add tracking (per-verb per-day limits, added forms history)
 │   ├── Practice sentences[] (generated, persist until regenerated)
@@ -278,14 +277,14 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Full app state export to JSON
 - [x] Full app state import from JSON (with validation)
 - [x] Implement FSRS algorithm (scheduling, review grading, state updates)
-- [x] New card batch introduction logic (configurable batch size, gate on previous batch reviewed)
+- [x] New card daily-set introduction logic (newCardsPerDay controls the full daily set; gate on previous set reviewed)
 - **Tests:**
   - [x] Unit: CRUD operations on decks and cards — create, read, update, delete — verify IndexedDB state via fake-indexeddb
   - [x] Unit: export produces valid JSON containing all app state; import from that JSON restores identical state
   - [x] Unit: import rejects malformed JSON and partially valid data gracefully (no crash, user-facing error)
   - [x] Unit: FSRS scheduling — given a card with known state and a grade, verify next due date, stability, and difficulty match expected FSRS output
   - [x] Unit: FSRS edge cases — new card first review, card at maximum interval, all four grade buttons
-  - [x] Unit: batch introduction — new cards are gated until current batch is fully reviewed; batch size is respected; next batch unlocks correctly
+  - [x] Unit: daily-set introduction — new cards are gated until the current daily set is fully reviewed; the daily limit is respected
   - [x] Integration: round-trip test — create decks/cards, export, clear storage, import, verify all data matches
 
 ### Phase 3: Basic Flashcard UI
@@ -295,7 +294,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Edit and delete existing cards
 - [x] Review session UI (show card front → reveal back → grade with FSRS buttons)
 - [x] Edit and delete cards from the review screen (shown after revealing the answer)
-- [x] Due card queue display (count of due cards, new cards remaining in batch)
+- [x] Due card queue display (count of due cards, new cards remaining in the daily set)
 - **Tests:**
   - [x] Component: deck list renders decks, create/rename/delete update the list
   - [x] Component: add card form — submitting with valid data creates a card; "both directions" creates two independent cards; empty required fields show validation
@@ -430,10 +429,10 @@ This section is the combined implementation plan and issue tracker. Phases are o
 Add a "Settings" tab to the deck detail page that lets the user adjust spaced repetition parameters for that deck:
 - [ ] Add a "Settings" tab to the deck detail page (alongside Cards, Review, + Add, Practice, Constructs)
 - [ ] New cards per day (`newCardsPerDay`) — slider or number input (default: 20)
-- [ ] New card batch size (`newCardBatchSize`) — slider or number input (default: 5)
+- [x] New cards per day is the full daily reviewable new-card set; `newCardBatchSize` is legacy and no longer splits new cards into smaller chunks
 - [ ] Auto-add conjugations toggle (`autoAddConjugations`) — enable/disable the auto-conjugation card feature (see 13b), default: on
 - [ ] Max conjugation cards per day (`maxConjugationCardsPerDay`) — limit how many auto-conjugation cards can be added per day (default: 5)
-- [x] Conjugation cards start as learning toggle (`conjugationCardsStartLearning`) — when enabled, auto-added conjugation cards start as "learning" (immediately reviewable); when disabled (default), they start as "new" and go through normal new-card batching
+- [x] Conjugation cards start as learning toggle (`conjugationCardsStartLearning`) — when enabled, auto-added conjugation cards start as "learning" (immediately reviewable); when disabled (default), they start as "new" and go through the next daily new-card set
 - [ ] Persist all settings to the Deck record in IndexedDB
 - [ ] Display current daily stats (new cards introduced today, conjugation cards added today)
 - **Tests:**
@@ -492,23 +491,23 @@ A "Lessons" sub-tab on the Verbs page that explains each construct (tense/mood):
 
 ### Phase 14: Review Queue Fixes, Auto-Add Card State, Card Due Dates & Day Skip
 
-#### 14a: Bug Fix — "Again" Cards Re-queue in Same Review Session
-Cards graded "Again" are not re-queued during the current review session. Pressing "Again" on all cards ends the session without re-showing them. In FSRS, pressing "Again" puts a card into learning/relearning state with a short due date (e.g. 1–10 minutes). The review session should continue to show these cards after the interval, matching Anki behavior.
-- [x] When the review queue is exhausted, check for learning/relearning cards that have become due during the session
-- [x] If any exist, add them to the queue and continue the session
-- [x] Show a brief waiting message if cards are due soon but not yet (e.g. "Next card due in 1m")
-- [x] Session only completes when no more cards are due and none are pending
+#### 14a: Bug Fix — Same-Day Learning Cards Stay in the Mounted Review Session
+Cards graded into learning/relearning during a review session must remain reviewable if their next due time is before the deck's review-day boundary. The Review tab should not require waiting, reopening, or navigating away/back for anything due within the current review day.
+- [x] When the review queue is exhausted, check for learning/relearning cards due before the review-day boundary
+- [x] If any exist, add them to the queue and continue the session immediately
+- [x] Do not show a waiting state for cards due later in the same review day
+- [x] Session only completes when no cards are due before the review-day boundary
 - **Tests:**
   - [ ] Unit: grading "Again" on a card puts it in learning/relearning state with short due interval
-  - [x] Component: grading "Again" re-shows the card in the same mounted review session once its learning interval becomes due
-  - [x] E2E: grading "Again" re-shows the card after fast-forwarding to its learning due time without navigating away
+  - [x] Component: grading "Again" re-shows same-day learning cards in the same mounted review session immediately
+  - [x] E2E: grading "Again" keeps same-day learning cards reviewable without navigating away
 
 #### 14b: Auto-Added Conjugation Card Initial State (Configurable)
 Cards generated by the auto-conjugation feature (Good/Easy on a verb) have a configurable initial state controlled by a per-deck setting (`conjugationCardsStartLearning`):
 - [x] Add a new card source type `'auto-conjugation'` to distinguish from manual/imported/practice
-- [x] Per-deck toggle: when `conjugationCardsStartLearning` is true, auto-added cards start as "learning" (immediately reviewable); when false (default), they start as "new" and go through normal new-card batching
+- [x] Per-deck toggle: when `conjugationCardsStartLearning` is true, auto-added cards start as "learning" (immediately reviewable); when false (default), they start as "new" and go through the next daily new-card set
 - [x] Auto-added cards do NOT count against the daily new card limit (`newCardsPerDay`) regardless of initial state
-- [x] Auto-added cards do NOT consume a batch slot (`currentBatchCardIds`)
+- [x] Auto-added cards do NOT consume a daily-set slot (`currentBatchCardIds`)
 - **Tests:**
   - [x] Unit: auto-added conjugation card starts as 'new' by default
   - [x] Unit: auto-added conjugation card starts as 'learning' when `conjugationCardsStartLearning` is true
@@ -544,6 +543,6 @@ Add a button that simulates a day passing, making tomorrow's due cards available
 | 5 | Review queue could stay on the previous deck after switching deck routes while the Review tab stayed mounted | Fixed |
 | 6 | Manual cards were double-counted against the daily new-card limit, and auto-conjugation cards were counted when first reviewed | Fixed |
 | 7 | Spanish constructs omitted preterite progressive (`estuve + gerundio`) from the checklist and conjugation hydration schema | Fixed |
-| 8 | Review sessions could keep introducing follow-up new-card batches after the active batch was finished | Fixed |
+| 8 | Review sessions could keep introducing follow-up new-card sets after the active daily set was finished | Fixed |
 | 9 | New cards graded Good/Hard/Again could immediately cycle before their FSRS learning interval was due | Fixed |
-| 10 | Passive deck count refreshes could introduce new-card batches before a review session started | Fixed |
+| 10 | Passive deck count refreshes could introduce new-card sets before a review session started | Fixed |

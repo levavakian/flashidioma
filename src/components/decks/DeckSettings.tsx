@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { updateDeck, skipForwardOneDay } from '../../services/deck'
+import { getReviewDayKey } from '../../services/review'
 import EditableNumberInput from '../common/EditableNumberInput'
 import type { Deck } from '../../types'
 
@@ -10,7 +11,6 @@ interface Props {
 
 export default function DeckSettings({ deck, onUpdate }: Props) {
   const [newCardsPerDay, setNewCardsPerDay] = useState(deck.newCardsPerDay)
-  const [newCardBatchSize, setNewCardBatchSize] = useState(deck.newCardBatchSize)
   const [autoAddConjugations, setAutoAddConjugations] = useState(deck.autoAddConjugations ?? true)
   const [maxConjugationCardsPerDay, setMaxConjugationCardsPerDay] = useState(deck.maxConjugationCardsPerDay ?? 5)
   const [conjugationCardsStartLearning, setConjugationCardsStartLearning] = useState(deck.conjugationCardsStartLearning ?? false)
@@ -19,7 +19,6 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
 
   useEffect(() => {
     setNewCardsPerDay(deck.newCardsPerDay)
-    setNewCardBatchSize(deck.newCardBatchSize)
     setAutoAddConjugations(deck.autoAddConjugations ?? true)
     setMaxConjugationCardsPerDay(deck.maxConjugationCardsPerDay ?? 5)
     setConjugationCardsStartLearning(deck.conjugationCardsStartLearning ?? false)
@@ -32,7 +31,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
     onUpdate()
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = getReviewDayKey(new Date(), deck.dayStartHour ?? 9)
   const newCardsToday = deck.lastNewCardDate === today ? (deck.newCardsIntroducedToday ?? 0) : 0
   const conjCardsToday = deck.lastConjugationCardDate === today ? (deck.conjugationCardsAddedToday ?? 0) : 0
 
@@ -71,40 +70,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
               />
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Maximum number of new cards introduced per day (currently {newCardsToday} today)
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              New card batch size
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min={1}
-                max={50}
-                value={newCardBatchSize}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value)
-                  setNewCardBatchSize(val)
-                  handleSave({ newCardBatchSize: val })
-                }}
-                className="flex-1"
-              />
-              <EditableNumberInput
-                min={1}
-                max={50}
-                value={newCardBatchSize}
-                onCommit={(value) => {
-                  setNewCardBatchSize(value)
-                  handleSave({ newCardBatchSize: value })
-                }}
-                className="w-16 border rounded px-2 py-1 text-sm text-center"
-              />
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              How many new cards to introduce at a time before requiring review
+              Number of new cards made reviewable at once each review day (currently {newCardsToday} today)
             </p>
           </div>
 
@@ -209,7 +175,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
               <p className="text-xs text-gray-400">
                 {conjugationCardsStartLearning
                   ? 'Auto-added conjugation cards will appear in the review queue immediately.'
-                  : 'Auto-added conjugation cards will be added as new cards and introduced through the normal new-card batching flow.'}
+                  : 'Auto-added conjugation cards will be added as new cards and introduced with the next daily new-card set.'}
               </p>
             </>
           )}
@@ -252,7 +218,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
               <span className="text-sm text-gray-500">:00</span>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Review sessions include all cards due before this hour tomorrow. Cards graded during a session wait until their next FSRS due time before appearing again.
+              Review sessions include all cards due before this hour tomorrow, including learning and relearning cards.
             </p>
           </div>
 
