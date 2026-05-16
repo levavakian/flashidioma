@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { updateDeck, skipForwardOneDay } from '../../services/deck'
 import { getReviewDayKey } from '../../services/review'
 import EditableNumberInput from '../common/EditableNumberInput'
@@ -10,21 +9,12 @@ interface Props {
 }
 
 export default function DeckSettings({ deck, onUpdate }: Props) {
-  const [newCardsPerDay, setNewCardsPerDay] = useState(deck.newCardsPerDay)
-  const [autoAddConjugations, setAutoAddConjugations] = useState(deck.autoAddConjugations ?? true)
-  const [maxConjugationCardsPerDay, setMaxConjugationCardsPerDay] = useState(deck.maxConjugationCardsPerDay ?? 5)
-  const [conjugationCardsStartLearning, setConjugationCardsStartLearning] = useState(deck.conjugationCardsStartLearning ?? false)
-  const [dayStartHour, setDayStartHour] = useState(deck.dayStartHour ?? 9)
-  const [requestRetention, setRequestRetention] = useState(deck.requestRetention ?? 0.9)
-
-  useEffect(() => {
-    setNewCardsPerDay(deck.newCardsPerDay)
-    setAutoAddConjugations(deck.autoAddConjugations ?? true)
-    setMaxConjugationCardsPerDay(deck.maxConjugationCardsPerDay ?? 5)
-    setConjugationCardsStartLearning(deck.conjugationCardsStartLearning ?? false)
-    setDayStartHour(deck.dayStartHour ?? 9)
-    setRequestRetention(deck.requestRetention ?? 0.9)
-  }, [deck])
+  const newCardsPerDay = deck.newCardsPerDay
+  const autoAddConjugations = deck.autoAddConjugations ?? true
+  const maxConjugationCardsPerDay = deck.maxConjugationCardsPerDay ?? 5
+  const conjugationCardsStartLearning = deck.conjugationCardsStartLearning ?? false
+  const dayStartHour = deck.dayStartHour ?? 9
+  const requestRetention = deck.requestRetention ?? 0.9
 
   const handleSave = async (updates: Partial<Deck>) => {
     await updateDeck(deck.id, updates)
@@ -53,7 +43,6 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                 value={newCardsPerDay}
                 onChange={(e) => {
                   const val = parseInt(e.target.value)
-                  setNewCardsPerDay(val)
                   handleSave({ newCardsPerDay: val })
                 }}
                 className="flex-1"
@@ -63,7 +52,6 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                 max={100}
                 value={newCardsPerDay}
                 onCommit={(value) => {
-                  setNewCardsPerDay(value)
                   handleSave({ newCardsPerDay: value })
                 }}
                 className="w-16 border rounded px-2 py-1 text-sm text-center"
@@ -86,7 +74,6 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                 value={Math.round(requestRetention * 100)}
                 onChange={(e) => {
                   const val = parseInt(e.target.value) / 100
-                  setRequestRetention(val)
                   handleSave({ requestRetention: val })
                 }}
                 className="flex-1"
@@ -109,7 +96,6 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
               type="checkbox"
               checked={autoAddConjugations}
               onChange={(e) => {
-                setAutoAddConjugations(e.target.checked)
                 handleSave({ autoAddConjugations: e.target.checked })
               }}
               className="rounded"
@@ -137,7 +123,6 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                     value={maxConjugationCardsPerDay}
                     onChange={(e) => {
                       const val = parseInt(e.target.value)
-                      setMaxConjugationCardsPerDay(val)
                       handleSave({ maxConjugationCardsPerDay: val })
                     }}
                     className="flex-1"
@@ -147,7 +132,6 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                     max={20}
                     value={maxConjugationCardsPerDay}
                     onCommit={(value) => {
-                      setMaxConjugationCardsPerDay(value)
                       handleSave({ maxConjugationCardsPerDay: value })
                     }}
                     className="w-16 border rounded px-2 py-1 text-sm text-center"
@@ -163,7 +147,6 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                   type="checkbox"
                   checked={conjugationCardsStartLearning}
                   onChange={(e) => {
-                    setConjugationCardsStartLearning(e.target.checked)
                     handleSave({ conjugationCardsStartLearning: e.target.checked })
                   }}
                   className="rounded"
@@ -210,7 +193,6 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
                 max={23}
                 value={dayStartHour}
                 onCommit={(value) => {
-                  setDayStartHour(value)
                   handleSave({ dayStartHour: value })
                 }}
                 className="w-16 border rounded px-2 py-1 text-sm text-center"
