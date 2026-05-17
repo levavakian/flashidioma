@@ -240,45 +240,28 @@ describe('ReviewSession', () => {
     expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it('does not immediately requeue a card scheduled for a future learning interval', async () => {
+  it('immediately requeues a card scheduled for a same-day learning interval', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
 
-    // Card in learning state — "Hard" will schedule within minutes (well within day boundary)
-    const card = makeCard({
-      frontText: 'hard requeue',
-      backText: 'recola difícil',
-      fsrs: {
-        stability: 0.4,
-        difficulty: 5.0,
-        dueDate: new Date(Date.now() - 60000).toISOString(),
-        lastReview: new Date(Date.now() - 60000).toISOString(),
-        reviewCount: 2,
-        lapses: 1,
-        state: 'learning',
-        elapsedDays: 0,
-        scheduledDays: 0,
-        reps: 2,
-      },
-    })
+    const card = makeCard({ frontText: 'same day requeue', backText: 'recola hoy' })
     await db.cards.put(card)
 
     render(<ReviewSession deck={deck} onComplete={onComplete} />)
     await waitFor(() => {
-      expect(screen.getByText('hard requeue')).toBeInTheDocument()
+      expect(screen.getByText('same day requeue')).toBeInTheDocument()
     })
 
-    // Grade "Hard" — learning card is scheduled minutes in the future, so it should wait
     await user.click(screen.getByText('Show Answer'))
-    await user.click(screen.getByText('Hard'))
+    await user.click(screen.getByText('Again'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      expect(screen.getByText('same day requeue')).toBeInTheDocument()
     })
-    expect(screen.queryByText('hard requeue')).not.toBeInTheDocument()
+    expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it('cards graded "Again" wait until their learning interval is due', async () => {
+  it('cards graded "Again" stay in the same mounted review session', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
 
@@ -290,17 +273,16 @@ describe('ReviewSession', () => {
       expect(screen.getByText('tough word')).toBeInTheDocument()
     })
 
-    // Grade "Again" — card should not reappear until its FSRS interval is due
     await user.click(screen.getByText('Show Answer'))
     await user.click(screen.getByText('Again'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      expect(screen.getByText('tough word')).toBeInTheDocument()
     })
-    expect(screen.queryByText('tough word')).not.toBeInTheDocument()
+    expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it('grading all cards "Again" does not cycle them before their learning interval is due', async () => {
+  it('grading all cards "Again" keeps same-day learning cards reviewable', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
 
@@ -331,13 +313,14 @@ describe('ReviewSession', () => {
     await user.click(screen.getByText('Again'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      const has1 = screen.queryByText('word one')
+      const has2 = screen.queryByText('word two')
+      expect(has1 || has2).toBeTruthy()
     })
-    expect(screen.queryByText('word one')).not.toBeInTheDocument()
-    expect(screen.queryByText('word two')).not.toBeInTheDocument()
+    expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it('session completes when the only card is scheduled for a future learning interval', async () => {
+  it('keeps the only card reviewable when scheduled inside the review-day boundary', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
 
@@ -349,17 +332,16 @@ describe('ReviewSession', () => {
       expect(screen.getByText('graduate me')).toBeInTheDocument()
     })
 
-    // Grade "Again" — card is due later, so the current session is complete for now
     await user.click(screen.getByText('Show Answer'))
     await user.click(screen.getByText('Again'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      expect(screen.getByText('graduate me')).toBeInTheDocument()
     })
-    expect(screen.queryByText('graduate me')).not.toBeInTheDocument()
+    expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it('automatically queues a reviewed card when its short learning interval becomes due', async () => {
+  it('immediately queues a reviewed card with a short same-day learning interval', async () => {
     const onComplete = vi.fn()
 
     const card = makeCard({ frontText: 'return soon', backText: 'vuelve pronto' })
@@ -370,8 +352,8 @@ describe('ReviewSession', () => {
       expect(screen.getByText('return soon')).toBeInTheDocument()
     })
 
-    const now = new Date('2026-05-15T12:00:00.000Z')
-    const dueAt = new Date(now.getTime() + 5000)
+    const now = new Date()
+    const dueAt = new Date(now.getTime() + 5 * 60 * 1000)
     const reviewedCard: Card = {
       ...card,
       fsrs: {
@@ -383,12 +365,7 @@ describe('ReviewSession', () => {
     }
     await db.cards.put(reviewedCard)
 
-    vi.useFakeTimers()
-    vi.setSystemTime(now)
     const reviewCardSpy = vi.spyOn(reviewService, 'reviewCard').mockResolvedValue(reviewedCard)
-    vi.spyOn(reviewService, 'getDueCards').mockImplementation(async (_deckId, queryNow = new Date()) => (
-      queryNow.getTime() >= dueAt.getTime() ? [reviewedCard] : []
-    ))
     vi.spyOn(deckService, 'getDeck').mockResolvedValue(deck)
     vi.spyOn(autoAddService, 'maybeAutoAddConjugationCard').mockResolvedValue({ added: false })
 
@@ -397,21 +374,15 @@ describe('ReviewSession', () => {
     })
     await act(async () => {
       fireEvent.click(screen.getByText('Again'))
-      await vi.advanceTimersByTimeAsync(0)
-      for (let i = 0; i < 10; i += 1) await Promise.resolve()
     })
     expect(reviewCardSpy).toHaveBeenCalled()
-    expect(onComplete).toHaveBeenCalled()
-    expect(screen.queryByText('return soon')).not.toBeInTheDocument()
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(dueAt.getTime() - Date.now() + 1)
+    await waitFor(() => {
+      expect(screen.getByText('return soon')).toBeInTheDocument()
     })
-
-    expect(screen.getByText('return soon')).toBeInTheDocument()
+    expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it('does not introduce another new-card batch after the current session batch is reviewed', async () => {
+  it('introduces the full daily new-card set at once', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
     deck = {
@@ -434,31 +405,31 @@ describe('ReviewSession', () => {
     render(<ReviewSession deck={deck} onComplete={onComplete} />)
     await waitFor(() => {
       expect(screen.getByText('new word 0')).toBeInTheDocument()
-      expect(screen.getByText(/2 remaining/)).toBeInTheDocument()
+      expect(screen.getByText(/6 remaining/)).toBeInTheDocument()
     })
 
-    await user.click(screen.getByText('Show Answer'))
-    await user.click(screen.getByText('Easy'))
-    await waitFor(() => {
-      expect(screen.getByText('new word 1')).toBeInTheDocument()
-    })
-
-    await user.click(screen.getByText('Show Answer'))
-    await user.click(screen.getByText('Easy'))
+    for (let i = 0; i < 6; i += 1) {
+      await user.click(screen.getByText('Show Answer'))
+      await user.click(screen.getByText('Easy'))
+      if (i < 5) {
+        await waitFor(() => {
+          expect(screen.getByText('Show Answer')).toBeInTheDocument()
+        })
+      }
+    }
 
     await waitFor(() => {
       expect(onComplete).toHaveBeenCalled()
     })
-    expect(screen.queryByText('new word 2')).not.toBeInTheDocument()
   })
 
-  it('does not immediately cycle new cards graded Good before their learning interval is due', async () => {
+  it('requeues new cards graded Good when their learning interval is inside the review day', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
     deck = {
       ...deck,
-      newCardBatchSize: 2,
-      newCardsPerDay: 6,
+      newCardBatchSize: 1,
+      newCardsPerDay: 2,
       newCardsIntroducedToday: 0,
       lastNewCardDate: null,
       autoAddConjugations: false,
@@ -469,7 +440,7 @@ describe('ReviewSession', () => {
     }
     await db.decks.put(deck)
 
-    const cards = Array.from({ length: 6 }, (_, index) => makeNewCard(`good word ${index}`, index))
+    const cards = Array.from({ length: 2 }, (_, index) => makeNewCard(`good word ${index}`, index))
     await db.cards.bulkPut(cards)
 
     render(<ReviewSession deck={deck} onComplete={onComplete} />)
@@ -488,10 +459,9 @@ describe('ReviewSession', () => {
     await user.click(screen.getByText('Good'))
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalled()
+      expect(screen.getByText('good word 0')).toBeInTheDocument()
     })
-    expect(screen.queryByText('good word 0')).not.toBeInTheDocument()
-    expect(screen.queryByText('good word 2')).not.toBeInTheDocument()
+    expect(onComplete).not.toHaveBeenCalled()
   })
 
   it('reloads the queue when the deck prop changes', async () => {

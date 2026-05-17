@@ -11,6 +11,7 @@ import {
   getNextDueWithin24h,
   getNextDueInReviewDay,
   getDayBoundary,
+  getReviewDayKey,
   getReviewQueueFullDay,
 } from '../../src/services/review'
 import type { Deck } from '../../src/types'
@@ -139,12 +140,26 @@ describe('Due cards', () => {
     const due = await getDueCards(deck.id, future)
     expect(due.length).toBeGreaterThanOrEqual(1)
   })
+
+  it('includes auto-conjugation cards that start as learning immediately', async () => {
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'we eat [to eat (nosotros present)]',
+      backText: 'comemos',
+      direction: 'source-to-target',
+      source: 'auto-conjugation',
+      startAsLearning: true,
+    })
+
+    expect(card.fsrs.state).toBe('learning')
+    const due = await getDueCards(deck.id, new Date())
+    expect(due.map((dueCard) => dueCard.id)).toContain(card.id)
+  })
 })
 
-describe('New card batch introduction', () => {
-  it('introduces cards in batch size', async () => {
-    // Create 10 new cards
-    for (let i = 0; i < 10; i++) {
+describe('New card daily-set introduction', () => {
+  it('introduces the full daily new-card allowance at once', async () => {
+    for (let i = 0; i < 25; i++) {
       await createCard({
         deckId: deck.id,
         frontText: `word${i}`,
@@ -153,11 +168,11 @@ describe('New card batch introduction', () => {
       })
     }
 
-    const batch = await getNewCardBatch(deck)
-    expect(batch).toHaveLength(5) // Default batch size
+    const dailySet = await getNewCardBatch(deck)
+    expect(dailySet).toHaveLength(20) // Default daily allowance
   })
 
-  it('returns same batch until all are reviewed', async () => {
+  it('returns same daily set until all are reviewed', async () => {
     for (let i = 0; i < 10; i++) {
       await createCard({
         deckId: deck.id,
@@ -167,18 +182,43 @@ describe('New card batch introduction', () => {
       })
     }
 
-    const batch1 = await getNewCardBatch(deck)
-    const batch1Ids = batch1.map((c) => c.id).sort()
+    const dailySet1 = await getNewCardBatch(deck)
+    const dailySet1Ids = dailySet1.map((c) => c.id).sort()
 
     // Refetch deck to get updated currentBatchCardIds
     const updatedDeck = (await db.decks.get(deck.id))!
-    const batch2 = await getNewCardBatch(updatedDeck)
-    const batch2Ids = batch2.map((c) => c.id).sort()
+    const dailySet2 = await getNewCardBatch(updatedDeck)
+    const dailySet2Ids = dailySet2.map((c) => c.id).sort()
 
-    expect(batch1Ids).toEqual(batch2Ids)
+    expect(dailySet1Ids).toEqual(dailySet2Ids)
   })
 
-  it('introduces next batch after current batch is fully reviewed', async () => {
+  it('tops up a legacy partial active set to the full daily allowance', async () => {
+    await db.decks.update(deck.id, { newCardsPerDay: 4 })
+    deck = (await db.decks.get(deck.id))!
+
+    const cards = []
+    for (let i = 0; i < 6; i++) {
+      cards.push(await createCard({
+        deckId: deck.id,
+        frontText: `legacy ${i}`,
+        backText: `legado ${i}`,
+        direction: 'source-to-target',
+        sortOrder: i,
+      }))
+    }
+    await db.decks.update(deck.id, { currentBatchCardIds: cards.slice(0, 2).map((card) => card.id) })
+
+    const dailySet = await getNewCardBatch(deck)
+
+    expect(dailySet.map((card) => card.frontText)).toEqual(['legacy 0', 'legacy 1', 'legacy 2', 'legacy 3'])
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(4)
+  })
+
+  it('does not introduce another daily set after the daily allowance is fully reviewed', async () => {
+    await db.decks.update(deck.id, { newCardsPerDay: 5 })
+    deck = (await db.decks.get(deck.id))!
+
     for (let i = 0; i < 10; i++) {
       await createCard({
         deckId: deck.id,
@@ -188,22 +228,18 @@ describe('New card batch introduction', () => {
       })
     }
 
-    const batch1 = await getNewCardBatch(deck)
-    const batch1Ids = batch1.map((c) => c.id)
+    const dailySet1 = await getNewCardBatch(deck)
+    const dailySet1Ids = dailySet1.map((c) => c.id)
 
-    // Review all cards in batch 1
-    for (const id of batch1Ids) {
+    // Review all cards in today's set.
+    for (const id of dailySet1Ids) {
       await reviewCard(id, 3)
     }
 
-    // Now get next batch
+    // Today's daily allowance is exhausted, so remaining new cards wait.
     const updatedDeck = (await db.decks.get(deck.id))!
-    const batch2 = await getNewCardBatch(updatedDeck)
-    expect(batch2).toHaveLength(5)
-
-    // Batch 2 should be different from batch 1
-    const batch2Ids = batch2.map((c) => c.id)
-    expect(batch2Ids).not.toEqual(batch1Ids)
+    const dailySet2 = await getNewCardBatch(updatedDeck)
+    expect(dailySet2).toHaveLength(0)
   })
 
   it('returns empty when no new cards remain', async () => {
@@ -214,15 +250,15 @@ describe('New card batch introduction', () => {
       direction: 'source-to-target',
     })
 
-    const batch = await getNewCardBatch(deck)
-    expect(batch).toHaveLength(1)
+    const dailySet = await getNewCardBatch(deck)
+    expect(dailySet).toHaveLength(1)
 
     // Review the card
-    await reviewCard(batch[0].id, 3)
+    await reviewCard(dailySet[0].id, 3)
 
     const updatedDeck = (await db.decks.get(deck.id))!
-    const nextBatch = await getNewCardBatch(updatedDeck)
-    expect(nextBatch).toHaveLength(0)
+    const nextSet = await getNewCardBatch(updatedDeck)
+    expect(nextSet).toHaveLength(0)
   })
 
   it('lists new cards correctly', async () => {
@@ -296,10 +332,23 @@ describe('New card batch introduction', () => {
     expect(storedDeck.newCardsIntroducedToday).toBe(0)
   })
 
-  it('still returns an unfinished new-card batch even when the daily counter is already full', async () => {
+  it('starts auto-conjugation cards as new by default', async () => {
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'you speak [to speak (tú present)]',
+      backText: 'hablas',
+      direction: 'source-to-target',
+      source: 'auto-conjugation',
+    })
+
+    expect(card.fsrs.state).toBe('new')
+    expect(await getDueCards(deck.id, new Date())).toHaveLength(0)
+  })
+
+  it('still returns an unfinished daily new-card set even when the daily counter is already full', async () => {
     deck = await createDeck('Manual Cards')
     deck = await db.decks.get(deck.id) as Deck
-    const today = new Date().toISOString().split('T')[0]
+    const today = getReviewDayKey()
     await db.decks.update(deck.id, {
       newCardsPerDay: 2,
       newCardBatchSize: 2,
@@ -328,16 +377,16 @@ describe('New card batch introduction', () => {
     const storedDeck = (await db.decks.get(deck.id))!
     expect(storedDeck.newCardsIntroducedToday).toBe(2)
 
-    // Even though the daily limit is reached, the current in-progress batch must still be returned
-    const batch = await getNewCardBatch(storedDeck)
-    expect(batch.map((card) => card.frontText).sort()).toEqual(['first', 'second'])
+    // Even though the daily limit is reached, the current in-progress set must still be returned.
+    const dailySet = await getNewCardBatch(storedDeck)
+    expect(dailySet.map((card) => card.frontText).sort()).toEqual(['first', 'second'])
   })
 
   it('respects the daily new-card limit even when called with a stale deck object', async () => {
     // Regression test: getNewCardBatch must always read fresh counters from the DB,
     // not rely on the (potentially stale) deck object passed in.
     deck = await createDeck('Stale Deck Test')
-    const today = new Date().toISOString().split('T')[0]
+    const today = getReviewDayKey()
     await db.decks.update(deck.id, {
       newCardsPerDay: 3,
       newCardBatchSize: 3,
@@ -364,8 +413,100 @@ describe('New card batch introduction', () => {
     })
 
     // When called with the stale deck, getNewCardBatch must read the DB and return 0 new cards
-    const batch = await getNewCardBatch(staleDeck)
-    expect(batch).toHaveLength(0)
+    const dailySet = await getNewCardBatch(staleDeck)
+    expect(dailySet).toHaveLength(0)
+  })
+
+  it('resets the daily new-card limit at the deck review-day boundary', async () => {
+    await db.decks.update(deck.id, {
+      dayStartHour: 9,
+      newCardsPerDay: 1,
+      newCardBatchSize: 1,
+      newCardsIntroducedToday: 1,
+      lastNewCardDate: '2025-06-01',
+    })
+    deck = (await db.decks.get(deck.id))!
+
+    for (let i = 0; i < 2; i++) {
+      const card = await createCard({
+        deckId: deck.id,
+        frontText: `boundary ${i}`,
+        backText: `límite ${i}`,
+        direction: 'source-to-target',
+        sortOrder: i,
+      })
+      await db.cards.update(card.id, {
+        fsrs: {
+          ...card.fsrs,
+          dueDate: new Date('2025-06-02T09:00:00').toISOString(),
+        },
+      })
+    }
+
+    const beforeBoundary = await getNewCardBatch(deck, new Date('2025-06-02T08:00:00'))
+    expect(beforeBoundary).toHaveLength(0)
+
+    const afterBoundary = await getNewCardBatch(deck, new Date('2025-06-02T09:01:00'))
+    expect(afterBoundary.map((card) => card.frontText)).toEqual(['boundary 0'])
+    expect((await db.decks.get(deck.id))!.lastNewCardDate).toBe('2025-06-02')
+  })
+
+  it('records first reviews against the deck review day instead of UTC calendar day', async () => {
+    await db.decks.update(deck.id, { dayStartHour: 9 })
+    deck = (await db.decks.get(deck.id))!
+
+    const card = await createCard({
+      deckId: deck.id,
+      frontText: 'early review',
+      backText: 'repaso temprano',
+      direction: 'source-to-target',
+    })
+
+    await reviewCard(card.id, 3, new Date('2025-06-02T08:00:00'))
+
+    const storedDeck = (await db.decks.get(deck.id))!
+    expect(storedDeck.newCardsIntroducedToday).toBe(1)
+    expect(storedDeck.lastNewCardDate).toBe('2025-06-01')
+  })
+
+  it('clears a completed active daily set even when the daily limit blocks the next set', async () => {
+    await db.decks.update(deck.id, {
+      newCardsPerDay: 1,
+      newCardBatchSize: 1,
+    })
+    deck = (await db.decks.get(deck.id))!
+
+    const first = await createCard({
+      deckId: deck.id,
+      frontText: 'first set',
+      backText: 'primero',
+      direction: 'source-to-target',
+      sortOrder: 0,
+    })
+    await createCard({
+      deckId: deck.id,
+      frontText: 'blocked next',
+      backText: 'bloqueado',
+      direction: 'source-to-target',
+      sortOrder: 1,
+    })
+    await db.cards.update(first.id, {
+      fsrs: {
+        ...first.fsrs,
+        dueDate: new Date('2025-06-01T10:00:00').toISOString(),
+      },
+    })
+
+    const dailySet = await getNewCardBatch(deck, new Date('2025-06-01T10:00:00'))
+    expect(dailySet.map((card) => card.id)).toEqual([first.id])
+
+    await reviewCard(first.id, 3, new Date('2025-06-01T10:05:00'))
+    const cappedDeck = (await db.decks.get(deck.id))!
+    expect(cappedDeck.currentBatchCardIds).toEqual([first.id])
+
+    const nextSet = await getNewCardBatch(cappedDeck, new Date('2025-06-01T10:06:00'))
+    expect(nextSet).toHaveLength(0)
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(0)
   })
 })
 
@@ -525,7 +666,7 @@ describe('24h review window', () => {
     expect(nextDue).toBeNull()
   })
 
-  it('getReviewQueueFullDay can skip future upcoming cards and new-card batches', async () => {
+  it('getReviewQueueFullDay can skip future upcoming cards and new-card sets', async () => {
     const now = new Date('2025-06-01T12:00:00')
     await db.decks.update(deck.id, {
       dayStartHour: 14,
@@ -586,7 +727,35 @@ describe('24h review window', () => {
     expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(0)
   })
 
-  it('getReviewQueueFullDay can preview new cards without introducing a batch', async () => {
+  it('getReviewQueueFullDay includes future learning cards inside the review-day boundary', async () => {
+    const now = new Date('2025-06-01T12:00:00')
+    await db.decks.update(deck.id, { dayStartHour: 14 })
+    deck = (await db.decks.get(deck.id))!
+
+    const learningCard = await createCard({
+      deckId: deck.id,
+      frontText: 'future learning',
+      backText: 'aprendizaje futuro',
+      direction: 'source-to-target',
+    })
+    await db.cards.update(learningCard.id, {
+      fsrs: {
+        ...learningCard.fsrs,
+        state: 'learning',
+        dueDate: new Date('2025-06-01T13:00:00').toISOString(),
+        lastReview: now.toISOString(),
+        reps: 1,
+        reviewCount: 1,
+      },
+    })
+
+    const queue = await getReviewQueueFullDay(deck, now, { includeNewCards: false })
+
+    expect(queue.dueCards).toHaveLength(0)
+    expect(queue.upcomingCards.map((card) => card.frontText)).toEqual(['future learning'])
+  })
+
+  it('getReviewQueueFullDay can preview new cards without introducing a daily set', async () => {
     await db.decks.update(deck.id, {
       newCardBatchSize: 2,
       newCardsPerDay: 2,
@@ -609,7 +778,7 @@ describe('24h review window', () => {
     expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(0)
   })
 
-  it('passive full-day queue refresh does not replace a completed active batch', async () => {
+  it('passive full-day queue refresh does not replace the active daily new-card set', async () => {
     await db.decks.update(deck.id, {
       newCardBatchSize: 2,
       newCardsPerDay: 4,
@@ -628,10 +797,10 @@ describe('24h review window', () => {
 
     const activeQueue = await getReviewQueueFullDay(deck)
     const activeBatchIds = activeQueue.newCards.map((card) => card.id)
-    expect(activeQueue.newCards.map((card) => card.frontText)).toEqual(['session 0', 'session 1'])
+    expect(activeQueue.newCards.map((card) => card.frontText)).toEqual(['session 0', 'session 1', 'session 2', 'session 3'])
     expect((await db.decks.get(deck.id))!.currentBatchCardIds).toEqual(activeBatchIds)
 
-    for (const cardId of activeBatchIds) {
+    for (const cardId of activeBatchIds.slice(0, 2)) {
       await reviewCard(cardId, 4)
     }
 
@@ -689,5 +858,15 @@ describe('getDayBoundary', () => {
     const boundary = getDayBoundary(now)
     expect(boundary.getHours()).toBe(9)
     expect(boundary.getDate()).toBe(2)
+  })
+})
+
+describe('getReviewDayKey', () => {
+  it('uses the current local date after the deck day-start hour', () => {
+    expect(getReviewDayKey(new Date('2025-06-02T10:00:00'), 9)).toBe('2025-06-02')
+  })
+
+  it('uses the previous local date before the deck day-start hour', () => {
+    expect(getReviewDayKey(new Date('2025-06-02T08:00:00'), 9)).toBe('2025-06-01')
   })
 })

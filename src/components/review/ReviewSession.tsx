@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { reviewCard, getReviewQueueFullDay, getDueCards, getNextDueInReviewDay, getSchedulingPreview, formatInterval } from '../../services/review'
+import { reviewCard, getReviewQueueFullDay, getSchedulingPreview, formatInterval } from '../../services/review'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { hydrateConjugation } from '../../services/llm'
 import { updateCard, deleteCard } from '../../services/card'
@@ -59,7 +59,6 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
 
   const gradingRef = useRef(false)
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const dueRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const deckRef = useRef(deck)
   deckRef.current = deck
 
@@ -75,7 +74,6 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
   useEffect(() => {
     return () => {
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
-      if (dueRefreshTimeoutRef.current) clearTimeout(dueRefreshTimeoutRef.current)
     }
   }, [])
 
@@ -214,7 +212,7 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
     setTotalDue(dueCards.length + upcomingCards.length)
     setTotalNew(newCards.length)
 
-    // Load ALL cards for the day upfront: due now + upcoming + new
+    // Load all cards for the review day upfront: due now + due before boundary + new.
     const combined = [...dueCards, ...upcomingCards, ...newCards]
     setQueue(combined)
     setCurrentIndex(0)
@@ -227,45 +225,10 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
     void loadQueue()
   }, [deck.id, loadQueue])
 
-  useEffect(() => {
-    if (loading || queue.length > 0) return
-
-    let cancelled = false
-
-    const scheduleDueRefresh = async () => {
-      const d = deckRef.current
-      const now = new Date()
-      const nextDue = await getNextDueInReviewDay(d, now)
-      if (cancelled || !nextDue) return
-
-      dueRefreshTimeoutRef.current = setTimeout(async () => {
-        dueRefreshTimeoutRef.current = null
-        const dueCards = await getDueCards(d.id, new Date())
-        if (cancelled || dueCards.length === 0) return
-
-        setTotalDue(dueCards.length)
-        setTotalNew(0)
-        setQueue(dueCards)
-        setCurrentIndex(0)
-        setRevealed(false)
-      }, Math.max(0, nextDue.getTime() - now.getTime()))
-    }
-
-    void scheduleDueRefresh()
-
-    return () => {
-      cancelled = true
-      if (dueRefreshTimeoutRef.current) {
-        clearTimeout(dueRefreshTimeoutRef.current)
-        dueRefreshTimeoutRef.current = null
-      }
-    }
-  }, [deck.id, loading, queue.length])
-
   const handleGrade = async (grade: number) => {
     if (!currentCard) return
 
-    const updated = await reviewCard(currentCard.id, grade, new Date(), deck.requestRetention)
+    await reviewCard(currentCard.id, grade, new Date(), deck.requestRetention)
     setReviewed((r) => r + 1)
 
     // Try auto-adding a conjugation card (fires and handles its own errors)
@@ -285,37 +248,33 @@ export default function ReviewSession({ deck, onComplete, onUpdate }: Props) {
       // Non-critical — don't interrupt review flow
     }
 
-    // Build next queue: remaining cards + requeued card (if due before day boundary)
+    // Build next queue from remaining cards plus anything due before the review-day boundary.
     const remaining = queue.slice(currentIndex + 1)
     const now = new Date()
 
-    // If the card is already due again, put it back at end of queue.
-    // Future learning intervals should wait until they are actually due.
-    const requeue = new Date(updated.fsrs.dueDate) <= now
-      ? [updated] : []
-
-    // Also check DB for any newly-due cards not in our queue (e.g. auto-added conjugation cards)
     const remainingIds = new Set(remaining.map(c => c.id))
-    remainingIds.add(currentCard.id)
-    requeue.forEach(c => remainingIds.add(c.id))
-    const dueNow = await getDueCards(deck.id, now)
-    const newlyDue = dueNow.filter(c => !remainingIds.has(c.id))
+    const { dueCards, upcomingCards } = await getReviewQueueFullDay(
+      deckRef.current,
+      now,
+      { includeNewCards: false }
+    )
+    const newlyDue = [...dueCards, ...upcomingCards].filter(c => !remainingIds.has(c.id))
 
-    const nextQueue = [...remaining, ...newlyDue, ...requeue]
+    const nextQueue = [...remaining, ...newlyDue]
 
     if (nextQueue.length > 0) {
       setQueue(nextQueue)
       setCurrentIndex(0)
       setRevealed(false)
     } else {
-      // Do a full reload for cards that became due now, but do not introduce
-      // another new-card batch or pull future learning intervals forward.
+      // Do a full reload for non-new cards inside the review-day boundary, but do not
+      // introduce another new-card daily set.
       const freshDeck = await getDeck(deck.id)
       if (freshDeck) {
         const { dueCards, upcomingCards, newCards } = await getReviewQueueFullDay(
           freshDeck,
           new Date(),
-          { includeNewCards: false, includeUpcomingCards: false }
+          { includeNewCards: false }
         )
         const fullReload = [...dueCards, ...upcomingCards, ...newCards]
         if (fullReload.length > 0) {

@@ -80,9 +80,21 @@ export function gradeToRating(grade: number): Grade {
   }
 }
 
-/** Get today's date string in YYYY-MM-DD format */
-function todayString(now: Date = new Date()): string {
-  return now.toISOString().split('T')[0]
+function formatLocalDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/** Get the local review-day key for daily limits. */
+export function getReviewDayKey(now: Date = new Date(), dayStartHour: number = 9): string {
+  const reviewDayStart = new Date(now)
+  reviewDayStart.setHours(dayStartHour, 0, 0, 0)
+  if (now < reviewDayStart) {
+    reviewDayStart.setDate(reviewDayStart.getDate() - 1)
+  }
+  return formatLocalDateKey(reviewDayStart)
 }
 
 /** Get remaining daily new card slots for a deck, resetting if day changed */
@@ -90,7 +102,7 @@ async function getDailyNewCardRemaining(deckId: string, now: Date = new Date()):
   const deck = await db.decks.get(deckId)
   if (!deck) return 0
 
-  const today = todayString(now)
+  const today = getReviewDayKey(now, deck.dayStartHour ?? 9)
   const perDay = deck.newCardsPerDay ?? 20
 
   if (deck.lastNewCardDate !== today) {
@@ -107,11 +119,15 @@ async function getDailyNewCardRemaining(deckId: string, now: Date = new Date()):
 }
 
 /** Increment the daily new card counter for a deck */
-export async function incrementDailyNewCardCount(deckId: string, count: number = 1): Promise<void> {
+export async function incrementDailyNewCardCount(
+  deckId: string,
+  count: number = 1,
+  now: Date = new Date()
+): Promise<void> {
   const deck = await db.decks.get(deckId)
   if (!deck) return
 
-  const today = todayString()
+  const today = getReviewDayKey(now, deck.dayStartHour ?? 9)
   if (deck.lastNewCardDate !== today) {
     await db.decks.update(deckId, {
       newCardsIntroducedToday: count,
@@ -166,7 +182,7 @@ export async function reviewCard(
       newFsrsState.state !== 'new' &&
       card.source !== 'auto-conjugation'
     ) {
-      await incrementDailyNewCardCount(card.deckId)
+      await incrementDailyNewCardCount(card.deckId, 1, now)
     }
   })
 
@@ -199,8 +215,8 @@ function sortByFrequency(cards: Card[]): Card[] {
 }
 
 /**
- * Get the next batch of new cards to introduce (Anki-like daily limit).
- * Uses newCardsPerDay to cap how many new cards are shown per day.
+ * Get the daily set of new cards to introduce.
+ * Uses newCardsPerDay to cap how many new cards are shown per review day.
  * Manual/practice cards count against this daily limit.
  * Always reads fresh deck state from the DB so counters are accurate.
  */
@@ -209,11 +225,11 @@ export async function getNewCardBatch(
   now: Date = new Date(),
   options: { introduce?: boolean } = {}
 ): Promise<Card[]> {
-  // Re-read the deck from DB to get the latest counters and batch IDs.
+  // Re-read the deck from DB to get the latest counters and active daily-set IDs.
   const freshDeck = await db.decks.get(deck.id)
   if (!freshDeck) return []
 
-  // Check if current batch is still pending
+  // Check if the current daily new-card set is still pending.
   if (freshDeck.currentBatchCardIds.length > 0) {
     const batchCards = await Promise.all(
       freshDeck.currentBatchCardIds.map((id) => db.cards.get(id))
@@ -222,30 +238,64 @@ export async function getNewCardBatch(
     const stillNew = existingCards.filter((c) => c.fsrs.state === 'new')
 
     if (stillNew.length > 0) {
-      // Once a batch is introduced, keep showing it until the user finishes it.
+      const remaining = await getDailyNewCardRemaining(deck.id, now)
+      const dailyLimit = freshDeck.newCardsPerDay ?? 20
+      const additionalSlots = Math.max(
+        0,
+        Math.min(dailyLimit - freshDeck.currentBatchCardIds.length, remaining - stillNew.length)
+      )
+      if (additionalSlots > 0) {
+        const activeIds = new Set(freshDeck.currentBatchCardIds)
+        const cutoff = getDayBoundary(now, freshDeck.dayStartHour ?? 9)
+        const additionalCards = sortByFrequency(
+          (await getNewCards(deck.id))
+            .filter((card) => !activeIds.has(card.id))
+            .filter((card) => new Date(card.fsrs.dueDate) <= cutoff)
+        ).slice(0, additionalSlots)
+        const dailySet = sortByFrequency([...stillNew, ...additionalCards])
+
+        if (options.introduce !== false) {
+          await db.decks.update(deck.id, {
+            currentBatchCardIds: [
+              ...freshDeck.currentBatchCardIds,
+              ...additionalCards.map((card) => card.id),
+            ],
+          })
+        }
+
+        return dailySet
+      }
+
+      // Once a daily set is introduced, keep showing it until the user finishes it.
       return sortByFrequency(stillNew)
+    }
+
+    if (options.introduce !== false) {
+      await db.decks.update(deck.id, { currentBatchCardIds: [] })
     }
   }
 
   const remaining = await getDailyNewCardRemaining(deck.id, now)
   if (remaining <= 0) return []
 
-  // Current batch is complete (or empty), introduce next batch
-  const newCards = sortByFrequency(await getNewCards(deck.id))
+  // Current daily set is complete (or empty), introduce the remaining daily allowance at once.
+  const cutoff = getDayBoundary(now, freshDeck.dayStartHour ?? 9)
+  const newCards = sortByFrequency(
+    (await getNewCards(deck.id)).filter((card) => new Date(card.fsrs.dueDate) <= cutoff)
+  )
   if (newCards.length === 0) return []
 
-  const batchSize = Math.min(remaining, freshDeck.newCardBatchSize ?? 5)
-  const batch = newCards.slice(0, batchSize)
-  const batchIds = batch.map((c) => c.id)
+  const dailySet = newCards.slice(0, remaining)
+  const dailySetIds = dailySet.map((c) => c.id)
 
   if (options.introduce === false) {
-    return batch
+    return dailySet
   }
 
-  // Update deck with new batch IDs
-  await db.decks.update(deck.id, { currentBatchCardIds: batchIds })
+  // Keep using the legacy field name for the active daily new-card set.
+  await db.decks.update(deck.id, { currentBatchCardIds: dailySetIds })
 
-  return batch
+  return dailySet
 }
 
 export async function getReviewQueue(
@@ -329,7 +379,9 @@ export async function getReviewQueueFullDay(
     introduceNewCards?: boolean
   } = {}
 ): Promise<{ dueCards: Card[]; upcomingCards: Card[]; newCards: Card[] }> {
-  const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
+  const freshDeck = await db.decks.get(deck.id)
+  const queueDeck = freshDeck ?? deck
+  const cutoff = getDayBoundary(now, queueDeck.dayStartHour ?? 9)
   const cards = await db.cards.where('deckId').equals(deck.id).toArray()
 
   const dueCards = cards.filter((card) => {
@@ -347,7 +399,7 @@ export async function getReviewQueueFullDay(
 
   const newCards = options.includeNewCards === false
     ? []
-    : await getNewCardBatch(deck, now, { introduce: options.introduceNewCards !== false })
+    : await getNewCardBatch(queueDeck, now, { introduce: options.introduceNewCards !== false })
   return { dueCards, upcomingCards, newCards }
 }
 

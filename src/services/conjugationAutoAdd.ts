@@ -12,13 +12,9 @@ import { createCard } from './card'
 import { lookupConjugation } from './conjugationLookup'
 import { removeAccents } from './deduplication'
 import { formatReflexiveForm } from './reflexive'
+import { getReviewDayKey } from './review'
 import { translateText, isOnline } from './translate'
 import type { Card, Deck, VerbData, ConjugationAutoAdd, ConstructChecklist } from '../types'
-
-/** Get today's date as YYYY-MM-DD */
-function todayString(now: Date = new Date()): string {
-  return now.toISOString().split('T')[0]
-}
 
 /**
  * Get verbData from a card. Tries in order:
@@ -145,7 +141,7 @@ export async function maybeAutoAddConjugationCard(
   const verbData = await getVerbDataForCard(card)
   if (!verbData?.tenses?.length) return { added: false, reason: 'not_a_verb' }
 
-  const today = todayString(now)
+  const today = getReviewDayKey(now, deck.dayStartHour ?? 9)
 
   // Check daily limit across all verbs
   const dailyLimit = deck.maxConjugationCardsPerDay ?? 5
@@ -220,7 +216,7 @@ export async function maybeAutoAddConjugationCard(
   // frontText=English, backText=Spanish for both directions.
   // The direction field controls which is shown first during review.
   // If conjugationCardsStartLearning is true, cards start as "learning" (immediately
-  // reviewable). Otherwise they start as "new" and go through normal new-card batching.
+  // reviewable). Otherwise they start as "new" and enter the next daily new-card set.
   const startAsLearning = deck.conjugationCardsStartLearning ?? false
   await createCard({
     deckId: deck.id,

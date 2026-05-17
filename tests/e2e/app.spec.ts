@@ -302,7 +302,7 @@ test.describe('E2E: Full Review Workflow', () => {
     await expect(page.getByText(/No cards to review right now/)).toBeVisible({ timeout: 5000 })
   })
 
-  test('reviewed cards return to the queue when their learning interval becomes due', async ({ page }) => {
+  test('reviewed cards due inside the day boundary stay reviewable without waiting', async ({ page }) => {
     await createDeck(page, 'Learning Queue')
     await page.getByText('Learning Queue').click()
 
@@ -317,13 +317,8 @@ test.describe('E2E: Full Review Workflow', () => {
       await expect(page.getByText('Show Answer')).toBeVisible({ timeout: 1000 })
     }).toPass()
     await expect(page.getByText('return soon')).toBeVisible()
-    await page.clock.install()
-
     await page.getByText('Show Answer').click()
     await page.getByRole('button', { name: 'Again' }).click()
-    await expect(page.getByText('No cards to review right now.')).toBeVisible()
-
-    await page.clock.fastForward(10 * 60 * 1000)
     await expect(page.getByText('return soon')).toBeVisible()
   })
 })
