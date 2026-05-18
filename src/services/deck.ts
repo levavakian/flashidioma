@@ -2,15 +2,53 @@ import { db } from '../db'
 import type { Deck, ConstructChecklist } from '../types'
 import { getDefaultSpanishChecklist } from '../languages/spanish'
 
-/** Apply default values for Phase 13 fields to decks created before v2 */
-function applyDeckDefaults(deck: Deck): Deck {
+function getDeckDefaults(deck: Partial<Deck>): Omit<Deck, 'id' | 'name' | 'createdAt'> {
+  const targetLanguage = deck.targetLanguage ?? 'spanish'
   return {
-    ...deck,
+    targetLanguage,
+    constructChecklist: deck.constructChecklist ?? (targetLanguage === 'spanish' ? getDefaultSpanishChecklist() : {}),
+    newCardBatchSize: deck.newCardBatchSize ?? 5,
+    currentBatchCardIds: Array.isArray(deck.currentBatchCardIds) ? deck.currentBatchCardIds : [],
+    newCardsPerDay: deck.newCardsPerDay ?? 20,
+    newCardsIntroducedToday: deck.newCardsIntroducedToday ?? 0,
+    lastNewCardDate: deck.lastNewCardDate ?? null,
     autoAddConjugations: deck.autoAddConjugations ?? true,
     maxConjugationCardsPerDay: deck.maxConjugationCardsPerDay ?? 5,
+    conjugationCardsStartLearning: deck.conjugationCardsStartLearning ?? false,
     conjugationCardsAddedToday: deck.conjugationCardsAddedToday ?? 0,
     lastConjugationCardDate: deck.lastConjugationCardDate ?? null,
+    dayStartHour: deck.dayStartHour ?? 9,
+    requestRetention: deck.requestRetention ?? 0.9,
   }
+}
+
+/** Apply default values for decks created by older app versions. */
+export function applyDeckDefaults(deck: Deck): Deck {
+  const defaults = getDeckDefaults(deck)
+  return {
+    ...deck,
+    ...defaults,
+  }
+}
+
+export async function repairDeckSchema(id: string): Promise<{ changed: boolean; changes: string[]; deck: Deck }> {
+  const deck = await db.decks.get(id)
+  if (!deck) throw new Error(`Deck not found: ${id}`)
+
+  const repaired = applyDeckDefaults(deck)
+  const changes: string[] = []
+
+  for (const key of Object.keys(repaired) as (keyof Deck)[]) {
+    if (JSON.stringify(deck[key]) !== JSON.stringify(repaired[key])) {
+      changes.push(String(key))
+    }
+  }
+
+  if (changes.length > 0) {
+    await db.decks.put(repaired)
+  }
+
+  return { changed: changes.length > 0, changes, deck: repaired }
 }
 
 export async function createDeck(
@@ -35,8 +73,10 @@ export async function createDeck(
     lastNewCardDate: null,
     autoAddConjugations: true,
     maxConjugationCardsPerDay: 5,
+    conjugationCardsStartLearning: false,
     conjugationCardsAddedToday: 0,
     lastConjugationCardDate: null,
+    dayStartHour: 9,
     requestRetention: 0.9,
   }
 

@@ -1,4 +1,5 @@
-import { updateDeck, skipForwardOneDay } from '../../services/deck'
+import { useState } from 'react'
+import { updateDeck, skipForwardOneDay, repairDeckSchema } from '../../services/deck'
 import { getReviewDayKey } from '../../services/review'
 import EditableNumberInput from '../common/EditableNumberInput'
 import type { Deck } from '../../types'
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function DeckSettings({ deck, onUpdate }: Props) {
+  const [schemaMessage, setSchemaMessage] = useState('')
   const newCardsPerDay = deck.newCardsPerDay
   const autoAddConjugations = deck.autoAddConjugations ?? true
   const maxConjugationCardsPerDay = deck.maxConjugationCardsPerDay ?? 5
@@ -18,6 +20,16 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
 
   const handleSave = async (updates: Partial<Deck>) => {
     await updateDeck(deck.id, updates)
+    onUpdate()
+  }
+
+  const handleRepairSchema = async () => {
+    const result = await repairDeckSchema(deck.id)
+    if (result.changed) {
+      setSchemaMessage(`Updated deck schema: ${result.changes.join(', ')}`)
+    } else {
+      setSchemaMessage('Deck schema is already up to date.')
+    }
     onUpdate()
   }
 
@@ -85,6 +97,22 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow border p-4">
+        <h3 className="font-semibold text-lg mb-2">Schema Maintenance</h3>
+        <p className="text-xs text-gray-400 mb-3">
+          Updates older decks with any missing review queue settings and default values required by the current app.
+        </p>
+        <button
+          onClick={handleRepairSchema}
+          className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
+        >
+          Update Deck Schema
+        </button>
+        {schemaMessage && (
+          <p className="text-sm text-gray-600 mt-2">{schemaMessage}</p>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow border p-4">

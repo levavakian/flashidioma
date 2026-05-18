@@ -279,8 +279,8 @@ describe('New card daily-set introduction', () => {
     expect(afterReview).toHaveLength(0)
   })
 
-  it('counts a manually added card only once against the daily new-card total', async () => {
-    const card = await createCard({
+  it('counts manually added cards when they are introduced into the review queue', async () => {
+    await createCard({
       deckId: deck.id,
       frontText: 'manual',
       backText: 'manual',
@@ -290,14 +290,19 @@ describe('New card daily-set introduction', () => {
     let storedDeck = (await db.decks.get(deck.id))!
     expect(storedDeck.newCardsIntroducedToday).toBe(0)
 
-    await reviewCard(card.id, 3)
+    const dailySet = await getNewCardBatch(deck)
+    expect(dailySet).toHaveLength(1)
 
+    storedDeck = (await db.decks.get(deck.id))!
+    expect(storedDeck.newCardsIntroducedToday).toBe(1)
+
+    await reviewCard(dailySet[0].id, 3)
     storedDeck = (await db.decks.get(deck.id))!
     expect(storedDeck.newCardsIntroducedToday).toBe(1)
   })
 
-  it('counts imported cards when they are first reviewed out of new state', async () => {
-    const card = await createCard({
+  it('counts imported cards when they are introduced into the review queue', async () => {
+    await createCard({
       deckId: deck.id,
       frontText: 'imported',
       backText: 'importado',
@@ -308,14 +313,14 @@ describe('New card daily-set introduction', () => {
     let storedDeck = (await db.decks.get(deck.id))!
     expect(storedDeck.newCardsIntroducedToday).toBe(0)
 
-    await reviewCard(card.id, 3)
+    await getNewCardBatch(deck)
 
     storedDeck = (await db.decks.get(deck.id))!
     expect(storedDeck.newCardsIntroducedToday).toBe(1)
   })
 
   it('does not count auto-conjugation cards against the daily new-card total', async () => {
-    const card = await createCard({
+    await createCard({
       deckId: deck.id,
       frontText: 'we eat',
       backText: 'comemos',
@@ -326,7 +331,8 @@ describe('New card daily-set introduction', () => {
     let storedDeck = (await db.decks.get(deck.id))!
     expect(storedDeck.newCardsIntroducedToday).toBe(0)
 
-    await reviewCard(card.id, 3)
+    const dailySet = await getNewCardBatch(deck)
+    expect(dailySet).toHaveLength(1)
 
     storedDeck = (await db.decks.get(deck.id))!
     expect(storedDeck.newCardsIntroducedToday).toBe(0)
@@ -451,7 +457,7 @@ describe('New card daily-set introduction', () => {
     expect((await db.decks.get(deck.id))!.lastNewCardDate).toBe('2025-06-02')
   })
 
-  it('records first reviews against the deck review day instead of UTC calendar day', async () => {
+  it('records new-card introductions against the deck review day instead of UTC calendar day', async () => {
     await db.decks.update(deck.id, { dayStartHour: 9 })
     deck = (await db.decks.get(deck.id))!
 
@@ -461,12 +467,52 @@ describe('New card daily-set introduction', () => {
       backText: 'repaso temprano',
       direction: 'source-to-target',
     })
+    await db.cards.update(card.id, {
+      fsrs: {
+        ...card.fsrs,
+        dueDate: new Date('2025-06-02T08:00:00').toISOString(),
+      },
+    })
 
-    await reviewCard(card.id, 3, new Date('2025-06-02T08:00:00'))
+    await getNewCardBatch(deck, new Date('2025-06-02T08:00:00'))
 
     const storedDeck = (await db.decks.get(deck.id))!
     expect(storedDeck.newCardsIntroducedToday).toBe(1)
     expect(storedDeck.lastNewCardDate).toBe('2025-06-01')
+  })
+
+  it('does not introduce endless new daily sets after the first set is reviewed', async () => {
+    await db.decks.update(deck.id, { newCardsPerDay: 3 })
+    deck = (await db.decks.get(deck.id))!
+
+    for (let i = 0; i < 9; i++) {
+      await createCard({
+        deckId: deck.id,
+        frontText: `limited ${i}`,
+        backText: `limitado ${i}`,
+        direction: 'source-to-target',
+        sortOrder: i,
+      })
+    }
+
+    const dailySet = await getNewCardBatch(deck)
+    expect(dailySet.map((card) => card.frontText)).toEqual(['limited 0', 'limited 1', 'limited 2'])
+    expect((await db.decks.get(deck.id))!.newCardsIntroducedToday).toBe(3)
+
+    for (const card of dailySet) {
+      await reviewCard(card.id, 4)
+    }
+
+    const nextSet = await getNewCardBatch((await db.decks.get(deck.id))!)
+    expect(nextSet).toHaveLength(0)
+    expect((await getNewCards(deck.id)).map((card) => card.frontText).sort()).toEqual([
+      'limited 3',
+      'limited 4',
+      'limited 5',
+      'limited 6',
+      'limited 7',
+      'limited 8',
+    ])
   })
 
   it('clears a completed active daily set even when the daily limit blocks the next set', async () => {

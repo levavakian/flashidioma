@@ -79,8 +79,8 @@ The review queue is deliberately Anki-like while staying simple and local-first:
 - **Stable daily new-card set:** once a daily new-card set is introduced, it remains stable until every card in it has left `new` state. A later passive count refresh must not replace it.
 - **No chained daily sets in one session:** after the daily new-card set is reviewed, the current session may continue with non-new cards due before the review-day boundary, but it must not introduce another new-card set until the next review day.
 - **Passive counts are side-effect safe:** deck-list and deck-detail badges may preview the next eligible daily new-card set, but they must not pin `currentBatchCardIds`.
-- **Daily new-card limit:** manual, imported, and practice cards count against `newCardsPerDay` when first reviewed out of `new` state. Auto-conjugation cards never count against this limit.
-- **Daily-set cleanup:** when a daily new-card set is finished, stale `currentBatchCardIds` are cleared even if the daily limit prevents another set from being introduced yet.
+- **Daily new-card limit:** manual, imported, and practice cards count against `newCardsPerDay` when they are introduced into the review queue. They do not wait until grading to consume the daily allowance. Auto-conjugation cards never count against this limit.
+- **Daily-set cleanup and legacy repair:** when a daily new-card set is finished, stale `currentBatchCardIds` are cleared even if the daily limit prevents another set from being introduced yet. Deck Settings includes an "Update Deck Schema" button that inserts any missing current defaults for older persisted decks and reports whether anything changed.
 - **Auto-conjugation cards:** by default, auto-conjugation cards start as `new` and flow through the next daily new-card set. If `conjugationCardsStartLearning` is enabled, they start as `learning`, are immediately reviewable, and enter the due queue without consuming a new-card slot or daily-set slot.
 - **Ordering:** imported/prebuilt new cards are introduced by `sortOrder` first, then by creation time. The current active daily-set order remains deterministic by the same rule.
 - **Counts:** Review badges and session headers distinguish due/same-day scheduled review cards from currently eligible new cards. A displayed "new" count is the currently introducible/active daily set size, not the total number of unreviewed cards in the deck.
@@ -435,6 +435,7 @@ Add a "Settings" tab to the deck detail page that lets the user adjust spaced re
 - [x] Conjugation cards start as learning toggle (`conjugationCardsStartLearning`) — when enabled, auto-added conjugation cards start as "learning" (immediately reviewable); when disabled (default), they start as "new" and go through the next daily new-card set
 - [ ] Persist all settings to the Deck record in IndexedDB
 - [ ] Display current daily stats (new cards introduced today, conjugation cards added today)
+- [x] Add "Update Deck Schema" maintenance button that fills missing current deck defaults for older persisted decks and reports whether any fields changed
 - **Tests:**
   - [ ] Component: settings tab renders all controls with current deck values; changing a value persists to DB
   - [ ] Component: settings changes are reflected immediately in review behavior (e.g. lowering newCardsPerDay caps new cards)

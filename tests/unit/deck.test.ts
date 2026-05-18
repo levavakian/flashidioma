@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../../src/db'
-import { createDeck, getDeck, getAllDecks, updateDeck, deleteDeck } from '../../src/services/deck'
+import { createDeck, getDeck, getAllDecks, updateDeck, deleteDeck, repairDeckSchema } from '../../src/services/deck'
 import { createCard } from '../../src/services/card'
 
 beforeEach(async () => {
@@ -61,5 +61,35 @@ describe('Deck CRUD', () => {
 
     const cards = await db.cards.where('deckId').equals(deck.id).toArray()
     expect(cards).toHaveLength(0)
+  })
+
+  it('repairs older decks with missing schema fields', async () => {
+    const legacyDeck = {
+      id: 'legacy-deck',
+      name: 'Legacy',
+      targetLanguage: 'spanish',
+      createdAt: new Date().toISOString(),
+      constructChecklist: undefined,
+    }
+    await db.decks.put(legacyDeck as never)
+
+    const result = await repairDeckSchema('legacy-deck')
+
+    expect(result.changed).toBe(true)
+    expect(result.changes).toContain('newCardsPerDay')
+    expect(result.changes).toContain('currentBatchCardIds')
+    expect(result.deck.newCardsPerDay).toBe(20)
+    expect(result.deck.currentBatchCardIds).toEqual([])
+    expect(result.deck.dayStartHour).toBe(9)
+    expect(result.deck.constructChecklist.present).toBe(true)
+  })
+
+  it('reports no changes when deck schema is already current', async () => {
+    const deck = await createDeck('Current')
+
+    const result = await repairDeckSchema(deck.id)
+
+    expect(result.changed).toBe(false)
+    expect(result.changes).toEqual([])
   })
 })
