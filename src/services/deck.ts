@@ -1,7 +1,7 @@
 import { db } from '../db'
 import type { Card, Deck, ConstructChecklist } from '../types'
 import { getDefaultSpanishChecklist } from '../languages/spanish'
-import { getDayBoundary, getReviewDayKey } from './review'
+import { getAutoConjugationNewCardLimit, getDayBoundary, getReviewDayKey } from './review'
 
 function getDeckDefaults(deck: Partial<Deck>): Omit<Deck, 'id' | 'name' | 'createdAt'> {
   const targetLanguage = deck.targetLanguage ?? 'spanish'
@@ -52,10 +52,10 @@ async function recomputeActiveNewCardSet(deck: Deck, now: Date = new Date()): Pr
 
   const limitedCards = sortCardsForReviewQueue(
     newCards.filter((card) => card.source !== 'auto-conjugation')
-  ).slice(0, deck.newCardsPerDay)
+  ).slice(0, deck.newCardsPerDay ?? 20)
   const freeCards = sortCardsForReviewQueue(
     newCards.filter((card) => card.source === 'auto-conjugation')
-  )
+  ).slice(0, getAutoConjugationNewCardLimit(deck))
 
   return {
     cardIds: [...limitedCards, ...freeCards].map((card) => card.id),
@@ -87,7 +87,7 @@ export async function repairDeckSchema(id: string): Promise<{ changed: boolean; 
     repaired.newCardsIntroducedToday = recomputedNewSet.limitedCount
     if (!changes.includes('newCardsIntroducedToday')) changes.push('newCardsIntroducedToday')
   }
-  if (recomputedNewSet.limitedCount > 0 && repaired.lastNewCardDate !== today) {
+  if (recomputedNewSet.cardIds.length > 0 && repaired.lastNewCardDate !== today) {
     repaired.lastNewCardDate = today
     if (!changes.includes('lastNewCardDate')) changes.push('lastNewCardDate')
   }

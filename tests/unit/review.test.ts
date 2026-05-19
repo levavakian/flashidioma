@@ -265,6 +265,45 @@ describe('New card daily-set introduction', () => {
     expect((await db.decks.get(deck.id))!.currentBatchCardIds).toEqual(queue.newCards.map((card) => card.id))
   })
 
+  it('caps accumulated auto-conjugation cards in polluted active new-card sets', async () => {
+    await db.decks.update(deck.id, {
+      newCardsPerDay: 3,
+      maxConjugationCardsPerDay: 2,
+    })
+    deck = (await db.decks.get(deck.id))!
+
+    const manualCards = []
+    const autoConjugationCards = []
+    for (let i = 0; i < 6; i++) {
+      manualCards.push(await createCard({
+        deckId: deck.id,
+        frontText: `manual polluted ${i}`,
+        backText: `manual ${i}`,
+        direction: 'source-to-target',
+        sortOrder: i,
+      }))
+      autoConjugationCards.push(await createCard({
+        deckId: deck.id,
+        frontText: `auto polluted ${i}`,
+        backText: `auto ${i}`,
+        direction: 'source-to-target',
+        source: 'auto-conjugation',
+        sortOrder: 100 + i,
+      }))
+    }
+    await db.decks.update(deck.id, {
+      currentBatchCardIds: [...manualCards, ...autoConjugationCards].map((card) => card.id),
+    })
+
+    const queue = await getReviewQueueFullDay(deck)
+    const storedDeck = (await db.decks.get(deck.id))!
+
+    expect(queue.newCards).toHaveLength(5)
+    expect(queue.newCards.filter((card) => card.source !== 'auto-conjugation')).toHaveLength(3)
+    expect(queue.newCards.filter((card) => card.source === 'auto-conjugation')).toHaveLength(2)
+    expect(storedDeck.currentBatchCardIds).toEqual(queue.newCards.map((card) => card.id))
+  })
+
   it('excludes active new cards outside the review-day boundary', async () => {
     const now = new Date('2025-06-01T10:00:00')
     await db.decks.update(deck.id, { dayStartHour: 12, newCardsPerDay: 3 })
@@ -604,6 +643,48 @@ describe('New card daily-set introduction', () => {
       'limited 7',
       'limited 8',
     ])
+  })
+
+  it('does not chain auto-conjugation-only new-card sets within one review day', async () => {
+    const now = new Date('2026-05-19T10:00:00Z')
+    await db.decks.update(deck.id, {
+      newCardsPerDay: 5,
+      maxConjugationCardsPerDay: 2,
+    })
+    deck = (await db.decks.get(deck.id))!
+
+    for (let i = 0; i < 5; i++) {
+      const card = await createCard({
+        deckId: deck.id,
+        frontText: `auto only ${i}`,
+        backText: `auto ${i}`,
+        direction: 'source-to-target',
+        source: 'auto-conjugation',
+        sortOrder: i,
+      })
+      await db.cards.update(card.id, {
+        fsrs: {
+          ...card.fsrs,
+          dueDate: now.toISOString(),
+        },
+      })
+    }
+
+    const dailySet = await getNewCardBatch(deck, now)
+    expect(dailySet.map((card) => card.frontText)).toEqual(['auto only 0', 'auto only 1'])
+    expect((await db.decks.get(deck.id))!.newCardsIntroducedToday).toBe(0)
+    expect((await db.decks.get(deck.id))!.lastNewCardDate).toBe('2026-05-19')
+
+    for (const card of dailySet) {
+      await reviewCard(card.id, 4, new Date('2026-05-19T10:05:00Z'))
+    }
+
+    const sameDayNextSet = await getNewCardBatch((await db.decks.get(deck.id))!, new Date('2026-05-19T10:06:00Z'))
+    expect(sameDayNextSet).toHaveLength(0)
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toEqual([])
+
+    const nextDaySet = await getNewCardBatch((await db.decks.get(deck.id))!, new Date('2026-05-20T10:00:00Z'))
+    expect(nextDaySet.map((card) => card.frontText)).toEqual(['auto only 2', 'auto only 3'])
   })
 
   it('clears a completed active daily set even when the daily limit blocks the next set', async () => {
