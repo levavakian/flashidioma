@@ -112,11 +112,11 @@ describe('Deck CRUD', () => {
     expect(result.deck.newCardsIntroducedToday).toBe(2)
   })
 
-  it('caps accumulated auto-conjugation cards when repairing polluted active sets', async () => {
+  it('caps accumulated auto-conjugation cards to the total daily limit when repairing polluted active sets', async () => {
     const deck = await createDeck('Polluted Auto')
     await updateDeck(deck.id, {
       newCardsPerDay: 2,
-      maxConjugationCardsPerDay: 2,
+      maxConjugationCardsPerDay: 50,
     })
     const manualCards = []
     const autoConjugationCards = []
@@ -149,8 +149,6 @@ describe('Deck CRUD', () => {
     expect(result.deck.currentBatchCardIds).toEqual([
       manualCards[0].id,
       manualCards[1].id,
-      autoConjugationCards[0].id,
-      autoConjugationCards[1].id,
     ])
     expect(result.deck.newCardsIntroducedToday).toBe(2)
   })

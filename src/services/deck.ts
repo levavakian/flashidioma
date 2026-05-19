@@ -1,7 +1,7 @@
 import { db } from '../db'
 import type { Card, Deck, ConstructChecklist } from '../types'
 import { getDefaultSpanishChecklist } from '../languages/spanish'
-import { getAutoConjugationNewCardLimit, getDayBoundary, getReviewDayKey } from './review'
+import { getDayBoundary, getReviewDayKey } from './review'
 
 function getDeckDefaults(deck: Partial<Deck>): Omit<Deck, 'id' | 'name' | 'createdAt'> {
   const targetLanguage = deck.targetLanguage ?? 'spanish'
@@ -43,23 +43,25 @@ function sortCardsForReviewQueue(cards: Card[]): Card[] {
 
 async function recomputeActiveNewCardSet(deck: Deck, now: Date = new Date()): Promise<{
   cardIds: string[]
-  limitedCount: number
+  introducedCount: number
 }> {
   const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
   const newCards = (await db.cards.where('deckId').equals(deck.id).toArray())
     .filter((card) => card.fsrs.state === 'new')
     .filter((card) => new Date(card.fsrs.dueDate) <= cutoff)
 
-  const limitedCards = sortCardsForReviewQueue(
+  const limit = deck.newCardsPerDay ?? 20
+  const regularCards = sortCardsForReviewQueue(
     newCards.filter((card) => card.source !== 'auto-conjugation')
-  ).slice(0, deck.newCardsPerDay ?? 20)
-  const freeCards = sortCardsForReviewQueue(
+  ).slice(0, limit)
+  const autoConjugationCards = sortCardsForReviewQueue(
     newCards.filter((card) => card.source === 'auto-conjugation')
-  ).slice(0, getAutoConjugationNewCardLimit(deck))
+  ).slice(0, limit - regularCards.length)
+  const dailySet = sortCardsForReviewQueue([...regularCards, ...autoConjugationCards])
 
   return {
-    cardIds: [...limitedCards, ...freeCards].map((card) => card.id),
-    limitedCount: limitedCards.length,
+    cardIds: dailySet.map((card) => card.id),
+    introducedCount: dailySet.length,
   }
 }
 
@@ -83,8 +85,8 @@ export async function repairDeckSchema(id: string): Promise<{ changed: boolean; 
     repaired.currentBatchCardIds = recomputedNewSet.cardIds
     if (!changes.includes('currentBatchCardIds')) changes.push('currentBatchCardIds')
   }
-  if (repaired.newCardsIntroducedToday !== recomputedNewSet.limitedCount) {
-    repaired.newCardsIntroducedToday = recomputedNewSet.limitedCount
+  if (repaired.newCardsIntroducedToday !== recomputedNewSet.introducedCount) {
+    repaired.newCardsIntroducedToday = recomputedNewSet.introducedCount
     if (!changes.includes('newCardsIntroducedToday')) changes.push('newCardsIntroducedToday')
   }
   if (recomputedNewSet.cardIds.length > 0 && repaired.lastNewCardDate !== today) {
