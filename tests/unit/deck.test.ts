@@ -84,7 +84,7 @@ describe('Deck CRUD', () => {
     expect(result.deck.constructChecklist.present).toBe(true)
   })
 
-  it('repairs polluted active daily sets from older queue bugs', async () => {
+  it('resets and recomputes active daily sets from older queue bugs', async () => {
     const deck = await createDeck('Polluted')
     await updateDeck(deck.id, { newCardsPerDay: 2 })
     const cards = []
@@ -98,14 +98,18 @@ describe('Deck CRUD', () => {
       }))
     }
     await db.decks.update(deck.id, {
-      currentBatchCardIds: cards.map((card) => card.id),
+      currentBatchCardIds: cards.slice(3).map((card) => card.id),
+      newCardsIntroducedToday: 5,
     })
 
     const result = await repairDeckSchema(deck.id)
 
     expect(result.changed).toBe(true)
     expect(result.changes).toContain('currentBatchCardIds')
+    expect(result.changes).toContain('newCardsIntroducedToday')
+    expect(result.changes).toContain('lastNewCardDate')
     expect(result.deck.currentBatchCardIds).toEqual([cards[0].id, cards[1].id])
+    expect(result.deck.newCardsIntroducedToday).toBe(2)
   })
 
   it('reports no changes when deck schema is already current', async () => {

@@ -1,6 +1,7 @@
 import { db } from '../db'
 import type { Card, Deck, ConstructChecklist } from '../types'
 import { getDefaultSpanishChecklist } from '../languages/spanish'
+import { getDayBoundary, getReviewDayKey } from './review'
 
 function getDeckDefaults(deck: Partial<Deck>): Omit<Deck, 'id' | 'name' | 'createdAt'> {
   const targetLanguage = deck.targetLanguage ?? 'spanish'
@@ -31,6 +32,37 @@ export function applyDeckDefaults(deck: Deck): Deck {
   }
 }
 
+function sortCardsForReviewQueue(cards: Card[]): Card[] {
+  return [...cards].sort((a, b) => {
+    if (a.sortOrder !== undefined && b.sortOrder !== undefined) return a.sortOrder - b.sortOrder
+    if (a.sortOrder !== undefined) return -1
+    if (b.sortOrder !== undefined) return 1
+    return a.createdAt.localeCompare(b.createdAt)
+  })
+}
+
+async function recomputeActiveNewCardSet(deck: Deck, now: Date = new Date()): Promise<{
+  cardIds: string[]
+  limitedCount: number
+}> {
+  const cutoff = getDayBoundary(now, deck.dayStartHour ?? 9)
+  const newCards = (await db.cards.where('deckId').equals(deck.id).toArray())
+    .filter((card) => card.fsrs.state === 'new')
+    .filter((card) => new Date(card.fsrs.dueDate) <= cutoff)
+
+  const limitedCards = sortCardsForReviewQueue(
+    newCards.filter((card) => card.source !== 'auto-conjugation')
+  ).slice(0, deck.newCardsPerDay)
+  const freeCards = sortCardsForReviewQueue(
+    newCards.filter((card) => card.source === 'auto-conjugation')
+  )
+
+  return {
+    cardIds: [...limitedCards, ...freeCards].map((card) => card.id),
+    limitedCount: limitedCards.length,
+  }
+}
+
 export async function repairDeckSchema(id: string): Promise<{ changed: boolean; changes: string[]; deck: Deck }> {
   const deck = await db.decks.get(id)
   if (!deck) throw new Error(`Deck not found: ${id}`)
@@ -44,32 +76,20 @@ export async function repairDeckSchema(id: string): Promise<{ changed: boolean; 
     }
   }
 
-  if (repaired.currentBatchCardIds.length > 0) {
-    const batchCards = await Promise.all(
-      repaired.currentBatchCardIds.map((cardId) => db.cards.get(cardId))
-    )
-    const newCards = batchCards.filter(
-      (card): card is Card => card !== undefined && card.fsrs.state === 'new'
-    )
-    const limitedIds = newCards
-      .filter((card) => card.source !== 'auto-conjugation')
-      .sort((a, b) => {
-        if (a.sortOrder !== undefined && b.sortOrder !== undefined) return a.sortOrder - b.sortOrder
-        if (a.sortOrder !== undefined) return -1
-        if (b.sortOrder !== undefined) return 1
-        return a.createdAt.localeCompare(b.createdAt)
-      })
-      .slice(0, repaired.newCardsPerDay)
-      .map((card) => card.id)
-    const freeIds = newCards
-      .filter((card) => card.source === 'auto-conjugation')
-      .map((card) => card.id)
-    const normalizedIds = [...limitedIds, ...freeIds]
+  const recomputedNewSet = await recomputeActiveNewCardSet(repaired)
+  const today = getReviewDayKey(new Date(), repaired.dayStartHour ?? 9)
 
-    if (JSON.stringify(repaired.currentBatchCardIds) !== JSON.stringify(normalizedIds)) {
-      repaired.currentBatchCardIds = normalizedIds
-      if (!changes.includes('currentBatchCardIds')) changes.push('currentBatchCardIds')
-    }
+  if (JSON.stringify(repaired.currentBatchCardIds) !== JSON.stringify(recomputedNewSet.cardIds)) {
+    repaired.currentBatchCardIds = recomputedNewSet.cardIds
+    if (!changes.includes('currentBatchCardIds')) changes.push('currentBatchCardIds')
+  }
+  if (repaired.newCardsIntroducedToday !== recomputedNewSet.limitedCount) {
+    repaired.newCardsIntroducedToday = recomputedNewSet.limitedCount
+    if (!changes.includes('newCardsIntroducedToday')) changes.push('newCardsIntroducedToday')
+  }
+  if (recomputedNewSet.limitedCount > 0 && repaired.lastNewCardDate !== today) {
+    repaired.lastNewCardDate = today
+    if (!changes.includes('lastNewCardDate')) changes.push('lastNewCardDate')
   }
 
   if (changes.length > 0) {
