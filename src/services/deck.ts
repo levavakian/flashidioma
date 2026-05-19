@@ -1,5 +1,5 @@
 import { db } from '../db'
-import type { Deck, ConstructChecklist } from '../types'
+import type { Card, Deck, ConstructChecklist } from '../types'
 import { getDefaultSpanishChecklist } from '../languages/spanish'
 
 function getDeckDefaults(deck: Partial<Deck>): Omit<Deck, 'id' | 'name' | 'createdAt'> {
@@ -49,7 +49,7 @@ export async function repairDeckSchema(id: string): Promise<{ changed: boolean; 
       repaired.currentBatchCardIds.map((cardId) => db.cards.get(cardId))
     )
     const newCards = batchCards.filter(
-      (card) => card !== undefined && card.fsrs.state === 'new'
+      (card): card is Card => card !== undefined && card.fsrs.state === 'new'
     )
     const limitedIds = newCards
       .filter((card) => card.source !== 'auto-conjugation')
