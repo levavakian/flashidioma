@@ -1,5 +1,5 @@
 import { db } from '../db'
-import type { Deck, ConstructChecklist } from '../types'
+import type { Card, Deck, ConstructChecklist } from '../types'
 import { getDefaultSpanishChecklist } from '../languages/spanish'
 
 function getDeckDefaults(deck: Partial<Deck>): Omit<Deck, 'id' | 'name' | 'createdAt'> {
@@ -41,6 +41,34 @@ export async function repairDeckSchema(id: string): Promise<{ changed: boolean; 
   for (const key of Object.keys(repaired) as (keyof Deck)[]) {
     if (JSON.stringify(deck[key]) !== JSON.stringify(repaired[key])) {
       changes.push(String(key))
+    }
+  }
+
+  if (repaired.currentBatchCardIds.length > 0) {
+    const batchCards = await Promise.all(
+      repaired.currentBatchCardIds.map((cardId) => db.cards.get(cardId))
+    )
+    const newCards = batchCards.filter(
+      (card): card is Card => card !== undefined && card.fsrs.state === 'new'
+    )
+    const limitedIds = newCards
+      .filter((card) => card.source !== 'auto-conjugation')
+      .sort((a, b) => {
+        if (a.sortOrder !== undefined && b.sortOrder !== undefined) return a.sortOrder - b.sortOrder
+        if (a.sortOrder !== undefined) return -1
+        if (b.sortOrder !== undefined) return 1
+        return a.createdAt.localeCompare(b.createdAt)
+      })
+      .slice(0, repaired.newCardsPerDay)
+      .map((card) => card.id)
+    const freeIds = newCards
+      .filter((card) => card.source === 'auto-conjugation')
+      .map((card) => card.id)
+    const normalizedIds = [...limitedIds, ...freeIds]
+
+    if (JSON.stringify(repaired.currentBatchCardIds) !== JSON.stringify(normalizedIds)) {
+      repaired.currentBatchCardIds = normalizedIds
+      if (!changes.includes('currentBatchCardIds')) changes.push('currentBatchCardIds')
     }
   }
 

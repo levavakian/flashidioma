@@ -122,6 +122,10 @@ function countLimitedNewCards(cards: Card[]): number {
   return cards.filter((card) => card.source !== 'auto-conjugation').length
 }
 
+function isNewCardInReviewDay(card: Card, cutoff: Date): boolean {
+  return card.fsrs.state === 'new' && new Date(card.fsrs.dueDate) <= cutoff
+}
+
 async function setDailyNewCardCountAtLeast(deckId: string, count: number, now: Date = new Date()): Promise<void> {
   const deck = await db.decks.get(deckId)
   if (!deck) return
@@ -241,43 +245,56 @@ export async function getNewCardBatch(
 
   // Check if the current daily new-card set is still pending.
   if (freshDeck.currentBatchCardIds.length > 0) {
+    const cutoff = getDayBoundary(now, freshDeck.dayStartHour ?? 9)
     const batchCards = await Promise.all(
       freshDeck.currentBatchCardIds.map((id) => db.cards.get(id))
     )
     const existingCards = batchCards.filter((c): c is Card => c !== undefined)
-    const stillNew = existingCards.filter((c) => c.fsrs.state === 'new')
+    const stillNew = existingCards.filter((card) => isNewCardInReviewDay(card, cutoff))
 
     if (stillNew.length > 0) {
-      const activeLimitedCount = countLimitedNewCards(existingCards)
+      const dailyLimit = freshDeck.newCardsPerDay ?? 20
+      const activeLimitedCards = sortByFrequency(
+        stillNew.filter((card) => card.source !== 'auto-conjugation')
+      ).slice(0, dailyLimit)
+      const activeFreeCards = sortByFrequency(
+        stillNew.filter((card) => card.source === 'auto-conjugation')
+      )
+      const normalizedActiveCards = [...activeLimitedCards, ...activeFreeCards]
+      const normalizedActiveIds = normalizedActiveCards.map((card) => card.id)
+
+      if (options.introduce !== false) {
+        await db.decks.update(deck.id, { currentBatchCardIds: normalizedActiveIds })
+      }
+
+      const activeLimitedCount = activeLimitedCards.length
       await setDailyNewCardCountAtLeast(deck.id, activeLimitedCount, now)
       const remaining = await getDailyNewCardRemaining(deck.id, now)
-      const dailyLimit = freshDeck.newCardsPerDay ?? 20
       const additionalSlots = Math.max(
         0,
         Math.min(dailyLimit - activeLimitedCount, remaining)
       )
       if (additionalSlots > 0) {
-        const activeIds = new Set(freshDeck.currentBatchCardIds)
-        const cutoff = getDayBoundary(now, freshDeck.dayStartHour ?? 9)
+        const activeIds = new Set(normalizedActiveIds)
         const additionalLimitedCards = sortByFrequency(
           (await getNewCards(deck.id))
             .filter((card) => !activeIds.has(card.id))
             .filter((card) => card.source !== 'auto-conjugation')
-            .filter((card) => new Date(card.fsrs.dueDate) <= cutoff)
+            .filter((card) => isNewCardInReviewDay(card, cutoff))
         ).slice(0, additionalSlots)
         const additionalFreeCards = sortByFrequency(
           (await getNewCards(deck.id))
             .filter((card) => !activeIds.has(card.id))
             .filter((card) => card.source === 'auto-conjugation')
-            .filter((card) => new Date(card.fsrs.dueDate) <= cutoff)
+            .filter((card) => isNewCardInReviewDay(card, cutoff))
         )
         const additionalCards = [...additionalLimitedCards, ...additionalFreeCards]
-        const dailySet = sortByFrequency([...stillNew, ...additionalCards])
+        const dailySet = sortByFrequency([...normalizedActiveCards, ...additionalCards])
 
         if (options.introduce !== false) {
           await db.decks.update(deck.id, {
             currentBatchCardIds: [
-              ...freshDeck.currentBatchCardIds,
+              ...normalizedActiveIds,
               ...additionalCards.map((card) => card.id),
             ],
           })
@@ -288,7 +305,7 @@ export async function getNewCardBatch(
       }
 
       // Once a daily set is introduced, keep showing it until the user finishes it.
-      return sortByFrequency(stillNew)
+      return sortByFrequency(normalizedActiveCards)
     }
 
     if (options.introduce !== false) {
@@ -301,7 +318,7 @@ export async function getNewCardBatch(
 
   // Current daily set is complete (or empty), introduce the remaining daily allowance at once.
   const cutoff = getDayBoundary(now, freshDeck.dayStartHour ?? 9)
-  const eligibleNewCards = (await getNewCards(deck.id)).filter((card) => new Date(card.fsrs.dueDate) <= cutoff)
+  const eligibleNewCards = (await getNewCards(deck.id)).filter((card) => isNewCardInReviewDay(card, cutoff))
   const limitedCards = sortByFrequency(
     eligibleNewCards.filter((card) => card.source !== 'auto-conjugation')
   ).slice(0, remaining)

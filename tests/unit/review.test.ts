@@ -215,6 +215,73 @@ describe('New card daily-set introduction', () => {
     expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(4)
   })
 
+  it('trims a polluted legacy active set to the daily allowance', async () => {
+    await db.decks.update(deck.id, { newCardsPerDay: 3 })
+    deck = (await db.decks.get(deck.id))!
+
+    const cards = []
+    for (let i = 0; i < 10; i++) {
+      cards.push(await createCard({
+        deckId: deck.id,
+        frontText: `polluted ${i}`,
+        backText: `contaminado ${i}`,
+        direction: 'source-to-target',
+        sortOrder: i,
+      }))
+    }
+    await db.decks.update(deck.id, {
+      currentBatchCardIds: cards.map((card) => card.id),
+    })
+
+    const dailySet = await getNewCardBatch(deck)
+    const storedDeck = (await db.decks.get(deck.id))!
+
+    expect(dailySet.map((card) => card.frontText)).toEqual(['polluted 0', 'polluted 1', 'polluted 2'])
+    expect(storedDeck.currentBatchCardIds).toEqual(dailySet.map((card) => card.id))
+    expect(storedDeck.newCardsIntroducedToday).toBe(3)
+  })
+
+  it('excludes active new cards outside the review-day boundary', async () => {
+    const now = new Date('2025-06-01T10:00:00')
+    await db.decks.update(deck.id, { dayStartHour: 12, newCardsPerDay: 3 })
+    deck = (await db.decks.get(deck.id))!
+
+    const today = await createCard({
+      deckId: deck.id,
+      frontText: 'today new',
+      backText: 'hoy',
+      direction: 'source-to-target',
+      sortOrder: 0,
+    })
+    const tomorrow = await createCard({
+      deckId: deck.id,
+      frontText: 'future new',
+      backText: 'futuro',
+      direction: 'source-to-target',
+      sortOrder: 1,
+    })
+    await db.cards.update(today.id, {
+      fsrs: {
+        ...today.fsrs,
+        dueDate: new Date('2025-06-01T11:00:00').toISOString(),
+      },
+    })
+    await db.cards.update(tomorrow.id, {
+      fsrs: {
+        ...tomorrow.fsrs,
+        dueDate: new Date('2025-06-01T13:00:00').toISOString(),
+      },
+    })
+    await db.decks.update(deck.id, {
+      currentBatchCardIds: [today.id, tomorrow.id],
+    })
+
+    const dailySet = await getNewCardBatch(deck, now)
+
+    expect(dailySet.map((card) => card.frontText)).toEqual(['today new'])
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toEqual([today.id])
+  })
+
   it('does not introduce another daily set after the daily allowance is fully reviewed', async () => {
     await db.decks.update(deck.id, { newCardsPerDay: 5 })
     deck = (await db.decks.get(deck.id))!

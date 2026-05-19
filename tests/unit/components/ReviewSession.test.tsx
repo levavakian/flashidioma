@@ -71,6 +71,7 @@ beforeEach(async () => {
     constructChecklist: { present: true },
     newCardBatchSize: 5,
     currentBatchCardIds: [],
+    dayStartHour: (new Date().getHours() + 2) % 24,
   }
   await db.decks.put(deck)
 })
