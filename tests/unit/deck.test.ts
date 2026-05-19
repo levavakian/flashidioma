@@ -112,6 +112,49 @@ describe('Deck CRUD', () => {
     expect(result.deck.newCardsIntroducedToday).toBe(2)
   })
 
+  it('caps accumulated auto-conjugation cards when repairing polluted active sets', async () => {
+    const deck = await createDeck('Polluted Auto')
+    await updateDeck(deck.id, {
+      newCardsPerDay: 2,
+      maxConjugationCardsPerDay: 2,
+    })
+    const manualCards = []
+    const autoConjugationCards = []
+    for (let i = 0; i < 5; i++) {
+      manualCards.push(await createCard({
+        deckId: deck.id,
+        frontText: `manual ${i}`,
+        backText: `manual ${i}`,
+        direction: 'source-to-target',
+        sortOrder: i,
+      }))
+      autoConjugationCards.push(await createCard({
+        deckId: deck.id,
+        frontText: `auto ${i}`,
+        backText: `auto ${i}`,
+        direction: 'source-to-target',
+        source: 'auto-conjugation',
+        sortOrder: 100 + i,
+      }))
+    }
+    await db.decks.update(deck.id, {
+      currentBatchCardIds: [...manualCards, ...autoConjugationCards].map((card) => card.id),
+      newCardsIntroducedToday: 10,
+    })
+
+    const result = await repairDeckSchema(deck.id)
+
+    expect(result.changed).toBe(true)
+    expect(result.changes).toContain('currentBatchCardIds')
+    expect(result.deck.currentBatchCardIds).toEqual([
+      manualCards[0].id,
+      manualCards[1].id,
+      autoConjugationCards[0].id,
+      autoConjugationCards[1].id,
+    ])
+    expect(result.deck.newCardsIntroducedToday).toBe(2)
+  })
+
   it('reports no changes when deck schema is already current', async () => {
     const deck = await createDeck('Current')
 
