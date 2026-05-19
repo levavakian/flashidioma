@@ -102,7 +102,7 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
       <div className="bg-white rounded-lg shadow border p-4">
         <h3 className="font-semibold text-lg mb-2">Schema Maintenance</h3>
         <p className="text-xs text-gray-400 mb-3">
-          Updates older decks with any missing review queue settings and default values required by the current app.
+          Updates older decks with missing defaults, then resets and recomputes the active new-card queue for the current review day.
         </p>
         <button
           onClick={handleRepairSchema}
