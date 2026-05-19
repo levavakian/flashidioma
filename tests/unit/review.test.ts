@@ -265,10 +265,10 @@ describe('New card daily-set introduction', () => {
     expect((await db.decks.get(deck.id))!.currentBatchCardIds).toEqual(queue.newCards.map((card) => card.id))
   })
 
-  it('caps accumulated auto-conjugation cards in polluted active new-card sets', async () => {
+  it('caps accumulated auto-conjugation cards to the total daily new-card limit', async () => {
     await db.decks.update(deck.id, {
       newCardsPerDay: 3,
-      maxConjugationCardsPerDay: 2,
+      maxConjugationCardsPerDay: 50,
     })
     deck = (await db.decks.get(deck.id))!
 
@@ -298,10 +298,11 @@ describe('New card daily-set introduction', () => {
     const queue = await getReviewQueueFullDay(deck)
     const storedDeck = (await db.decks.get(deck.id))!
 
-    expect(queue.newCards).toHaveLength(5)
+    expect(queue.newCards).toHaveLength(3)
     expect(queue.newCards.filter((card) => card.source !== 'auto-conjugation')).toHaveLength(3)
-    expect(queue.newCards.filter((card) => card.source === 'auto-conjugation')).toHaveLength(2)
+    expect(queue.newCards.filter((card) => card.source === 'auto-conjugation')).toHaveLength(0)
     expect(storedDeck.currentBatchCardIds).toEqual(queue.newCards.map((card) => card.id))
+    expect(storedDeck.newCardsIntroducedToday).toBe(3)
   })
 
   it('excludes active new cards outside the review-day boundary', async () => {
@@ -449,7 +450,7 @@ describe('New card daily-set introduction', () => {
     expect(storedDeck.newCardsIntroducedToday).toBe(1)
   })
 
-  it('does not count auto-conjugation cards against the daily new-card total', async () => {
+  it('counts auto-conjugation cards when they are introduced as new cards', async () => {
     await createCard({
       deckId: deck.id,
       frontText: 'we eat',
@@ -465,7 +466,7 @@ describe('New card daily-set introduction', () => {
     expect(dailySet).toHaveLength(1)
 
     storedDeck = (await db.decks.get(deck.id))!
-    expect(storedDeck.newCardsIntroducedToday).toBe(0)
+    expect(storedDeck.newCardsIntroducedToday).toBe(1)
   })
 
   it('starts auto-conjugation cards as new by default', async () => {
@@ -648,8 +649,8 @@ describe('New card daily-set introduction', () => {
   it('does not chain auto-conjugation-only new-card sets within one review day', async () => {
     const now = new Date('2026-05-19T10:00:00Z')
     await db.decks.update(deck.id, {
-      newCardsPerDay: 5,
-      maxConjugationCardsPerDay: 2,
+      newCardsPerDay: 2,
+      maxConjugationCardsPerDay: 50,
     })
     deck = (await db.decks.get(deck.id))!
 
@@ -672,7 +673,7 @@ describe('New card daily-set introduction', () => {
 
     const dailySet = await getNewCardBatch(deck, now)
     expect(dailySet.map((card) => card.frontText)).toEqual(['auto only 0', 'auto only 1'])
-    expect((await db.decks.get(deck.id))!.newCardsIntroducedToday).toBe(0)
+    expect((await db.decks.get(deck.id))!.newCardsIntroducedToday).toBe(2)
     expect((await db.decks.get(deck.id))!.lastNewCardDate).toBe('2026-05-19')
 
     for (const card of dailySet) {
