@@ -44,6 +44,34 @@ export async function repairDeckSchema(id: string): Promise<{ changed: boolean; 
     }
   }
 
+  if (repaired.currentBatchCardIds.length > 0) {
+    const batchCards = await Promise.all(
+      repaired.currentBatchCardIds.map((cardId) => db.cards.get(cardId))
+    )
+    const newCards = batchCards.filter(
+      (card) => card !== undefined && card.fsrs.state === 'new'
+    )
+    const limitedIds = newCards
+      .filter((card) => card.source !== 'auto-conjugation')
+      .sort((a, b) => {
+        if (a.sortOrder !== undefined && b.sortOrder !== undefined) return a.sortOrder - b.sortOrder
+        if (a.sortOrder !== undefined) return -1
+        if (b.sortOrder !== undefined) return 1
+        return a.createdAt.localeCompare(b.createdAt)
+      })
+      .slice(0, repaired.newCardsPerDay)
+      .map((card) => card.id)
+    const freeIds = newCards
+      .filter((card) => card.source === 'auto-conjugation')
+      .map((card) => card.id)
+    const normalizedIds = [...limitedIds, ...freeIds]
+
+    if (JSON.stringify(repaired.currentBatchCardIds) !== JSON.stringify(normalizedIds)) {
+      repaired.currentBatchCardIds = normalizedIds
+      if (!changes.includes('currentBatchCardIds')) changes.push('currentBatchCardIds')
+    }
+  }
+
   if (changes.length > 0) {
     await db.decks.put(repaired)
   }
