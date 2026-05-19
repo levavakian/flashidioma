@@ -241,6 +241,30 @@ describe('New card daily-set introduction', () => {
     expect(storedDeck.newCardsIntroducedToday).toBe(3)
   })
 
+  it('getReviewQueueFullDay trims polluted active new-card sets before returning the review queue', async () => {
+    await db.decks.update(deck.id, { newCardsPerDay: 2 })
+    deck = (await db.decks.get(deck.id))!
+
+    const cards = []
+    for (let i = 0; i < 8; i++) {
+      cards.push(await createCard({
+        deckId: deck.id,
+        frontText: `queue polluted ${i}`,
+        backText: `cola contaminada ${i}`,
+        direction: 'source-to-target',
+        sortOrder: i,
+      }))
+    }
+    await db.decks.update(deck.id, {
+      currentBatchCardIds: cards.map((card) => card.id),
+    })
+
+    const queue = await getReviewQueueFullDay(deck)
+
+    expect(queue.newCards.map((card) => card.frontText)).toEqual(['queue polluted 0', 'queue polluted 1'])
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toEqual(queue.newCards.map((card) => card.id))
+  })
+
   it('excludes active new cards outside the review-day boundary', async () => {
     const now = new Date('2025-06-01T10:00:00')
     await db.decks.update(deck.id, { dayStartHour: 12, newCardsPerDay: 3 })

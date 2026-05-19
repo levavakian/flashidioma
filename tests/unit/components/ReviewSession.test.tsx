@@ -424,6 +424,37 @@ describe('ReviewSession', () => {
     })
   })
 
+  it('does not render every new card from a polluted legacy active set', async () => {
+    const onComplete = vi.fn()
+    deck = {
+      ...deck,
+      newCardsPerDay: 2,
+      newCardsIntroducedToday: 0,
+      lastNewCardDate: null,
+      autoAddConjugations: false,
+      maxConjugationCardsPerDay: 5,
+      conjugationCardsAddedToday: 0,
+      lastConjugationCardDate: null,
+      requestRetention: 0.9,
+    }
+    await db.decks.put(deck)
+
+    const cards = Array.from({ length: 8 }, (_, index) => makeNewCard(`polluted word ${index}`, index))
+    await db.cards.bulkPut(cards)
+    await db.decks.update(deck.id, {
+      currentBatchCardIds: cards.map((card) => card.id),
+    })
+
+    render(<ReviewSession deck={deck} onComplete={onComplete} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('polluted word 0')).toBeInTheDocument()
+      expect(screen.getByText(/2 remaining/)).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/8 remaining/)).not.toBeInTheDocument()
+    expect((await db.decks.get(deck.id))!.currentBatchCardIds).toHaveLength(2)
+  })
+
   it('requeues new cards graded Good when their learning interval is inside the review day', async () => {
     const user = userEvent.setup()
     const onComplete = vi.fn()
