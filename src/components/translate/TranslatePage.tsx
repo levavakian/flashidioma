@@ -380,6 +380,7 @@ export default function TranslatePage() {
         <div className="flex gap-2">
           <button
             onClick={handleTranslate}
+            aria-label="Translate text"
             disabled={loading || !inputText.trim()}
             className="bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
           >

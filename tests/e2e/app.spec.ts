@@ -341,7 +341,7 @@ test.describe('E2E: Translate and Add', () => {
 
     // Type a word and translate
     await page.getByPlaceholder('Enter text to translate...').fill('cat')
-    await page.getByRole('button', { name: 'Translate' }).click()
+    await page.getByRole('button', { name: 'Translate text' }).click()
 
     // Wait for translation to appear (depends on actual network/mock)
     // In E2E we test the full real flow, so the translation endpoint must be available
@@ -352,6 +352,11 @@ test.describe('E2E: Translate and Add', () => {
 
     // Should show confirmation
     await expect(page.getByText('Added 2 cards (both directions)')).toBeVisible()
+
+    // Both directions should still create a single translation history entry
+    await page.getByRole('button', { name: /History/ }).click()
+    await expect(page.getByRole('listitem')).toHaveCount(1)
+    await expect(page.getByText('Translate Deck · Both directions')).toBeVisible()
 
     // Navigate to deck and verify cards
     await page.getByRole('link', { name: /Decks/i }).click()

@@ -68,7 +68,7 @@ describe('TranslatePage', () => {
     await user.type(textarea, 'hello')
 
     // Click the Translate button
-    await user.click(screen.getByRole('button', { name: 'Translate' }))
+    await user.click(screen.getByRole('button', { name: 'Translate text' }))
 
     // Wait for translation to appear
     await waitFor(() => {
@@ -110,7 +110,7 @@ describe('TranslatePage', () => {
     // Type and translate
     const textarea = screen.getByPlaceholderText('Enter text to translate...')
     await user.type(textarea, 'hello')
-    await user.click(screen.getByRole('button', { name: 'Translate' }))
+    await user.click(screen.getByRole('button', { name: 'Translate text' }))
 
     // Wait for translation result
     await waitFor(() => {
@@ -200,7 +200,7 @@ describe('TranslatePage', () => {
 
     const sourceTextarea = await screen.findByPlaceholderText('Enter text to translate...')
     await user.type(sourceTextarea, 'hello')
-    await user.click(screen.getByRole('button', { name: 'Translate' }))
+    await user.click(screen.getByRole('button', { name: 'Translate text' }))
 
     const translationTextarea = await screen.findByLabelText('Translation')
     await user.clear(translationTextarea)
@@ -233,7 +233,7 @@ describe('TranslatePage', () => {
 
     const sourceTextarea = await screen.findByPlaceholderText('Enter text to translate...')
     await user.type(sourceTextarea, 'hello')
-    await user.click(screen.getByRole('button', { name: 'Translate' }))
+    await user.click(screen.getByRole('button', { name: 'Translate text' }))
 
     await user.click(await screen.findByRole('button', { name: 'Both' }))
 
@@ -270,7 +270,7 @@ describe('TranslatePage', () => {
 
     const sourceTextarea = await screen.findByPlaceholderText('Enter text to translate...')
     await user.type(sourceTextarea, 'hola')
-    await user.click(screen.getByRole('button', { name: 'Translate' }))
+    await user.click(screen.getByRole('button', { name: 'Translate text' }))
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('hello')).toBeInTheDocument()
