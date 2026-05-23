@@ -92,6 +92,7 @@ The review queue is deliberately Anki-like while staying simple and local-first:
 - After translating, the user can:
   - Add as a new card (source→target, target→source, or both)
   - The card is automatically added to the review pool
+- The translator includes a History tab with the newest card-adds first, capped at 100 entries; adding both directions creates two cards but only one history entry
 - If the translated word is a verb, the user can also trigger conjugation hydration (see below)
 
 ### Verb Conjugation System
@@ -211,6 +212,7 @@ App
 │   ├── Practice sentences[] (generated, persist until regenerated)
 │   └── Review history
 ├── Side deck (cards pending translation)
+├── Translation add history (newest 100 card-add entries from the translator)
 └── Importable decks catalog (pre-built decks available for import)
 ```
 
@@ -316,6 +318,7 @@ This section is the combined implementation plan and issue tracker. Phases are o
 - [x] Google Translate integration via unofficial web endpoint
 - [x] Translator tab UI (input text, select languages, show result)
 - [x] "Add as card" flow after translation (one direction, reverse, or both → two independent cards)
+- [x] Translation History tab showing the newest 100 card-add entries (both directions count as one entry)
 - [x] Offline detection and graceful fallback to manual input
 - [x] Side deck for cards pending translation
 - [x] Batch translate side deck cards when back online

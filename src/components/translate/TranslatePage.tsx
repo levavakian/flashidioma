@@ -1,14 +1,16 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { translateText, isOnline } from '../../services/translate'
 import { createCard, createCardBothDirections } from '../../services/card'
 import { lookupConjugation } from '../../services/conjugationLookup'
 import { checkDuplicate } from '../../services/deduplication'
 import { addToSideDeck, getSideDeckCards, removeSideDeckCard } from '../../services/sideDeck'
 import { getAllDecks } from '../../services/deck'
+import { addTranslationHistoryEntry, getTranslationHistoryEntries } from '../../services/translationHistory'
 import { getSettings, updateSettings } from '../../db'
-import type { Card, Deck, SideDeckCard } from '../../types'
+import type { Card, Deck, SideDeckCard, TranslationHistoryEntry } from '../../types'
 
 type AddDirection = 'source-to-target' | 'target-to-source' | 'both'
+type TranslateTab = 'translate' | 'history'
 
 function getDeckTargetLanguageCode(deck: Deck): string | null {
   switch (deck.targetLanguage.toLowerCase()) {
@@ -44,7 +46,19 @@ function getCanonicalCardTexts(
   return { frontText: inputText, backText: translatedText }
 }
 
+function getHistoryDirectionLabel(direction: AddDirection): string {
+  switch (direction) {
+    case 'source-to-target':
+      return 'Source to target'
+    case 'target-to-source':
+      return 'Target to source'
+    case 'both':
+      return 'Both directions'
+  }
+}
+
 export default function TranslatePage() {
+  const [activeTab, setActiveTab] = useState<TranslateTab>('translate')
   const [inputText, setInputText] = useState('')
   const [translatedText, setTranslatedText] = useState('')
   const [sourceLang, setSourceLang] = useState('en')
@@ -59,8 +73,13 @@ export default function TranslatePage() {
   const [showSideDeck, setShowSideDeck] = useState(false)
   const [duplicates, setDuplicates] = useState<Card[]>([])
   const [pendingDirection, setPendingDirection] = useState<AddDirection | null>(null)
+  const [history, setHistory] = useState<TranslationHistoryEntry[]>([])
   const prefsLoaded = useRef(false)
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? null
+
+  const loadHistory = useCallback(async () => {
+    setHistory(await getTranslationHistoryEntries())
+  }, [])
 
   useEffect(() => {
     // Load persisted preferences and decks
@@ -79,6 +98,7 @@ export default function TranslatePage() {
       prefsLoaded.current = true
     })
     getSideDeckCards().then(setSideDeck)
+    loadHistory()
 
     const onOnline = () => setOnline(true)
     const onOffline = () => setOnline(false)
@@ -88,7 +108,7 @@ export default function TranslatePage() {
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
     }
-  }, [])
+  }, [loadHistory])
 
   const persistPrefs = (updates: Record<string, string>) => {
     if (!prefsLoaded.current) return
@@ -174,27 +194,39 @@ export default function TranslatePage() {
       }
     }
 
+    let cardIds: string[]
     if (direction === 'both') {
       // createCardBothDirections auto-lookups verbData from static DB
-      await createCardBothDirections({
+      const cards = await createCardBothDirections({
         deckId: selectedDeckId,
         frontText: cardFront,
         backText: cardBack,
       })
+      cardIds = cards.map((card) => card.id)
       setAddedMessage('Added 2 cards (both directions)')
     } else {
       // Look up conjugation data — try both texts since either could be the Spanish verb
       const verbData = (await lookupConjugation(cardBack)) ?? (await lookupConjugation(cardFront)) ?? undefined
-      await createCard({
+      const card = await createCard({
         deckId: selectedDeckId,
         frontText: cardFront,
         backText: cardBack,
         direction,
         ...(verbData ? { verbData } : {}),
       })
+      cardIds = [card.id]
       setAddedMessage('Added 1 card')
     }
 
+    await addTranslationHistoryEntry({
+      deckId: selectedDeckId,
+      deckName: selectedDeck.name,
+      frontText: cardFront,
+      backText: cardBack,
+      direction,
+      cardIds,
+    })
+    await loadHistory()
     setInputText('')
     setTranslatedText('')
     clearDuplicateWarning()
@@ -258,21 +290,48 @@ export default function TranslatePage() {
     <div>
       <h2 className="text-2xl font-bold mb-4">Translate</h2>
 
-      {!online && (
-        <div className="bg-yellow-50 border border-yellow-200 px-3 py-2 rounded mb-3 text-sm text-yellow-800">
-          You are offline. Translation is unavailable. You can enter translations manually or save to the side deck.
-        </div>
-      )}
+      <div className="flex border-b mb-4">
+        <button
+          type="button"
+          onClick={() => setActiveTab('translate')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            activeTab === 'translate'
+              ? 'border-blue-500 text-blue-500'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Translate
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('history')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            activeTab === 'history'
+              ? 'border-blue-500 text-blue-500'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          History ({history.length})
+        </button>
+      </div>
 
-      {error && (
-        <div className="bg-red-50 text-red-600 px-3 py-2 rounded mb-3 text-sm">{error}</div>
-      )}
+      {activeTab === 'translate' ? (
+        <>
+          {!online && (
+            <div className="bg-yellow-50 border border-yellow-200 px-3 py-2 rounded mb-3 text-sm text-yellow-800">
+              You are offline. Translation is unavailable. You can enter translations manually or save to the side deck.
+            </div>
+          )}
 
-      {addedMessage && (
-        <div className="bg-green-50 text-green-600 px-3 py-2 rounded mb-3 text-sm">{addedMessage}</div>
-      )}
+          {error && (
+            <div className="bg-red-50 text-red-600 px-3 py-2 rounded mb-3 text-sm">{error}</div>
+          )}
 
-      <div className="bg-white rounded-lg shadow border p-4 space-y-3">
+          {addedMessage && (
+            <div className="bg-green-50 text-green-600 px-3 py-2 rounded mb-3 text-sm">{addedMessage}</div>
+          )}
+
+          <div className="bg-white rounded-lg shadow border p-4 space-y-3">
         <div className="flex gap-2 items-center">
           <select
             value={sourceLang}
@@ -425,49 +484,84 @@ export default function TranslatePage() {
         </div>
       </div>
 
-      {/* Side Deck section */}
-      <div className="mt-6">
-        <button
-          onClick={() => setShowSideDeck(!showSideDeck)}
-          className="text-sm text-gray-600 hover:text-gray-800 font-medium"
-        >
-          Side Deck ({sideDeck.length} pending) {showSideDeck ? '▲' : '▼'}
-        </button>
+          {/* Side Deck section */}
+          <div className="mt-6">
+            <button
+              onClick={() => setShowSideDeck(!showSideDeck)}
+              className="text-sm text-gray-600 hover:text-gray-800 font-medium"
+            >
+              Side Deck ({sideDeck.length} pending) {showSideDeck ? '▲' : '▼'}
+            </button>
 
-        {showSideDeck && (
-          <div className="mt-2 bg-white rounded-lg shadow border p-4">
-            {sideDeck.length === 0 ? (
-              <p className="text-gray-500 text-sm">No cards pending translation.</p>
-            ) : (
-              <>
-                <button
-                  onClick={handleBatchTranslate}
-                  disabled={!online || loading}
-                  className="mb-3 bg-blue-500 text-white px-4 py-1 rounded text-sm font-medium hover:bg-blue-600 disabled:opacity-50"
-                >
-                  Batch Translate All
-                </button>
-                <div className="space-y-2">
-                  {sideDeck.map((card) => (
-                    <div key={card.id} className="flex items-center justify-between border-b pb-2">
-                      <span className="text-sm">{card.text}</span>
-                      <button
-                        onClick={async () => {
-                          await removeSideDeckCard(card.id)
-                          setSideDeck(await getSideDeckCards())
-                        }}
-                        className="text-red-400 hover:text-red-600 text-sm"
-                      >
-                        Remove
-                      </button>
+            {showSideDeck && (
+              <div className="mt-2 bg-white rounded-lg shadow border p-4">
+                {sideDeck.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No cards pending translation.</p>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleBatchTranslate}
+                      disabled={!online || loading}
+                      className="mb-3 bg-blue-500 text-white px-4 py-1 rounded text-sm font-medium hover:bg-blue-600 disabled:opacity-50"
+                    >
+                      Batch Translate All
+                    </button>
+                    <div className="space-y-2">
+                      {sideDeck.map((card) => (
+                        <div key={card.id} className="flex items-center justify-between border-b pb-2">
+                          <span className="text-sm">{card.text}</span>
+                          <button
+                            onClick={async () => {
+                              await removeSideDeckCard(card.id)
+                              setSideDeck(await getSideDeckCards())
+                            }}
+                            className="text-red-400 hover:text-red-600 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
+        </>
+      ) : (
+        <div className="bg-white rounded-lg shadow border p-4">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <h3 className="font-semibold text-gray-900">Added card history</h3>
+              <p className="text-sm text-gray-500">Newest first, up to 100 entries.</p>
+            </div>
+          </div>
+
+          {history.length === 0 ? (
+            <p className="text-gray-500 text-sm">No cards have been added from translation yet.</p>
+          ) : (
+            <div role="list" aria-label="Translation history" className="space-y-3">
+              {history.map((entry) => (
+                <div key={entry.id} role="listitem" className="border rounded-lg p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 break-words">
+                        {entry.frontText} <span className="text-gray-400">&rarr;</span> {entry.backText}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {entry.deckName} · {getHistoryDirectionLabel(entry.direction)}
+                      </p>
+                    </div>
+                    <time className="text-xs text-gray-400 whitespace-nowrap" dateTime={entry.createdAt}>
+                      {new Date(entry.createdAt).toLocaleString()}
+                    </time>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

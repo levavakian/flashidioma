@@ -25,6 +25,7 @@ beforeEach(async () => {
   await db.decks.clear()
   await db.cards.clear()
   await db.sideDeckCards.clear()
+  await db.translationHistory.clear()
 
   await db.decks.put({
     id: 'test-deck',

@@ -7,6 +7,7 @@ import type {
   SideDeckCard,
   ReviewHistory,
   ConjugationAutoAdd,
+  TranslationHistoryEntry,
 } from '../types'
 
 class FlashIdiomaDB extends Dexie {
@@ -17,6 +18,7 @@ class FlashIdiomaDB extends Dexie {
   sideDeckCards!: EntityTable<SideDeckCard, 'id'>
   reviewHistory!: EntityTable<ReviewHistory, 'id'>
   conjugationAutoAdds!: EntityTable<ConjugationAutoAdd, 'id'>
+  translationHistory!: EntityTable<TranslationHistoryEntry, 'id'>
 
   constructor() {
     super('flashidioma')
@@ -33,6 +35,10 @@ class FlashIdiomaDB extends Dexie {
     // Only declare new/changed stores in v2 (Dexie best practice)
     this.version(2).stores({
       conjugationAutoAdds: 'id, deckId, [deckId+verbInfinitive], [deckId+addedDate]',
+    })
+
+    this.version(3).stores({
+      translationHistory: 'id, createdAt, deckId',
     })
   }
 }

@@ -1,10 +1,20 @@
 import { db, getSettings } from '../db'
-import type { AppExport, Settings, Deck, Card, ReviewHistory, PracticeSentence, SideDeckCard, ConjugationAutoAdd } from '../types'
+import type {
+  AppExport,
+  Settings,
+  Deck,
+  Card,
+  ReviewHistory,
+  PracticeSentence,
+  SideDeckCard,
+  ConjugationAutoAdd,
+  TranslationHistoryEntry,
+} from '../types'
 
-const EXPORT_VERSION = 1
+const EXPORT_VERSION = 2
 
 export async function exportAppState(): Promise<AppExport> {
-  const [settings, decks, cards, reviewHistory, practiceSentences, sideDeckCards, conjugationAutoAdds] =
+  const [settings, decks, cards, reviewHistory, practiceSentences, sideDeckCards, conjugationAutoAdds, translationHistory] =
     await Promise.all([
       getSettings(),
       db.decks.toArray(),
@@ -13,6 +23,7 @@ export async function exportAppState(): Promise<AppExport> {
       db.practiceSentences.toArray(),
       db.sideDeckCards.toArray(),
       db.conjugationAutoAdds.toArray(),
+      db.translationHistory.toArray(),
     ])
 
   return {
@@ -25,6 +36,7 @@ export async function exportAppState(): Promise<AppExport> {
     practiceSentences,
     sideDeckCards,
     conjugationAutoAdds,
+    translationHistory,
   }
 }
 
@@ -75,7 +87,16 @@ export async function importAppState(data: unknown): Promise<void> {
 
   await db.transaction(
     'rw',
-    [db.settings, db.decks, db.cards, db.reviewHistory, db.practiceSentences, db.sideDeckCards, db.conjugationAutoAdds],
+    [
+      db.settings,
+      db.decks,
+      db.cards,
+      db.reviewHistory,
+      db.practiceSentences,
+      db.sideDeckCards,
+      db.conjugationAutoAdds,
+      db.translationHistory,
+    ],
     async () => {
       // Clear all existing data
       await Promise.all([
@@ -86,6 +107,7 @@ export async function importAppState(data: unknown): Promise<void> {
         db.practiceSentences.clear(),
         db.sideDeckCards.clear(),
         db.conjugationAutoAdds.clear(),
+        db.translationHistory.clear(),
       ])
 
       // Import all data
@@ -102,6 +124,8 @@ export async function importAppState(data: unknown): Promise<void> {
         await db.sideDeckCards.bulkPut(data.sideDeckCards as SideDeckCard[])
       if (data.conjugationAutoAdds && data.conjugationAutoAdds.length > 0)
         await db.conjugationAutoAdds.bulkPut(data.conjugationAutoAdds as ConjugationAutoAdd[])
+      if (data.translationHistory && data.translationHistory.length > 0)
+        await db.translationHistory.bulkPut(data.translationHistory as TranslationHistoryEntry[])
     }
   )
 }

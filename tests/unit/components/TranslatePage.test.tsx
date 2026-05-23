@@ -20,6 +20,7 @@ beforeEach(async () => {
   await db.decks.clear()
   await db.cards.clear()
   await db.sideDeckCards.clear()
+  await db.translationHistory.clear()
 
   await db.decks.put({
     id: 'test-deck',
@@ -140,6 +141,46 @@ describe('TranslatePage', () => {
     expect(tsCard.backText).toBe('hola')
     expect(stCard.deckId).toBe('test-deck')
     expect(tsCard.deckId).toBe('test-deck')
+
+    const history = await db.translationHistory.toArray()
+    expect(history).toHaveLength(1)
+    expect(history[0].frontText).toBe('hello')
+    expect(history[0].backText).toBe('hola')
+    expect(history[0].direction).toBe('both')
+    expect(history[0].cardIds).toHaveLength(2)
+
+    await user.click(screen.getByRole('button', { name: /History/ }))
+    expect(await screen.findByText(/hello/)).toBeInTheDocument()
+    expect(screen.getByText(/Both directions/)).toBeInTheDocument()
+  })
+
+  it('shows only the 100 newest history entries newest first', async () => {
+    const user = userEvent.setup()
+    const entries = Array.from({ length: 101 }, (_, i) => ({
+      id: `history-${i}`,
+      deckId: 'test-deck',
+      deckName: 'Spanish Vocab',
+      frontText: `front-${i}`,
+      backText: `back-${i}`,
+      direction: 'source-to-target' as const,
+      cardIds: [`card-${i}`],
+      createdAt: new Date(Date.UTC(2024, 0, 1, 0, 0, i)).toISOString(),
+    }))
+    await db.translationHistory.bulkPut(entries)
+
+    renderTranslatePage()
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Translate' })).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /History/ }))
+
+    const historyItems = await screen.findAllByRole('listitem')
+    expect(historyItems).toHaveLength(100)
+    expect(historyItems[0]).toHaveTextContent('front-100')
+    expect(historyItems[99]).toHaveTextContent('front-1')
+    expect(screen.queryByText(/front-0/)).not.toBeInTheDocument()
   })
 
   it('keeps the translation textarea mounted when cleared for manual editing', async () => {
