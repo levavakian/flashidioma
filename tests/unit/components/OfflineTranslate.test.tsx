@@ -25,6 +25,7 @@ beforeEach(async () => {
   await db.decks.clear()
   await db.cards.clear()
   await db.sideDeckCards.clear()
+  await db.translationHistory.clear()
 
   await db.decks.put({
     id: 'test-deck',
@@ -102,7 +103,7 @@ describe('Translation failure handling', () => {
 
     const textarea = screen.getByPlaceholderText('Enter text to translate...')
     await user.type(textarea, 'perro')
-    await user.click(screen.getByRole('button', { name: 'Translate' }))
+    await user.click(screen.getByRole('button', { name: 'Translate text' }))
 
     await waitFor(() => {
       expect(screen.getByText(/added to queue for later retry/i)).toBeInTheDocument()

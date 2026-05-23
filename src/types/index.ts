@@ -3,6 +3,8 @@
 
 export type CardDirection = 'source-to-target' | 'target-to-source'
 
+export type TranslationHistoryDirection = CardDirection | 'both'
+
 export type LLMProvider = 'anthropic' | 'openai'
 
 export interface Card {
@@ -92,6 +94,17 @@ export interface SideDeckCard {
   createdAt: string // ISO date
 }
 
+export interface TranslationHistoryEntry {
+  id: string
+  deckId: string
+  deckName: string
+  frontText: string
+  backText: string
+  direction: TranslationHistoryDirection
+  cardIds: string[]
+  createdAt: string // ISO date
+}
+
 export interface Settings {
   id: string // singleton, always 'settings'
   llmProvider: LLMProvider
@@ -169,6 +182,7 @@ export interface AppExport {
   practiceSentences: PracticeSentence[]
   sideDeckCards: SideDeckCard[]
   conjugationAutoAdds?: ConjugationAutoAdd[]
+  translationHistory?: TranslationHistoryEntry[]
 }
 
 // Verb lesson data shown in the Verbs > Lessons tab.

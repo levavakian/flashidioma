@@ -12,6 +12,7 @@ beforeEach(async () => {
   await db.reviewHistory.clear()
   await db.practiceSentences.clear()
   await db.sideDeckCards.clear()
+  await db.translationHistory.clear()
 })
 
 describe('Export', () => {
@@ -29,7 +30,7 @@ describe('Export', () => {
 
     const exported = await exportAppState()
 
-    expect(exported.version).toBe(1)
+    expect(exported.version).toBe(2)
     expect(exported.exportedAt).toBeTruthy()
     expect(exported.settings.id).toBe('settings')
     expect(exported.decks).toHaveLength(1)
@@ -40,6 +41,7 @@ describe('Export', () => {
     expect(exported.reviewHistory).toHaveLength(1)
     expect(exported.practiceSentences).toHaveLength(0)
     expect(exported.sideDeckCards).toHaveLength(0)
+    expect(exported.translationHistory).toHaveLength(0)
   })
 })
 
@@ -152,6 +154,16 @@ describe('Round-trip', () => {
       backText: 'perro',
       direction: 'target-to-source',
     })
+    await db.translationHistory.put({
+      id: 'history-1',
+      deckId: deck.id,
+      deckName: deck.name,
+      frontText: 'cat',
+      backText: 'gato',
+      direction: 'both',
+      cardIds: [card1.id, card2.id],
+      createdAt: new Date().toISOString(),
+    })
     await reviewCard(card1.id, 4)
 
     // Export
@@ -164,6 +176,7 @@ describe('Round-trip', () => {
     await db.reviewHistory.clear()
     await db.practiceSentences.clear()
     await db.sideDeckCards.clear()
+    await db.translationHistory.clear()
 
     // Verify cleared
     expect(await db.decks.count()).toBe(0)
@@ -191,5 +204,10 @@ describe('Round-trip', () => {
     const history = await db.reviewHistory.toArray()
     expect(history).toHaveLength(1)
     expect(history[0].grade).toBe(4)
+
+    const translationHistory = await db.translationHistory.toArray()
+    expect(translationHistory).toHaveLength(1)
+    expect(translationHistory[0].frontText).toBe('cat')
+    expect(translationHistory[0].direction).toBe('both')
   })
 })
