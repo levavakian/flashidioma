@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { updateDeck, skipForwardOneDay, repairDeckSchema } from '../../services/deck'
-import { getReviewDayKey } from '../../services/review'
+import { getDayBoundary, getReviewDayKey } from '../../services/review'
 import EditableNumberInput from '../common/EditableNumberInput'
-import type { Deck } from '../../types'
+import type { Card, Deck } from '../../types'
 
 interface Props {
   deck: Deck
+  cards: Card[]
   onUpdate: () => void
 }
 
-export default function DeckSettings({ deck, onUpdate }: Props) {
+export default function DeckSettings({ deck, cards, onUpdate }: Props) {
   const [schemaMessage, setSchemaMessage] = useState('')
   const newCardsPerDay = deck.newCardsPerDay
   const autoAddConjugations = deck.autoAddConjugations ?? true
@@ -36,9 +37,45 @@ export default function DeckSettings({ deck, onUpdate }: Props) {
   const today = getReviewDayKey(new Date(), deck.dayStartHour ?? 9)
   const newCardsToday = deck.lastNewCardDate === today ? (deck.newCardsIntroducedToday ?? 0) : 0
   const conjCardsToday = deck.lastConjugationCardDate === today ? (deck.conjugationCardsAddedToday ?? 0) : 0
+  const dayBoundary = getDayBoundary(new Date(), dayStartHour)
+  const totalCards = cards.length
+  const newCards = cards.filter((card) => card.fsrs.state === 'new').length
+  const learningCards = cards.filter((card) =>
+    card.fsrs.state === 'learning' || card.fsrs.state === 'relearning'
+  ).length
+  const reviewCards = cards.filter((card) => card.fsrs.state === 'review').length
+  const dueToday = cards.filter((card) =>
+    card.fsrs.state !== 'new' && new Date(card.fsrs.dueDate) <= dayBoundary
+  ).length
+  const deckStats = [
+    { label: 'Total cards', value: totalCards },
+    { label: 'New', value: newCards },
+    { label: 'Learning', value: learningCards },
+    { label: 'Review', value: reviewCards },
+    { label: 'Due today', value: dueToday },
+  ]
 
   return (
     <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow border p-4">
+        <h3 className="font-semibold text-lg mb-3">Deck Stats</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {deckStats.map((stat) => (
+            <div
+              key={stat.label}
+              aria-label={`${stat.label}: ${stat.value}`}
+              className="rounded-lg bg-gray-50 border px-3 py-2"
+            >
+              <div className="text-2xl font-semibold text-gray-900">{stat.value}</div>
+              <div className="text-xs font-medium text-gray-500">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          Due today includes learning, relearning, and review cards due before the deck's review-day boundary.
+        </p>
+      </div>
+
       <div className="bg-white rounded-lg shadow border p-4">
         <h3 className="font-semibold text-lg mb-4">Spaced Repetition Settings</h3>
 
