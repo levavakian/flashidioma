@@ -505,6 +505,47 @@ function conjugateRegular(infinitive: string): ConjugationTable {
   }
 }
 
+const SYNTHETIC_TENSE_IDS = new Set([
+  'present-progressive',
+  'preterite-progressive',
+  'imperfect-progressive',
+  'future-progressive',
+  'poder-present',
+  'deber-present',
+])
+
+/**
+ * Impersonal / defective verbs (e.g. "llover", "ocurrir") only exist for some
+ * grammatical persons. The authoritative simple and compound tenses already
+ * reflect that, but the progressive and modal constructs we synthesize, plus
+ * the imperative, would otherwise invent nonsense like "estoy lloviendo"
+ * ("I am raining"). Blank out, in those generated rows, any person that never
+ * appears in an authoritative six-person tense.
+ *
+ * `rows` and `tenseIds` are parallel arrays in the compact tense order.
+ * Non-defective verbs are returned unchanged.
+ */
+export function maskDefectivePersons(rows: string[][], tenseIds: string[]): string[][] {
+  const personExists = [false, false, false, false, false, false]
+  rows.forEach((forms, i) => {
+    const tenseId = tenseIds[i]
+    if (tenseId === 'imperative' || SYNTHETIC_TENSE_IDS.has(tenseId)) return
+    forms.forEach((form, person) => {
+      if (form.trim()) personExists[person] = true
+    })
+  })
+
+  if (personExists.every(Boolean)) return rows
+
+  return rows.map((forms, i) => {
+    const tenseId = tenseIds[i]
+    if (tenseId !== 'imperative' && !SYNTHETIC_TENSE_IDS.has(tenseId)) return forms
+    // The imperative table omits "yo", so its first column is person index 1.
+    const personOffset = tenseId === 'imperative' ? 1 : 0
+    return forms.map((form, p) => (personExists[p + personOffset] ? form : ''))
+  })
+}
+
 // Note: The Jehle Spanish Verbs database is still the primary build-time source
 // (see preprocess-spanish.ts). This generator fills gaps for verbs Jehle does not
 // cover, using a model-based conjugator first and the legacy regular rules last.

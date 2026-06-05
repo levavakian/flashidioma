@@ -15,7 +15,7 @@
 import { execSync } from 'child_process'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { conjugateVerb } from './spanish-conjugator'
+import { conjugateVerb, maskDefectivePersons } from './spanish-conjugator'
 
 const REPO = 'https://github.com/doozan/spanish_data.git'
 const TAG = '2026-02-01'
@@ -492,16 +492,15 @@ function main() {
     const jehle = jehleVerbs.get(verb.word)
     if (jehle) {
       // Primary source: Jehle database
-      compactVerbs[verb.word] = buildJehleConjugation(jehle)
+      compactVerbs[verb.word] = maskDefectivePersons(buildJehleConjugation(jehle), TENSE_ORDER)
       fromJehle++
       conjugated++
     } else {
       // Fallback: model-based conjugator with a legacy regular-rule escape hatch
       const table = conjugateVerb(verb.word)
       if (table) {
-        compactVerbs[verb.word] = table.tenses.map((t) =>
-          t.conjugations.map((c) => c.form)
-        )
+        const rows = table.tenses.map((t) => t.conjugations.map((c) => c.form))
+        compactVerbs[verb.word] = maskDefectivePersons(rows, TENSE_ORDER)
         fromFallback++
         conjugated++
       }
