@@ -550,3 +550,4 @@ Add a button that simulates a day passing, making tomorrow's due cards available
 | 8 | Review sessions could keep introducing follow-up new-card sets after the active daily set was finished | Fixed |
 | 9 | New cards graded Good/Hard/Again could immediately cycle before their FSRS learning interval was due | Fixed |
 | 10 | Passive deck count refreshes could introduce new-card sets before a review session started | Fixed |
+| 11 | Verb cards displayed stale persisted conjugations (e.g. `haber` preterite "habí/habió" from an older buggy build) instead of the authoritative static DB | Fixed |
