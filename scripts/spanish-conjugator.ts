@@ -68,6 +68,10 @@ const TENSE_DESCRIPTIONS: Record<string, { name: string; description: string }> 
     name: 'Imperative',
     description: 'Commands and instructions',
   },
+  'negative-imperative': {
+    name: 'Negative Imperative',
+    description: 'Negative commands and prohibitions (no hables)',
+  },
   'present-perfect': {
     name: 'Present Perfect',
     description: 'Actions completed recently or with present relevance',
@@ -372,6 +376,16 @@ function conjugateRegularImperative(
   ]
 }
 
+/**
+ * The negative imperative is "no" + the present subjunctive for all five
+ * command persons (tú, usted, nosotros, vosotros, ustedes). All irregularity
+ * flows from the present subjunctive, so we derive it directly from those forms.
+ * Reflexive forms already carry the correct pronoun (e.g. "no te levantes").
+ */
+function buildNegativeImperative(presentSubjunctive: string[]): string[] {
+  return presentSubjunctive.slice(1).map((form) => (form ? `no ${form}` : ''))
+}
+
 function makeTense(
   tenseId: string,
   forms: string[],
@@ -426,6 +440,7 @@ function conjugateWithLibrary(infinitive: string): ConjugationTable | null {
 
   const { conjugation } = primary
   const { baseInfinitive, gerund } = getSyntheticBaseForms(primary, infinitive)
+  const presentSubjunctive = buildSimpleTense(conjugation.Subjuntivo.Presente, infinitive)
 
   return {
     infinitive,
@@ -435,7 +450,7 @@ function conjugateWithLibrary(infinitive: string): ConjugationTable | null {
       makeTense('imperfect', buildSimpleTense(conjugation.Indicativo.PreteritoImperfecto, infinitive)),
       makeTense('future', buildSimpleTense(conjugation.Indicativo.FuturoImperfecto, infinitive)),
       makeTense('conditional', buildSimpleTense(conjugation.Indicativo.CondicionalSimple, infinitive)),
-      makeTense('present-subjunctive', buildSimpleTense(conjugation.Subjuntivo.Presente, infinitive)),
+      makeTense('present-subjunctive', presentSubjunctive),
       makeTense(
         'imperfect-subjunctive',
         buildSimpleTense(conjugation.Subjuntivo.PreteritoImperfectoRa, infinitive)
@@ -445,6 +460,7 @@ function conjugateWithLibrary(infinitive: string): ConjugationTable | null {
         normalizeLibraryForms(conjugation.Imperativo.Afirmativo.slice(1)),
         IMPERATIVE_PERSONS
       ),
+      makeTense('negative-imperative', buildNegativeImperative(presentSubjunctive), IMPERATIVE_PERSONS),
       makeTense('present-perfect', buildSimpleTense(conjugation.Indicativo.PreteritoPerfecto, infinitive)),
       makeTense(
         'pluperfect',
@@ -479,6 +495,7 @@ function conjugateRegular(infinitive: string): ConjugationTable {
   const presentSubjunctive = conjugateRegularPresentSubjunctive(stem, type)
   const imperfectSubjunctive = conjugateRegularImperfectSubjunctive(stem, type)
   const imperative = conjugateRegularImperative(stem, type, infinitive, presentSubjunctive)
+  const negativeImperative = buildNegativeImperative(presentSubjunctive)
 
   return {
     infinitive,
@@ -491,6 +508,7 @@ function conjugateRegular(infinitive: string): ConjugationTable {
       makeTense('present-subjunctive', presentSubjunctive),
       makeTense('imperfect-subjunctive', imperfectSubjunctive),
       makeTense('imperative', imperative, IMPERATIVE_PERSONS),
+      makeTense('negative-imperative', negativeImperative, IMPERATIVE_PERSONS),
       makeCompoundTense('present-perfect', HABER.present, participle),
       makeCompoundTense('pluperfect', HABER.imperfect, participle),
       makeCompoundTense('future-perfect', HABER.future, participle),

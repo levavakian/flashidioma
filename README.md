@@ -98,7 +98,7 @@ The review queue is deliberately Anki-like while staying simple and local-first:
 ### Verb Conjugation System
 Cards for verbs have an expandable extra info section:
 
-- **Primary conjugations:** all standard tenses (present, preterite, imperfect, future, conditional, present subjunctive, imperfect subjunctive, imperative), each showing all persons (yo, tú, él/ella, nosotros, vosotros, ellos/ellas)
+- **Primary conjugations:** all standard tenses (present, preterite, imperfect, future, conditional, present subjunctive, imperfect subjunctive, imperative, negative imperative), each showing all persons (yo, tú, él/ella, nosotros, vosotros, ellos/ellas). The affirmative and negative imperative show the five command persons (tú, usted, nosotros, vosotros, ustedes); the negative imperative is "no" + the present subjunctive (e.g. "no hables")
 - **Compound/secondary tenses:** e.g. present perfect (he facilitado), pluperfect (había facilitado), future perfect (habré facilitado), conditional perfect (habría facilitado), plus progressive forms such as present progressive (estoy facilitando), preterite progressive (estuve facilitando), imperfect progressive (estaba facilitando), and future progressive (estaré facilitando)
 - Each conjugation form has a **mini translation** (e.g. "I facilitate", "you facilitated")
 - Each tense section has a **description of when it is used** (e.g. preterite: "completed past actions with a definite endpoint"; imperfect: "ongoing, habitual, or background past actions")
@@ -480,6 +480,16 @@ When auto-generating conjugation cards for reflexive verbs, ensure the reflexive
   - [ ] Unit: card text generation — "levantarse" present tense yo → "me levanto", not "levanto"
   - [ ] Unit: compound tense — "levantarse" present perfect yo → "me he levantado"
   - [ ] Unit: non-reflexive verbs are unaffected — "comer" present tense yo → "como" (no pronoun)
+
+### Phase 15: Negative Imperative Construct
+
+Added the negative imperative (`no` + present subjunctive) as a first-class construct across the app:
+- [x] New `negative-imperative` construct in the Spanish language module (category: mood) and per-deck construct checklist
+- [x] Negative imperative generated in the static conjugation database (Jehle + fallback conjugator) and shown in the conjugation tables, for the five command persons (tú, usted, nosotros, vosotros, ustedes)
+- [x] Reflexive support: pronoun placed after `no` (e.g. "no te levantes", "no se muden")
+- [x] Negative imperative verb lesson (formation = `no` + present subjunctive, present-subjunctive endings tables, inherits present-subjunctive irregular verbs)
+- [x] LLM conjugation hydration schema/prompt includes the negative imperative
+- [x] Unit tests for conjugation generation, static lookup, reflexive handling, and lesson generation
 
 ### Phase 14a: Verb Lessons Tab
 

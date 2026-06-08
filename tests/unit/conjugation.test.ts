@@ -157,14 +157,14 @@ describe('Spanish conjugation engine', () => {
   })
 
   describe('tense metadata', () => {
-    it('includes all 18 tenses', () => {
+    it('includes all 19 tenses', () => {
       const result = conjugateVerb('hablar')!
-      expect(result.tenses).toHaveLength(18)
+      expect(result.tenses).toHaveLength(19)
 
       const tenseIds = result.tenses.map((t) => t.tenseId)
       expect(tenseIds).toEqual([
         'present', 'preterite', 'imperfect', 'future', 'conditional',
-        'present-subjunctive', 'imperfect-subjunctive', 'imperative',
+        'present-subjunctive', 'imperfect-subjunctive', 'imperative', 'negative-imperative',
         'present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect',
         'present-progressive', 'preterite-progressive', 'imperfect-progressive', 'future-progressive',
         'poder-present', 'deber-present',
@@ -184,6 +184,39 @@ describe('Spanish conjugation engine', () => {
       expect(imperative.conjugations).toHaveLength(5)
       expect(imperative.conjugations.map((c) => c.person)).toEqual([
         'tú', 'usted', 'nosotros/as', 'vosotros/as', 'ustedes',
+      ])
+    })
+
+    it('negative imperative is "no" + present subjunctive for the 5 command persons', () => {
+      const result = conjugateVerb('hablar')!
+      const negative = result.tenses.find((t) => t.tenseId === 'negative-imperative')!
+      expect(negative.conjugations.map((c) => c.person)).toEqual([
+        'tú', 'usted', 'nosotros/as', 'vosotros/as', 'ustedes',
+      ])
+      expect(negative.conjugations.map((c) => c.form)).toEqual([
+        'no hables', 'no hable', 'no hablemos', 'no habléis', 'no hablen',
+      ])
+    })
+
+    it('negative imperative reflects irregular present subjunctive stems', () => {
+      const tener = conjugateVerb('tener')!
+      const negTener = tener.tenses.find((t) => t.tenseId === 'negative-imperative')!
+      expect(negTener.conjugations.map((c) => c.form)).toEqual([
+        'no tengas', 'no tenga', 'no tengamos', 'no tengáis', 'no tengan',
+      ])
+
+      const ir = conjugateVerb('ir')!
+      const negIr = ir.tenses.find((t) => t.tenseId === 'negative-imperative')!
+      expect(negIr.conjugations.map((c) => c.form)).toEqual([
+        'no vayas', 'no vaya', 'no vayamos', 'no vayáis', 'no vayan',
+      ])
+    })
+
+    it('negative imperative for reflexive verbs places the pronoun after "no"', () => {
+      const result = conjugateVerb('quejarse')!
+      const negative = result.tenses.find((t) => t.tenseId === 'negative-imperative')!
+      expect(negative.conjugations.map((c) => c.form)).toEqual([
+        'no te quejes', 'no se queje', 'no nos quejemos', 'no os quejéis', 'no se quejen',
       ])
     })
 

@@ -305,11 +305,20 @@ const REFLEXIVE_PRONOUNS_BY_PERSON = ['me', 'te', 'se', 'nos', 'os', 'se']
 // The exact tense order used in the compact conjugation format
 const TENSE_ORDER = [
   'present', 'preterite', 'imperfect', 'future', 'conditional',
-  'present-subjunctive', 'imperfect-subjunctive', 'imperative',
+  'present-subjunctive', 'imperfect-subjunctive', 'imperative', 'negative-imperative',
   'present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect',
   'present-progressive', 'preterite-progressive', 'imperfect-progressive', 'future-progressive',
   'poder-present', 'deber-present',
 ]
+
+/**
+ * The negative imperative is "no" + the present subjunctive for the five
+ * command persons (tú, usted, nosotros, vosotros, ustedes). All irregularity
+ * comes from the present subjunctive, so we derive it from those forms.
+ */
+function buildNegativeImperative(presentSubjunctive: string[]): string[] {
+  return presentSubjunctive.slice(1).map((form) => (form ? `no ${form}` : ''))
+}
 
 function isReflexiveInfinitive(infinitive: string): boolean {
   return infinitive.endsWith('se') && infinitive.length > 2
@@ -397,6 +406,11 @@ function buildJehleConjugation(jehle: JehleVerbData): string[][] {
         case 'deber-present':
           tenses.push(buildModalConstruct(AUX_DEBER_PRESENT, baseInfinitive, reflexive))
           break
+        case 'negative-imperative': {
+          const subjunctive = jehle.tenses.get('present-subjunctive')
+          tenses.push(subjunctive ? buildNegativeImperative(subjunctive) : ['', '', '', '', ''])
+          break
+        }
         default:
           // Should not happen — Jehle covers all 12 simple/compound tenses
           tenses.push(tenseId === 'imperative' ? ['', '', '', '', ''] : ['', '', '', '', '', ''])

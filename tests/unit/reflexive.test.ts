@@ -121,21 +121,34 @@ describe('addReflexivePronouns — affirmative imperative', () => {
   })
 })
 
+describe('addReflexivePronouns — negative imperative', () => {
+  it('inserts the pronoun after the leading "no"', () => {
+    expect(addReflexivePronouns('no mudes', 'tú', 'negative-imperative')).toBe('no te mudes')
+    expect(addReflexivePronouns('no mude', 'usted', 'negative-imperative')).toBe('no se mude')
+    expect(addReflexivePronouns('no mudemos', 'nosotros/as', 'negative-imperative')).toBe('no nos mudemos')
+    expect(addReflexivePronouns('no mudéis', 'vosotros/as', 'negative-imperative')).toBe('no os mudéis')
+    expect(addReflexivePronouns('no muden', 'ustedes', 'negative-imperative')).toBe('no se muden')
+  })
+})
+
 describe('formatReflexiveForm', () => {
   it('is a no-op for non-reflexive infinitives', () => {
     expect(formatReflexiveForm('mudo', 'yo', 'mudar', 'present')).toBe('mudo')
     expect(formatReflexiveForm('come', 'tú', 'comer', 'imperative')).toBe('come')
+    expect(formatReflexiveForm('no comas', 'tú', 'comer', 'negative-imperative')).toBe('no comas')
   })
 
   it('adds pronouns for reflexive infinitives', () => {
     expect(formatReflexiveForm('mudo', 'yo', 'mudarse', 'present')).toBe('me mudo')
     expect(formatReflexiveForm('muda', 'tú', 'mudarse', 'imperative')).toBe('múdate')
+    expect(formatReflexiveForm('no mudes', 'tú', 'mudarse', 'negative-imperative')).toBe('no te mudes')
   })
 
   it('is idempotent — does not double-add pronouns', () => {
     expect(formatReflexiveForm('me mudo', 'yo', 'mudarse', 'present')).toBe('me mudo')
     expect(formatReflexiveForm('múdate', 'tú', 'mudarse', 'imperative')).toBe('múdate')
     expect(formatReflexiveForm('quejémonos', 'nosotros/as', 'quejarse', 'imperative')).toBe('quejémonos')
+    expect(formatReflexiveForm('no te mudes', 'tú', 'mudarse', 'negative-imperative')).toBe('no te mudes')
   })
 })
 
@@ -153,6 +166,14 @@ describe('stripReflexivePronoun', () => {
     expect(stripReflexivePronoun('quejaos', 'imperative')).toBe('quejad')
     expect(stripReflexivePronoun('vestíos', 'imperative')).toBe('vestid')
     expect(stripReflexivePronoun('vete', 'imperative')).toBe('ve')
+  })
+
+  it('strips the pronoun from negative imperative forms', () => {
+    expect(stripReflexivePronoun('no te mudes', 'negative-imperative')).toBe('no mudes')
+    expect(stripReflexivePronoun('no se mude', 'negative-imperative')).toBe('no mude')
+    expect(stripReflexivePronoun('no nos mudemos', 'negative-imperative')).toBe('no mudemos')
+    // Non-reflexive negative imperatives are returned unchanged.
+    expect(stripReflexivePronoun('no hables', 'negative-imperative')).toBe('no hables')
   })
 })
 
