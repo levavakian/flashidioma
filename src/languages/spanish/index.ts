@@ -52,6 +52,12 @@ const spanishConstructs: ConstructDefinition[] = [
     category: 'mood',
     description: 'Commands and instructions',
   },
+  {
+    id: 'negative-imperative',
+    name: 'Negative Imperative',
+    category: 'mood',
+    description: 'Negative commands and prohibitions (no hables)',
+  },
   // Compound tenses
   {
     id: 'present-perfect',

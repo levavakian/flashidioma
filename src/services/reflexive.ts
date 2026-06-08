@@ -9,6 +9,8 @@
  *   - Modal constructs: pronoun before modal ("me puedo levantar")
  *   - Affirmative imperative: pronoun attached to end with stress accent
  *     adjustment ("levántate", "múdense")
+ *   - Negative imperative: pronoun before the verb, after "no"
+ *     ("no te levantes", "no se muden")
  */
 
 import type { TenseData, VerbData } from '../types'
@@ -256,6 +258,12 @@ export function addReflexivePronouns(
     return attachCliticToImperative(form, pronoun, personLower)
   }
 
+  if (tenseId === 'negative-imperative') {
+    // "no hables" -> "no te hables": pronoun goes after the leading "no".
+    const rest = form.startsWith('no ') ? form.slice(3) : form
+    return `no ${pronoun} ${rest}`
+  }
+
   return `${pronoun} ${form}`
 }
 
@@ -296,6 +304,18 @@ export function stripReflexivePronoun(form: string, tenseId: string): string {
     }
     return form
   }
+  if (tenseId === 'negative-imperative') {
+    // "no te hables" -> "no hables": drop the pronoun after the leading "no".
+    const parts = form.split(/\s+/)
+    if (
+      parts.length >= 3 &&
+      parts[0].toLowerCase() === 'no' &&
+      REFLEXIVE_PRONOUN_WORDS.has(parts[1].toLowerCase())
+    ) {
+      return `no ${parts.slice(2).join(' ')}`
+    }
+    return form
+  }
   const words = form.split(/\s+/)
   if (words.length >= 2 && REFLEXIVE_PRONOUN_WORDS.has(words[0].toLowerCase())) {
     return words.slice(1).join(' ')
@@ -321,6 +341,12 @@ export function formatReflexiveForm(
     // If any reflexive suffix is present, assume the pronoun is already
     // attached. This is loose but works for our generated data.
     if (PRONOUN_SUFFIXES.some((p) => form.toLowerCase().endsWith(p))) return form
+  } else if (tenseId === 'negative-imperative') {
+    // "no te hables" — pronoun already present as the second word.
+    const parts = form.split(/\s+/)
+    if (parts.length >= 3 && parts[0].toLowerCase() === 'no' && REFLEXIVE_PRONOUN_WORDS.has(parts[1].toLowerCase())) {
+      return form
+    }
   } else if (startsWithReflexivePronoun(form)) {
     return form
   }

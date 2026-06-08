@@ -25,6 +25,7 @@ beforeEach(async () => {
       'present-subjunctive': false,
       'imperfect-subjunctive': false,
       imperative: false,
+      'negative-imperative': false,
       'present-perfect': false,
       pluperfect: false,
       'future-perfect': false,

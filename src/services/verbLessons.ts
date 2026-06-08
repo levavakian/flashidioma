@@ -83,6 +83,17 @@ function buildEndingsTables(tenseId: string): EndingsTable[] {
     }))
   }
 
+  if (tenseId === 'negative-imperative') {
+    // "no" + present subjunctive for all five command persons. The endings
+    // are the present subjunctive endings (-ar separate, -er/-ir merged).
+    const subj = REGULAR_ENDINGS['present-subjunctive']
+    const pick = (t: VerbType) => [subj[t][1], subj[t][2], subj[t][3], subj[t][4], subj[t][5]]
+    return [
+      { verbTypes: ['-ar'], persons: IMPERATIVE_PERSONS, endings: pick('ar') },
+      { verbTypes: ['-er', '-ir'], persons: IMPERATIVE_PERSONS, endings: pick('er') },
+    ]
+  }
+
   if (REGULAR_INFINITIVE_ENDINGS[tenseId]) {
     return [
       {
@@ -128,6 +139,8 @@ const FORMATION: Record<string, string> = {
     'Take the ellos form of the preterite, drop -ron, then add the imperfect-subjunctive endings.',
   imperative:
     'Affirmative tú is the same as él/ella present indicative. Affirmative vosotros replaces the -r of the infinitive with -d. The other forms (usted, nosotros, ustedes) are taken from the present subjunctive.',
+  'negative-imperative':
+    'Place no before the present subjunctive form. All five command persons (tú, usted, nosotros, vosotros, ustedes) use the present subjunctive, so any verb irregular in the present subjunctive is irregular here too. E.g. no hables, no comas, no escribáis.',
   'present-perfect':
     'Conjugate haber in the present + the past participle (regular: -ado / -ido).',
   pluperfect: 'Conjugate haber in the imperfect + the past participle (regular: -ado / -ido).',
@@ -661,6 +674,9 @@ const CATEGORIES: Record<string, LessonIrregularCategory[]> = {
   'present-subjunctive': PRESENT_SUBJUNCTIVE,
   'imperfect-subjunctive': IMPERFECT_SUBJUNCTIVE,
   imperative: IMPERATIVE,
+  // Negative imperative = "no" + present subjunctive, so it inherits the same
+  // irregular verbs as the present subjunctive.
+  'negative-imperative': PRESENT_SUBJUNCTIVE,
   'present-perfect': IRREGULAR_PARTICIPLES,
   pluperfect: IRREGULAR_PARTICIPLES,
   'future-perfect': IRREGULAR_PARTICIPLES,
@@ -693,6 +709,7 @@ const TENSES: TenseMeta[] = [
   { id: 'present-subjunctive', name: 'Present Subjunctive', description: 'Wishes, doubts, emotions, impersonal expressions in the present' },
   { id: 'imperfect-subjunctive', name: 'Imperfect Subjunctive', description: 'Hypothetical or contrary-to-fact situations in the past' },
   { id: 'imperative', name: 'Imperative', description: 'Commands and instructions' },
+  { id: 'negative-imperative', name: 'Negative Imperative', description: 'Negative commands and prohibitions (no hables)' },
   { id: 'present-perfect', name: 'Present Perfect', description: 'Actions completed recently or with present relevance' },
   { id: 'pluperfect', name: 'Pluperfect', description: 'Actions completed before another past action' },
   { id: 'future-perfect', name: 'Future Perfect', description: 'Actions that will be completed before a future point' },

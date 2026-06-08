@@ -26,11 +26,12 @@ describe('getSpanishLessons', () => {
     expect(ids).toContain('present-subjunctive')
     expect(ids).toContain('imperfect-subjunctive')
     expect(ids).toContain('imperative')
+    expect(ids).toContain('negative-imperative')
     expect(ids).toContain('present-perfect')
     expect(ids).toContain('present-progressive')
     expect(ids).toContain('poder-present')
     expect(ids).toContain('deber-present')
-    expect(ids).toHaveLength(18)
+    expect(ids).toHaveLength(19)
   })
 
   it('every lesson has a formation summary', () => {
@@ -139,6 +140,26 @@ describe('getSpanishLessons', () => {
       'haber',
       'satisfacer',
     ])
+  })
+
+  it('negative imperative is "no" + present subjunctive with subjunctive irregulars', () => {
+    const lesson = lessons.find((l) => l.tenseId === 'negative-imperative')!
+    expect(lesson.formationSummary).toMatch(/no/i)
+    expect(lesson.formationSummary).toMatch(/present subjunctive/i)
+
+    // Two endings tables: -ar separate, -er/-ir merged, each for the 5 command persons.
+    expect(lesson.endingsTables).toHaveLength(2)
+    const ar = lesson.endingsTables.find((t) => t.verbTypes.includes('-ar'))!
+    const erIr = lesson.endingsTables.find((t) => t.verbTypes.includes('-er'))!
+    expect(ar.persons).toEqual(['tú', 'usted', 'nosotros/as', 'vosotros/as', 'ustedes'])
+    expect(ar.endings).toEqual(['es', 'e', 'emos', 'éis', 'en'])
+    expect(erIr.verbTypes).toEqual(['-er', '-ir'])
+    expect(erIr.endings).toEqual(['as', 'a', 'amos', 'áis', 'an'])
+
+    // Inherits the present subjunctive irregular categories.
+    expect(categoryVerbs('negative-imperative', 'fully-irregular')).toEqual(
+      expect.arrayContaining(['ser', 'estar', 'ir', 'haber', 'saber', 'dar'])
+    )
   })
 
   it('every perfect tense uses the same irregular-participles category', () => {

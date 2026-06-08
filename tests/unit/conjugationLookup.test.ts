@@ -61,9 +61,9 @@ describe('Static conjugation DB lookup', () => {
     ])
   })
 
-  it('returns all 18 tenses for a verb', async () => {
+  it('returns all 19 tenses for a verb', async () => {
     const result = await lookupConjugation('hablar')
-    expect(result!.tenses).toHaveLength(18)
+    expect(result!.tenses).toHaveLength(19)
 
     const tenseIds = result!.tenses.map((t) => t.tenseId)
     expect(tenseIds).toContain('present')
@@ -74,6 +74,7 @@ describe('Static conjugation DB lookup', () => {
     expect(tenseIds).toContain('present-subjunctive')
     expect(tenseIds).toContain('imperfect-subjunctive')
     expect(tenseIds).toContain('imperative')
+    expect(tenseIds).toContain('negative-imperative')
     expect(tenseIds).toContain('present-perfect')
     expect(tenseIds).toContain('pluperfect')
     expect(tenseIds).toContain('future-perfect')
@@ -84,6 +85,17 @@ describe('Static conjugation DB lookup', () => {
     expect(tenseIds).toContain('future-progressive')
     expect(tenseIds).toContain('poder-present')
     expect(tenseIds).toContain('deber-present')
+  })
+
+  it('includes negative imperative forms', async () => {
+    const result = await lookupConjugation('hablar')
+    const negative = result!.tenses.find((t) => t.tenseId === 'negative-imperative')!
+    expect(negative.conjugations.map((c) => c.person)).toEqual([
+      'tú', 'usted', 'nosotros/as', 'vosotros/as', 'ustedes',
+    ])
+    expect(negative.conjugations.map((c) => c.form)).toEqual([
+      'no hables', 'no hable', 'no hablemos', 'no habléis', 'no hablen',
+    ])
   })
 
   it('compound tenses include haber forms', async () => {
@@ -111,6 +123,14 @@ describe('Static conjugation DB lookup', () => {
       const imp = result!.tenses.find((t) => t.tenseId === 'imperative')!
       expect(imp.conjugations.map((c) => c.form)).toEqual([
         'múdate', 'múdese', 'mudémonos', 'mudaos', 'múdense',
+      ])
+    })
+
+    it('synthesized reflexive negative imperative places pronoun after "no"', async () => {
+      const result = await lookupConjugation('mudarse')
+      const neg = result!.tenses.find((t) => t.tenseId === 'negative-imperative')!
+      expect(neg.conjugations.map((c) => c.form)).toEqual([
+        'no te mudes', 'no se mude', 'no nos mudemos', 'no os mudéis', 'no se muden',
       ])
     })
 
