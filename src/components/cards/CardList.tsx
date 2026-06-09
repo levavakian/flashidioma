@@ -14,6 +14,32 @@ interface Props {
   enabledConstructs?: ConstructChecklist
 }
 
+/**
+ * Overlay the mini-translations from a card's stored verbData onto the
+ * authoritative static conjugation. The static DB is the source of truth for
+ * the conjugated forms (stored card data can be stale — e.g. older cards that
+ * captured a now-fixed conjugation), while mini-translations only ever come
+ * from LLM hydration, so they are carried over by tense + person.
+ */
+function withStoredMiniTranslations(authoritative: VerbData, stored: VerbData | null): VerbData {
+  if (!stored) return authoritative
+  const storedByTense = new Map(stored.tenses.map((t) => [t.tenseId, t]))
+  return {
+    ...authoritative,
+    tenses: authoritative.tenses.map((tense) => {
+      const storedTense = storedByTense.get(tense.tenseId)
+      if (!storedTense) return tense
+      return {
+        ...tense,
+        conjugations: tense.conjugations.map((conj, i) => {
+          const storedMini = storedTense.conjugations[i]?.miniTranslation
+          return storedMini ? { ...conj, miniTranslation: storedMini } : conj
+        }),
+      }
+    }),
+  }
+}
+
 export default function CardList({ cards, onUpdate, enabledConstructs }: Props) {
   const [search, setSearch] = useState('')
   const [editingCard, setEditingCard] = useState<Card | null>(null)
@@ -64,30 +90,32 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
   }, [page, totalPages])
 
   /**
-   * Find verbData for a card, checking:
-   * 1. The card's own verbData
-   * 2. The paired card's verbData (same word pair, opposite direction)
-   * 3. Static DB lookup cache
+   * Resolve the conjugation data to display for a card.
+   *
+   * The static conjugation DB is authoritative: whenever the card's verb is in
+   * it, its forms win over any stored verbData (which may be stale from an
+   * older app version). Stored mini-translations are layered back on top.
+   * Cards whose verb is not in the static DB (e.g. LLM-hydrated rare verbs)
+   * fall back to the stored verbData.
    */
   const getConjugationData = useCallback((card: Card): VerbData | null => {
-    if (card.verbData) return card.verbData
+    const stored = card.verbData
+      ?? cards.find(c =>
+        c.id !== card.id &&
+        c.frontText === card.frontText &&
+        c.backText === card.backText &&
+        c.direction !== card.direction
+      )?.verbData
+      ?? null
 
-    // Check paired card (same front/back text, opposite direction)
-    const paired = cards.find(c =>
-      c.id !== card.id &&
-      c.frontText === card.frontText &&
-      c.backText === card.backText &&
-      c.direction !== card.direction
-    )
-    if (paired?.verbData) return paired.verbData
+    const authoritative = lookedUpConjugations.get(card.id)
+    if (authoritative) return withStoredMiniTranslations(authoritative, stored)
 
-    return lookedUpConjugations.get(card.id) ?? null
+    return stored
   }, [cards, lookedUpConjugations])
 
-  // Auto-load conjugation from static DB when a card is expanded
+  // Look up the authoritative static-DB conjugation when a card is expanded.
   const autoLoadConjugation = useCallback(async (card: Card) => {
-    // Skip if we already have data from any source
-    if (getConjugationData(card)) return
     if (lookedUpConjugations.has(card.id)) return // Already looked up (even if null)
 
     const verb = card.direction === 'source-to-target' ? card.backText : card.frontText
@@ -97,7 +125,7 @@ export default function CardList({ cards, onUpdate, enabledConstructs }: Props) 
       next.set(card.id, result)
       return next
     })
-  }, [getConjugationData, lookedUpConjugations])
+  }, [lookedUpConjugations])
 
   useEffect(() => {
     if (!expandedCardId) return
