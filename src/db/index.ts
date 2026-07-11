@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
+import { repairNestedConjugationLabel } from '../services/conjugationLabel'
 import type {
   Card,
   Deck,
@@ -39,6 +40,16 @@ class FlashIdiomaDB extends Dexie {
 
     this.version(3).stores({
       translationHistory: 'id, createdAt, deckId',
+    })
+
+    // Repair auto-conjugation card labels that older app versions nested,
+    // e.g. "you commented [to comment (tú preterite)] [to you commented ... ]"
+    this.version(4).upgrade(async (tx) => {
+      await tx.table('cards').toCollection().modify((card: Card) => {
+        if (card.source !== 'auto-conjugation') return
+        const repaired = repairNestedConjugationLabel(card.frontText)
+        if (repaired) card.frontText = repaired
+      })
     })
   }
 }
