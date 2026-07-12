@@ -560,3 +560,4 @@ Add a button that simulates a day passing, making tomorrow's due cards available
 | 8 | Review sessions could keep introducing follow-up new-card sets after the active daily set was finished | Fixed |
 | 9 | New cards graded Good/Hard/Again could immediately cycle before their FSRS learning interval was due | Fixed |
 | 10 | Passive deck count refreshes could introduce new-card sets before a review session started | Fixed |
+| 11 | Auto-added conjugation cards nested the previous card's bracket annotation when translation was unavailable, e.g. `you commented [to comment (tú preterite)] [to you commented [to comment (tú preterite)] (ellos/ellas/ustedes present subjunctive)]` | Fixed for new cards (existing nested labels must be edited manually) |

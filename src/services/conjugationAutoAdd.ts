@@ -46,6 +46,16 @@ async function getVerbDataForCard(card: Card): Promise<VerbData | null> {
   return null
 }
 
+/**
+ * Extract the English infinitive from a conjugation card's bracket annotation,
+ * e.g. "you commented [to comment (tú preterite)]" → "to comment".
+ * Returns null when the text has no bracket annotation.
+ */
+export function extractBracketedInfinitive(text: string): string | null {
+  const match = text.match(/\[\s*(to [^\][()]+?)\s*\(/)
+  return match ? match[1] : null
+}
+
 interface EligibleConjugation {
   tenseId: string
   tenseName: string
@@ -200,10 +210,14 @@ export async function maybeAutoAddConjugationCard(
     }
   }
   if (!englishPart || !englishInfinitive) {
-    // Offline or translation failed — use source card's English text
+    // Offline or translation failed — use source card's English text.
+    // The source card may itself be an auto-added conjugation card whose text
+    // is annotated like "you commented [to comment (tú preterite)]"; reuse its
+    // bracketed infinitive so the new label doesn't nest the old annotation.
     const infinitiveLower = removeAccents(verbData.infinitive.toLowerCase())
     const frontLower = removeAccents(card.frontText.toLowerCase())
-    const cardEnglish = frontLower === infinitiveLower ? card.backText : card.frontText
+    const cardText = frontLower === infinitiveLower ? card.backText : card.frontText
+    const cardEnglish = extractBracketedInfinitive(cardText) ?? cardText
     if (!englishPart) englishPart = cardEnglish
     if (!englishInfinitive) {
       englishInfinitive = cardEnglish.startsWith('to ') ? cardEnglish : `to ${cardEnglish}`
