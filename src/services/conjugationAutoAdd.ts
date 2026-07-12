@@ -9,7 +9,6 @@
 
 import { db } from '../db'
 import { createCard } from './card'
-import { extractBracketedInfinitive } from './conjugationLabel'
 import { lookupConjugation } from './conjugationLookup'
 import { removeAccents } from './deduplication'
 import { formatReflexiveForm } from './reflexive'
@@ -45,6 +44,16 @@ async function getVerbDataForCard(card: Card): Promise<VerbData | null> {
   }
 
   return null
+}
+
+/**
+ * Extract the English infinitive from a conjugation card's bracket annotation,
+ * e.g. "you commented [to comment (tú preterite)]" → "to comment".
+ * Returns null when the text has no bracket annotation.
+ */
+export function extractBracketedInfinitive(text: string): string | null {
+  const match = text.match(/\[\s*(to [^\][()]+?)\s*\(/)
+  return match ? match[1] : null
 }
 
 interface EligibleConjugation {

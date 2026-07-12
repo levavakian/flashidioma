@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { db } from '../../src/db'
 import { createDeck, updateDeck } from '../../src/services/deck'
 import { createCard } from '../../src/services/card'
-import { maybeAutoAddConjugationCard } from '../../src/services/conjugationAutoAdd'
+import { extractBracketedInfinitive, maybeAutoAddConjugationCard } from '../../src/services/conjugationAutoAdd'
 import { isOnline, translateText } from '../../src/services/translate'
 import type { Deck, VerbData } from '../../src/types'
 
@@ -37,6 +37,23 @@ beforeEach(async () => {
   const created = await createDeck('Test Deck')
   deck = await updateDeck(created.id, {
     constructChecklist: { 'present-subjunctive': true },
+  })
+})
+
+describe('extractBracketedInfinitive', () => {
+  it('extracts the infinitive from a labeled card text', () => {
+    expect(extractBracketedInfinitive('we meet [to meet (nosotros/as present)]')).toBe('to meet')
+  })
+
+  it('extracts the innermost infinitive from a nested label', () => {
+    const nested =
+      'you commented [to comment (tú preterite)] [to you commented [to comment (tú preterite)] (ellos/ellas/ustedes present subjunctive)]'
+    expect(extractBracketedInfinitive(nested)).toBe('to comment')
+  })
+
+  it('returns null for text without a bracket annotation', () => {
+    expect(extractBracketedInfinitive('to eat')).toBeNull()
+    expect(extractBracketedInfinitive('comentar')).toBeNull()
   })
 })
 
