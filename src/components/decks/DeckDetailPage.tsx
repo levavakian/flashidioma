@@ -129,7 +129,7 @@ export default function DeckDetailPage() {
       )}
 
       {tab === 'settings' && (
-        <DeckSettings deck={deck} onUpdate={loadDeck} />
+        <DeckSettings deck={deck} cards={cards} onUpdate={loadDeck} />
       )}
     </div>
   )
