@@ -45,6 +45,18 @@ const spanishConstructs: ConstructDefinition[] = [
     category: 'tense',
     description: 'Hypothetical or contrary-to-fact situations in the past',
   },
+  {
+    id: 'perfect-subjunctive',
+    name: 'Perfect Subjunctive',
+    category: 'tense',
+    description: 'Completed actions in subjunctive contexts (haya hablado)',
+  },
+  {
+    id: 'pluperfect-subjunctive',
+    name: 'Pluperfect Subjunctive',
+    category: 'tense',
+    description: 'Contrary-to-fact completed past actions (hubiera hablado)',
+  },
   // Imperative
   {
     id: 'imperative',

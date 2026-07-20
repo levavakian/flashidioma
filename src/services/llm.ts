@@ -104,6 +104,8 @@ const CONJUGATION_TENSE_IDS = [
   'conditional',
   'present-subjunctive',
   'imperfect-subjunctive',
+  'perfect-subjunctive',
+  'pluperfect-subjunctive',
   'imperative',
   'negative-imperative',
   'present-perfect',
@@ -143,7 +145,7 @@ Return ONLY valid JSON with this structure (no markdown, no explanation):
 
 Include these tenses: ${CONJUGATION_TENSE_IDS.join(', ')}.
 
-For compound tenses, show the full form (e.g. "he comido", "había comido").
+For compound tenses, show the full form (e.g. "he comido", "había comido", "haya comido", "hubiera comido").
 For progressive tenses, show the full form with estar + gerund (e.g. "estuve hablando").
 For imperative, only include tú, usted, nosotros, vosotros, ustedes.
 For negative imperative (tenseId "negative-imperative"), only include tú, usted, nosotros, vosotros, ustedes, each formed with "no" + the present subjunctive, e.g. "no hables", "no hable", "no hablemos", "no habléis", "no hablen".

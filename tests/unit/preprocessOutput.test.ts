@@ -44,7 +44,7 @@ describe('Preprocessing script output', () => {
       expect(conjugationData.generatedAt).toBeTruthy()
       expect(conjugationData.verbCount).toBeGreaterThan(2000)
       expect(Array.isArray(conjugationData.tenses)).toBe(true)
-      expect(conjugationData.tenses).toHaveLength(19)
+      expect(conjugationData.tenses).toHaveLength(21)
       expect(typeof conjugationData.verbs).toBe('object')
     })
 
@@ -57,6 +57,8 @@ describe('Preprocessing script output', () => {
       expect(tenseIds).toContain('conditional')
       expect(tenseIds).toContain('present-subjunctive')
       expect(tenseIds).toContain('imperfect-subjunctive')
+      expect(tenseIds).toContain('perfect-subjunctive')
+      expect(tenseIds).toContain('pluperfect-subjunctive')
       expect(tenseIds).toContain('imperative')
       expect(tenseIds).toContain('negative-imperative')
       expect(tenseIds).toContain('present-perfect')
@@ -129,10 +131,18 @@ describe('Preprocessing script output', () => {
       expect(sostener[3][0]).toBe('sostendré')
     })
 
+    it('hablar has perfect and pluperfect subjunctive forms', () => {
+      const hablar = conjugationData.verbs['hablar' as keyof typeof conjugationData.verbs] as string[][]
+      // Perfect subjunctive (index 7) and pluperfect subjunctive (index 8),
+      // right after imperfect subjunctive at index 6
+      expect(hablar[7][0]).toBe('haya hablado')
+      expect(hablar[8][0]).toBe('hubiera hablado')
+    })
+
     it('hablar has negative imperative forms', () => {
       const hablar = conjugationData.verbs['hablar' as keyof typeof conjugationData.verbs] as string[][]
-      // Negative imperative (index 8, right after affirmative imperative at index 7)
-      expect(hablar[8]).toEqual([
+      // Negative imperative (index 10, right after affirmative imperative at index 9)
+      expect(hablar[10]).toEqual([
         'no hables', 'no hable', 'no hablemos', 'no habléis', 'no hablen',
       ])
     })
@@ -140,15 +150,15 @@ describe('Preprocessing script output', () => {
     it('hablar has compound tenses', () => {
       const hablar = conjugationData.verbs['hablar' as keyof typeof conjugationData.verbs] as string[][]
       expect(hablar).toBeDefined()
-      // Present perfect (index 9)
-      expect(hablar[9][0]).toBe('he hablado')
-      // Pluperfect (index 10)
-      expect(hablar[10][0]).toBe('había hablado')
+      // Present perfect (index 11)
+      expect(hablar[11][0]).toBe('he hablado')
+      // Pluperfect (index 12)
+      expect(hablar[12][0]).toBe('había hablado')
     })
 
     it('hablar has preterite progressive forms', () => {
       const hablar = conjugationData.verbs['hablar' as keyof typeof conjugationData.verbs] as string[][]
-      expect(hablar[14]).toEqual([
+      expect(hablar[16]).toEqual([
         'estuve hablando',
         'estuviste hablando',
         'estuvo hablando',

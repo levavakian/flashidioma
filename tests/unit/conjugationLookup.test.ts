@@ -61,9 +61,9 @@ describe('Static conjugation DB lookup', () => {
     ])
   })
 
-  it('returns all 19 tenses for a verb', async () => {
+  it('returns all 21 tenses for a verb', async () => {
     const result = await lookupConjugation('hablar')
-    expect(result!.tenses).toHaveLength(19)
+    expect(result!.tenses).toHaveLength(21)
 
     const tenseIds = result!.tenses.map((t) => t.tenseId)
     expect(tenseIds).toContain('present')
@@ -73,6 +73,8 @@ describe('Static conjugation DB lookup', () => {
     expect(tenseIds).toContain('conditional')
     expect(tenseIds).toContain('present-subjunctive')
     expect(tenseIds).toContain('imperfect-subjunctive')
+    expect(tenseIds).toContain('perfect-subjunctive')
+    expect(tenseIds).toContain('pluperfect-subjunctive')
     expect(tenseIds).toContain('imperative')
     expect(tenseIds).toContain('negative-imperative')
     expect(tenseIds).toContain('present-perfect')
@@ -105,6 +107,21 @@ describe('Static conjugation DB lookup', () => {
     expect(pp.conjugations[5].form).toBe('han hablado')
   })
 
+  it('includes perfect and pluperfect subjunctive forms', async () => {
+    const result = await lookupConjugation('hablar')
+    const perfSub = result!.tenses.find((t) => t.tenseId === 'perfect-subjunctive')!
+    expect(perfSub.conjugations.map((c) => c.form)).toEqual([
+      'haya hablado', 'hayas hablado', 'haya hablado',
+      'hayamos hablado', 'hayáis hablado', 'hayan hablado',
+    ])
+
+    const plupSub = result!.tenses.find((t) => t.tenseId === 'pluperfect-subjunctive')!
+    expect(plupSub.conjugations.map((c) => c.form)).toEqual([
+      'hubiera hablado', 'hubieras hablado', 'hubiera hablado',
+      'hubiéramos hablado', 'hubierais hablado', 'hubieran hablado',
+    ])
+  })
+
   describe('reflexive verb support', () => {
     it('falls back to base infinitive for -se verbs not in DB', async () => {
       // mudarse is not in the DB; mudar is. lookupConjugation should
@@ -132,6 +149,14 @@ describe('Static conjugation DB lookup', () => {
       expect(neg.conjugations.map((c) => c.form)).toEqual([
         'no te mudes', 'no se mude', 'no nos mudemos', 'no os mudéis', 'no se muden',
       ])
+    })
+
+    it('synthesized reflexive perfect subjunctive places pronoun before haber', async () => {
+      const result = await lookupConjugation('mudarse')
+      const perfSub = result!.tenses.find((t) => t.tenseId === 'perfect-subjunctive')!
+      expect(perfSub.conjugations[0].form).toBe('me haya mudado')
+      const plupSub = result!.tenses.find((t) => t.tenseId === 'pluperfect-subjunctive')!
+      expect(plupSub.conjugations[0].form).toBe('me hubiera mudado')
     })
 
     it('synthesized reflexive progressive places pronoun before estar', async () => {

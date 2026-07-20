@@ -137,6 +137,10 @@ const FORMATION: Record<string, string> = {
     'Take the yo form of the present indicative, drop the -o, then add the opposite-vowel endings (-ar verbs use -e endings, -er/-ir verbs use -a endings).',
   'imperfect-subjunctive':
     'Take the ellos form of the preterite, drop -ron, then add the imperfect-subjunctive endings.',
+  'perfect-subjunctive':
+    'Conjugate haber in the present subjunctive (haya, hayas, haya, hayamos, hayáis, hayan) + the past participle (regular: -ado / -ido).',
+  'pluperfect-subjunctive':
+    'Conjugate haber in the imperfect subjunctive (hubiera, hubieras, hubiera, hubiéramos, hubierais, hubieran) + the past participle (regular: -ado / -ido).',
   imperative:
     'Affirmative tú is the same as él/ella present indicative. Affirmative vosotros replaces the -r of the infinitive with -d. The other forms (usted, nosotros, ustedes) are taken from the present subjunctive.',
   'negative-imperative':
@@ -663,6 +667,16 @@ const IRREGULAR_GERUNDS: LessonIrregularCategory[] = [
   },
 ]
 
+// Same irregular participles, but with a description that names the
+// subjunctive haber forms instead of the indicative ones.
+const IRREGULAR_PARTICIPLES_SUBJUNCTIVE: LessonIrregularCategory[] = [
+  {
+    ...IRREGULAR_PARTICIPLES[0],
+    description:
+      'The subjunctive forms of haber are irregular (haya... / hubiera...). The participle itself is irregular for these verbs.',
+  },
+]
+
 const NO_IRREGULARS: LessonIrregularCategory[] = []
 
 const CATEGORIES: Record<string, LessonIrregularCategory[]> = {
@@ -673,6 +687,10 @@ const CATEGORIES: Record<string, LessonIrregularCategory[]> = {
   conditional: FUTURE_CONDITIONAL,
   'present-subjunctive': PRESENT_SUBJUNCTIVE,
   'imperfect-subjunctive': IMPERFECT_SUBJUNCTIVE,
+  // Perfect subjunctives = subjunctive haber + past participle, so the only
+  // verb-specific irregularity is the participle itself.
+  'perfect-subjunctive': IRREGULAR_PARTICIPLES_SUBJUNCTIVE,
+  'pluperfect-subjunctive': IRREGULAR_PARTICIPLES_SUBJUNCTIVE,
   imperative: IMPERATIVE,
   // Negative imperative = "no" + present subjunctive, so it inherits the same
   // irregular verbs as the present subjunctive.
@@ -708,6 +726,8 @@ const TENSES: TenseMeta[] = [
   { id: 'conditional', name: 'Conditional', description: 'Hypothetical situations, polite requests, future in the past' },
   { id: 'present-subjunctive', name: 'Present Subjunctive', description: 'Wishes, doubts, emotions, impersonal expressions in the present' },
   { id: 'imperfect-subjunctive', name: 'Imperfect Subjunctive', description: 'Hypothetical or contrary-to-fact situations in the past' },
+  { id: 'perfect-subjunctive', name: 'Perfect Subjunctive', description: 'Completed actions in subjunctive contexts (haya hablado)' },
+  { id: 'pluperfect-subjunctive', name: 'Pluperfect Subjunctive', description: 'Contrary-to-fact completed past actions (hubiera hablado)' },
   { id: 'imperative', name: 'Imperative', description: 'Commands and instructions' },
   { id: 'negative-imperative', name: 'Negative Imperative', description: 'Negative commands and prohibitions (no hables)' },
   { id: 'present-perfect', name: 'Present Perfect', description: 'Actions completed recently or with present relevance' },
