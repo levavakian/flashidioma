@@ -25,13 +25,15 @@ describe('getSpanishLessons', () => {
     expect(ids).toContain('conditional')
     expect(ids).toContain('present-subjunctive')
     expect(ids).toContain('imperfect-subjunctive')
+    expect(ids).toContain('perfect-subjunctive')
+    expect(ids).toContain('pluperfect-subjunctive')
     expect(ids).toContain('imperative')
     expect(ids).toContain('negative-imperative')
     expect(ids).toContain('present-perfect')
     expect(ids).toContain('present-progressive')
     expect(ids).toContain('poder-present')
     expect(ids).toContain('deber-present')
-    expect(ids).toHaveLength(19)
+    expect(ids).toHaveLength(21)
   })
 
   it('every lesson has a formation summary', () => {
@@ -163,12 +165,28 @@ describe('getSpanishLessons', () => {
   })
 
   it('every perfect tense uses the same irregular-participles category', () => {
-    for (const tid of ['present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect']) {
+    for (const tid of [
+      'present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect',
+      'perfect-subjunctive', 'pluperfect-subjunctive',
+    ]) {
       const verbs = categoryVerbs(tid, 'irregular-participles')
       expect(verbs).toContain('abrir')
       expect(verbs).toContain('decir')
       expect(verbs).toContain('hacer')
       expect(verbs).toContain('volver')
+    }
+  })
+
+  it('perfect subjunctive lessons describe the subjunctive haber forms', () => {
+    const perfSub = lessons.find((l) => l.tenseId === 'perfect-subjunctive')!
+    expect(perfSub.formationSummary).toContain('haya')
+
+    const plupSub = lessons.find((l) => l.tenseId === 'pluperfect-subjunctive')!
+    expect(plupSub.formationSummary).toContain('hubiera')
+
+    for (const lesson of [perfSub, plupSub]) {
+      const cat = lesson.irregularCategories.find((c) => c.id === 'irregular-participles')!
+      expect(cat.description).toContain('haya')
     }
   })
 

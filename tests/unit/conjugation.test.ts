@@ -43,6 +43,18 @@ describe('Spanish conjugation engine', () => {
       expect(impSub.conjugations.map((c) => c.form)).toEqual([
         'hablara', 'hablaras', 'hablara', 'habláramos', 'hablarais', 'hablaran',
       ])
+
+      const perfSub = result.tenses.find((t) => t.tenseId === 'perfect-subjunctive')!
+      expect(perfSub.conjugations.map((c) => c.form)).toEqual([
+        'haya hablado', 'hayas hablado', 'haya hablado',
+        'hayamos hablado', 'hayáis hablado', 'hayan hablado',
+      ])
+
+      const plupSub = result.tenses.find((t) => t.tenseId === 'pluperfect-subjunctive')!
+      expect(plupSub.conjugations.map((c) => c.form)).toEqual([
+        'hubiera hablado', 'hubieras hablado', 'hubiera hablado',
+        'hubiéramos hablado', 'hubierais hablado', 'hubieran hablado',
+      ])
     })
   })
 
@@ -153,18 +165,37 @@ describe('Spanish conjugation engine', () => {
       const result = conjugateVerb('escribir')!
       const pp = result.tenses.find((t) => t.tenseId === 'present-perfect')!
       expect(pp.conjugations[0].form).toBe('he escrito')
+
+      const perfSub = result.tenses.find((t) => t.tenseId === 'perfect-subjunctive')!
+      expect(perfSub.conjugations[0].form).toBe('haya escrito')
+
+      const plupSub = result.tenses.find((t) => t.tenseId === 'pluperfect-subjunctive')!
+      expect(plupSub.conjugations[0].form).toBe('hubiera escrito')
+    })
+
+    it('places reflexive pronouns before the subjunctive auxiliary', () => {
+      const result = conjugateVerb('quejarse')!
+      const perfSub = result.tenses.find((t) => t.tenseId === 'perfect-subjunctive')!
+      expect(perfSub.conjugations.map((c) => c.form)).toEqual([
+        'me haya quejado', 'te hayas quejado', 'se haya quejado',
+        'nos hayamos quejado', 'os hayáis quejado', 'se hayan quejado',
+      ])
+
+      const plupSub = result.tenses.find((t) => t.tenseId === 'pluperfect-subjunctive')!
+      expect(plupSub.conjugations[0].form).toBe('me hubiera quejado')
     })
   })
 
   describe('tense metadata', () => {
-    it('includes all 19 tenses', () => {
+    it('includes all 21 tenses', () => {
       const result = conjugateVerb('hablar')!
-      expect(result.tenses).toHaveLength(19)
+      expect(result.tenses).toHaveLength(21)
 
       const tenseIds = result.tenses.map((t) => t.tenseId)
       expect(tenseIds).toEqual([
         'present', 'preterite', 'imperfect', 'future', 'conditional',
-        'present-subjunctive', 'imperfect-subjunctive', 'imperative', 'negative-imperative',
+        'present-subjunctive', 'imperfect-subjunctive', 'perfect-subjunctive', 'pluperfect-subjunctive',
+        'imperative', 'negative-imperative',
         'present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect',
         'present-progressive', 'preterite-progressive', 'imperfect-progressive', 'future-progressive',
         'poder-present', 'deber-present',

@@ -64,6 +64,14 @@ const TENSE_DESCRIPTIONS: Record<string, { name: string; description: string }> 
     name: 'Imperfect Subjunctive',
     description: 'Hypothetical or contrary-to-fact situations in the past',
   },
+  'perfect-subjunctive': {
+    name: 'Perfect Subjunctive',
+    description: 'Completed actions in subjunctive contexts (haya hablado)',
+  },
+  'pluperfect-subjunctive': {
+    name: 'Pluperfect Subjunctive',
+    description: 'Contrary-to-fact completed past actions (hubiera hablado)',
+  },
   imperative: {
     name: 'Imperative',
     description: 'Commands and instructions',
@@ -179,6 +187,8 @@ const HABER = {
   imperfect: ['había', 'habías', 'había', 'habíamos', 'habíais', 'habían'],
   future: ['habré', 'habrás', 'habrá', 'habremos', 'habréis', 'habrán'],
   conditional: ['habría', 'habrías', 'habría', 'habríamos', 'habríais', 'habrían'],
+  presentSubjunctive: ['haya', 'hayas', 'haya', 'hayamos', 'hayáis', 'hayan'],
+  imperfectSubjunctive: ['hubiera', 'hubieras', 'hubiera', 'hubiéramos', 'hubierais', 'hubieran'],
 }
 
 // Auxiliary forms of "estar" for progressive tenses
@@ -456,6 +466,14 @@ function conjugateWithLibrary(infinitive: string): ConjugationTable | null {
         buildSimpleTense(conjugation.Subjuntivo.PreteritoImperfectoRa, infinitive)
       ),
       makeTense(
+        'perfect-subjunctive',
+        buildSimpleTense(conjugation.Subjuntivo.PreteritoPerfecto, infinitive)
+      ),
+      makeTense(
+        'pluperfect-subjunctive',
+        buildSimpleTense(conjugation.Subjuntivo.PreteritoPluscuamperfectoRa, infinitive)
+      ),
+      makeTense(
         'imperative',
         normalizeLibraryForms(conjugation.Imperativo.Afirmativo.slice(1)),
         IMPERATIVE_PERSONS
@@ -507,6 +525,8 @@ function conjugateRegular(infinitive: string): ConjugationTable {
       makeTense('conditional', conditional),
       makeTense('present-subjunctive', presentSubjunctive),
       makeTense('imperfect-subjunctive', imperfectSubjunctive),
+      makeCompoundTense('perfect-subjunctive', HABER.presentSubjunctive, participle),
+      makeCompoundTense('pluperfect-subjunctive', HABER.imperfectSubjunctive, participle),
       makeTense('imperative', imperative, IMPERATIVE_PERSONS),
       makeTense('negative-imperative', negativeImperative, IMPERATIVE_PERSONS),
       makeCompoundTense('present-perfect', HABER.present, participle),

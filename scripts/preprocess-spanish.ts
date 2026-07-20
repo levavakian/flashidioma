@@ -239,6 +239,8 @@ const JEHLE_TENSE_MAP: Record<string, string> = {
   'Indicative|Conditional': 'conditional',
   'Subjunctive|Present': 'present-subjunctive',
   'Subjunctive|Imperfect': 'imperfect-subjunctive',
+  'Subjunctive|Present Perfect': 'perfect-subjunctive',
+  'Subjunctive|Past Perfect': 'pluperfect-subjunctive',
   'Imperative Affirmative|Present': 'imperative',
   'Indicative|Present Perfect': 'present-perfect',
   'Indicative|Past Perfect': 'pluperfect',
@@ -305,7 +307,8 @@ const REFLEXIVE_PRONOUNS_BY_PERSON = ['me', 'te', 'se', 'nos', 'os', 'se']
 // The exact tense order used in the compact conjugation format
 const TENSE_ORDER = [
   'present', 'preterite', 'imperfect', 'future', 'conditional',
-  'present-subjunctive', 'imperfect-subjunctive', 'imperative', 'negative-imperative',
+  'present-subjunctive', 'imperfect-subjunctive', 'perfect-subjunctive', 'pluperfect-subjunctive',
+  'imperative', 'negative-imperative',
   'present-perfect', 'pluperfect', 'future-perfect', 'conditional-perfect',
   'present-progressive', 'preterite-progressive', 'imperfect-progressive', 'future-progressive',
   'poder-present', 'deber-present',

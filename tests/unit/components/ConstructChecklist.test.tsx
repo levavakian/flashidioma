@@ -91,6 +91,22 @@ describe('ConstructChecklist', () => {
     expect(updatedDeck!.constructChecklist.present).toBe(false)
   })
 
+  it('renders the perfect subjunctive constructs unchecked by default', () => {
+    const onUpdate = vi.fn()
+    render(<ConstructChecklist deck={deck} onUpdate={onUpdate} />)
+
+    expect(
+      screen.getByRole('checkbox', {
+        name: /^Perfect Subjunctive\s*-\s*Completed actions in subjunctive contexts/,
+      })
+    ).not.toBeChecked()
+    expect(
+      screen.getByRole('checkbox', {
+        name: /^Pluperfect Subjunctive\s*-\s*Contrary-to-fact completed past actions/,
+      })
+    ).not.toBeChecked()
+  })
+
   it('renders the preterite progressive construct', () => {
     const onUpdate = vi.fn()
     render(<ConstructChecklist deck={deck} onUpdate={onUpdate} />)
